@@ -32,6 +32,59 @@ invalid_vocabs = (
 )
 
 
+def resolve_training_notes_path():
+    repo_data_dir = data_directory.parent.parent / "data"
+    candidates = [
+        raw_directory / "mimic-iv_notes_training_set.csv",
+        raw_directory / "train_notes.csv",
+        repo_data_dir / "mimic-iv_notes_training_set.csv",
+        repo_data_dir / "train_notes.csv",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+def resolve_training_annotations_path():
+    repo_data_dir = data_directory.parent.parent / "data"
+    candidates = [
+        raw_directory / "train_annotations.csv",
+        repo_data_dir / "train_annotations.csv",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+def resolve_snomed_release_dir(preferred: Path):
+    if preferred.exists():
+        return preferred
+    for candidate in raw_directory.glob("SnomedCT_*/Snapshot/Terminology/sct2_Concept_Snapshot_INT_*.txt"):
+        return candidate.parents[2]
+    repo_data_dir = data_directory.parent.parent / "data"
+    for candidate in repo_data_dir.glob("SnomedCT_*/Snapshot/Terminology/sct2_Concept_Snapshot_INT_*.txt"):
+        return candidate.parents[2]
+    return preferred
+
+
+def resolve_snapshot_file(terminology_dir: Path, pattern: str) -> Path:
+    matches = sorted(terminology_dir.glob(pattern))
+    if not matches:
+        raise FileNotFoundError(f"Missing SNOMED snapshot file: {terminology_dir / pattern}")
+    return matches[-1]
+
+
+def resolve_terminology_dir(data_path: Path) -> Path:
+    if data_path.name.lower() == "terminology":
+        return data_path
+    candidate = data_path / "Snapshot" / "Terminology"
+    if candidate.exists():
+        return candidate
+    return data_path
+
+
 def load_snomed_ct(data_path: Path):
     """
     Create a SNOMED CT concept DataFrame.
@@ -48,12 +101,13 @@ def load_snomed_ct(data_path: Path):
             df = pd.DataFrame(entities[1:], columns=entities[0])
         return df[df.active == "1"]
 
-    active_terms = _read_file_and_subset_to_active(
-        data_path / "sct2_Concept_Snapshot_INT_20230531.txt"
+    terminology_dir = resolve_terminology_dir(data_path)
+    concept_path = resolve_snapshot_file(terminology_dir, "sct2_Concept_Snapshot_INT_*.txt")
+    desc_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Description_Snapshot-en_INT_*.txt"
     )
-    active_descs = _read_file_and_subset_to_active(
-        data_path / "sct2_Description_Snapshot-en_INT_20230531.txt"
-    )
+    active_terms = _read_file_and_subset_to_active(concept_path)
+    active_descs = _read_file_and_subset_to_active(desc_path)
 
     df = pd.merge(active_terms, active_descs, left_on=["id"], right_on=["conceptId"], how="inner")[
         ["id_x", "term", "typeId"]
@@ -80,7 +134,7 @@ def make_flattened_terminology(
     output_path: Path = interim_directory / "flattened_terminology.csv",
 ):
     # unzip the terminology provided on the data download page and specify the path to the folder here
-    snomed_rf2_path = Path(snomed_ct_directory)
+    snomed_rf2_path = resolve_snomed_release_dir(Path(snomed_ct_directory))
 
     # load the SNOMED release
     df = load_snomed_ct(snomed_rf2_path / "Snapshot" / "Terminology")
@@ -119,12 +173,32 @@ def make_clean_annotations():
         interim_directory / "flattened_terminology.csv", usecols=["concept_id", "concept_name"]
     )
     snomed = snomed.drop_duplicates("concept_id").set_index("concept_id")["concept_name"]
-    texts = pd.read_csv(raw_directory / "mimic-iv_notes_training_set.csv").set_index("note_id")[
-        "text"
-    ]
+    texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
 
-    annotations = pd.read_csv(raw_directory / "train_annotations.csv")
-    logger.info(f"""Loaded {len(annotations):,} from {raw_directory / "train_annotations.csv"}""")
+    annotations_path = resolve_training_annotations_path()
+    annotations = pd.read_csv(annotations_path)
+    logger.info(f"""Loaded {len(annotations):,} from {annotations_path}""")
+    annotations["start"] = pd.to_numeric(annotations["start"], errors="coerce")
+    annotations["end"] = pd.to_numeric(annotations["end"], errors="coerce")
+    bad_spans = annotations["start"].isna() | annotations["end"].isna()
+    if bad_spans.any():
+        logger.warning(f"Dropping {bad_spans.sum():,} annotations with invalid spans.")
+        annotations = annotations.loc[~bad_spans].copy()
+    annotations["start"] = annotations["start"].astype(int)
+    annotations["end"] = annotations["end"].astype(int)
+    annotations["concept_id"] = pd.to_numeric(annotations["concept_id"], errors="coerce")
+    bad_concepts = annotations["concept_id"].isna()
+    if bad_concepts.any():
+        logger.warning(f"Dropping {bad_concepts.sum():,} annotations with invalid concept_id.")
+        annotations = annotations.loc[~bad_concepts].copy()
+    annotations["concept_id"] = annotations["concept_id"].astype(int)
+
+    missing_concepts = ~annotations["concept_id"].isin(snomed.index)
+    if missing_concepts.any():
+        logger.warning(
+            f"Dropping {missing_concepts.sum():,} annotations with concept_id not in filtered SNOMED set."
+        )
+        annotations = annotations.loc[~missing_concepts].copy()
 
     annotations["source"] = [
         texts[annotations.loc[i, "note_id"]][
@@ -137,20 +211,25 @@ def make_clean_annotations():
         snomed[annotations.loc[i, "concept_id"]] for i in annotations.index
     ]
 
-    annotations["source"] = [" ".join(s.split()) for s in annotations["source"]]
+    annotations["source"] = [" ".join(str(s).split()) for s in annotations["source"]]
+    empty_source = (
+        annotations["source"].str.strip().eq("")
+        | annotations["source"].str.strip().str.lower().eq("nan")
+    )
+    if empty_source.any():
+        logger.warning(f"Dropping {empty_source.sum():,} annotations with empty source text.")
+        annotations = annotations.loc[~empty_source].copy()
     output_path = interim_directory / "train_annotations_cln.csv"
     logger.info(f"Saving {len(annotations):,} cleaned annotations to {output_path}")
     annotations.to_csv(output_path, index=False)
 
 
 def get_snomed_ct_synonyms(snomed_ct_directory: Path, flattened_path: Path):
-    descriptions = pd.read_csv(
-        Path(snomed_ct_directory)
-        / "Snapshot"
-        / "Terminology"
-        / "sct2_Description_Snapshot-en_INT_20230531.txt",
-        sep="\t",
+    terminology_dir = Path(snomed_ct_directory) / "Snapshot" / "Terminology"
+    desc_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Description_Snapshot-en_INT_*.txt"
     )
+    descriptions = pd.read_csv(desc_path, sep="\t")
 
     flattened = pd.read_csv(flattened_path)
 
@@ -175,7 +254,7 @@ def make_synonyms(
     output_path: Path = interim_directory / "flattened_terminology_syn_snomed+omop_v5.csv",
 ):
     athena_directory = Path(athena_directory)
-    snomed_ct_directory = Path(snomed_ct_directory)
+    snomed_ct_directory = resolve_snomed_release_dir(Path(snomed_ct_directory))
     flattened_path = Path(flattened_path)
     output_path = Path(output_path)
 
@@ -223,7 +302,11 @@ def make_synonyms(
         .rename(columns={"concept_code": "concept_id"})
     )
 
-    athena_synonyms["concept_id"] = athena_synonyms.concept_id.astype(int)
+    athena_synonyms["concept_id"] = pd.to_numeric(
+        athena_synonyms["concept_id"], errors="coerce"
+    )
+    athena_synonyms = athena_synonyms.loc[athena_synonyms["concept_id"].notna()].copy()
+    athena_synonyms["concept_id"] = athena_synonyms["concept_id"].astype("int64")
     athena_synonyms.sort_values("concept_id", inplace=True)
     logger.debug(f"Loaded {len(athena_synonyms):,} synonyms from Athena.")
 
@@ -265,24 +348,24 @@ def make_abbreviations():
     abbr_meanings = abbr.Meaning.tolist()
     snomed_concept_names = snomed.concept_name.tolist()
 
+    exact_map = {}
+    paren_map = {}
+    for concept_name in snomed_concept_names:
+        concept_lower = str(concept_name).lower()
+        exact_map.setdefault(concept_lower, concept_name)
+        if " (" in concept_lower:
+            split = concept_lower.split(" (")
+            if len(split) == 2 and len(split[1]) <= 10:
+                paren_map.setdefault(split[0], concept_name)
+
     snomed_to_abbr = []
     logger.info(f"Processing {len(abbr_meanings):,} meanings...")
     for abbr_meaning in abbr_meanings:
-        for concept_name in snomed_concept_names:
-            if str(abbr_meaning).lower() == str(concept_name).lower():
-                snomed_to_abbr.append([concept_name, abbr_meaning])
-                break
-            elif str(abbr_meaning).lower() == str(concept_name).lower().split(" (")[0]:
-                if (
-                    len(str(concept_name).lower().split(" (")[-1]) <= 10
-                    and len(str(concept_name).lower().split(" (")) <= 2
-                ):
-                    snomed_to_abbr.append([concept_name, abbr_meaning])
-                    break
-                else:
-                    continue
-            else:
-                continue
+        abbr_lower = str(abbr_meaning).lower()
+        if abbr_lower in exact_map:
+            snomed_to_abbr.append([exact_map[abbr_lower], abbr_meaning])
+        elif abbr_lower in paren_map:
+            snomed_to_abbr.append([paren_map[abbr_lower], abbr_meaning])
 
     snomed_to_abbr_df = pd.DataFrame(snomed_to_abbr, columns=["concept_name", "Meaning"])
     snomed_to_abbr_df = snomed_to_abbr_df.merge(
@@ -305,9 +388,7 @@ def make_abbr_dict():
     abbr = abbr[abbr["Abbreviation/Shorthand"].str.len() > 3].drop_duplicates(
         "Abbreviation/Shorthand", keep="first"
     )
-    texts = pd.read_csv(raw_directory / "mimic-iv_notes_training_set.csv").set_index("note_id")[
-        "text"
-    ]
+    texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
     annotations = pd.read_csv(interim_directory / "train_annotations_cln.csv")
     abbr_dict = {("any", k): v for k, v in abbr[["Abbreviation/Shorthand", "concept_id"]].values}
 
@@ -325,21 +406,24 @@ def make_abbr_dict():
 @app.command()
 def make_term_extension():
     logger.info("Loading SNOMED CT relationships, descriptions, and flattened terminology...")
-    relationships = pd.read_csv(
+    snomed_dir = resolve_snomed_release_dir(
         raw_directory
         / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition"
-        / "Snapshot"
-        / "Terminology"
-        / "sct2_Relationship_Snapshot_INT_20230531.txt",
+    )
+    terminology_dir = snomed_dir / "Snapshot" / "Terminology"
+    relationships_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Relationship_Snapshot_INT_*.txt"
+    )
+    descriptions_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Description_Snapshot-en_INT_*.txt"
+    )
+    relationships = pd.read_csv(
+        relationships_path,
         dtype={"sourceId": int, "typeId": int, "destinationId": int},
         sep="\t",
     )
     descriptions = pd.read_csv(
-        raw_directory
-        / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition"
-        / "Snapshot"
-        / "Terminology"
-        / "sct2_Description_Snapshot-en_INT_20230531.txt",
+        descriptions_path,
         sep="\t",
         dtype={"conceptId": int, "typeId": int, "active": int},
         quoting=csv.QUOTE_NONE,
@@ -419,16 +503,27 @@ def make_term_extension():
     logger.info(
         f"""Saving {len(res):,} term extensions to {interim_directory / "term_extension.csv"}"""
     )
-    pd.DataFrame(res).to_csv(interim_directory / "term_extension.csv", index=False)
+    pd.DataFrame(
+        res,
+        columns=[
+            "generalId",
+            "generalName",
+            "specificId",
+            "specificName",
+            "typeName",
+            "additionalWord",
+        ],
+    ).to_csv(interim_directory / "term_extension.csv", index=False)
 
 
 @app.command()
 def make_unigrams():
-    discharge = pd.read_csv(raw_directory / "discharge.csv.gz", usecols=["text"])
-
-    text = "\n".join(discharge["text"]).lower()
-    all_text = " ".join(text.split())
-    text_counter = Counter(all_text.split())
+    text_counter = Counter()
+    for chunk in pd.read_csv(
+        raw_directory / "discharge.csv.gz", usecols=["text"], chunksize=5000
+    ):
+        for text in chunk["text"].astype(str):
+            text_counter.update(text.lower().split())
 
     th = 20_000
     snomed_syns, sno_fsn, z_ = get_snomed_synonyms(min_len=1, max_len=1, fsn_only=True)

@@ -47,6 +47,24 @@ if len(sys.argv) > 1:
 if len(sys.argv) > 2:
     ANNOTATIONS_PATH = sys.argv[2]
 
+repo_data_root = os.path.join(os.path.dirname(PROGRAM_PATH), "data")
+if not os.path.exists(NOTES_PATH):
+    alt_notes = os.path.join(PROGRAM_PATH, "data", "train_notes.csv")
+    if os.path.exists(alt_notes):
+        NOTES_PATH = alt_notes
+    else:
+        alt_notes = os.path.join(repo_data_root, "train_notes.csv")
+        if os.path.exists(alt_notes):
+            NOTES_PATH = alt_notes
+if not os.path.exists(ANNOTATIONS_PATH):
+    alt_annotations = os.path.join(PROGRAM_PATH, "data", "train_annotations.csv")
+    if os.path.exists(alt_annotations):
+        ANNOTATIONS_PATH = alt_annotations
+    else:
+        alt_annotations = os.path.join(repo_data_root, "train_annotations.csv")
+        if os.path.exists(alt_annotations):
+            ANNOTATIONS_PATH = alt_annotations
+
 model_id = "models/mistralai_Mistral-7B-Instruct-v0.2"
 # The third element of sys.argv is the base model_id path or name
 if len(sys.argv) > 3:

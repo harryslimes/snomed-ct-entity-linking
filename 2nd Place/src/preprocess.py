@@ -19,6 +19,22 @@ ProcId = 71388002
 FindId = 404684003
 
 
+def resolve_existing_path(*candidates):
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            return candidate
+    return None
+
+
+def resolve_snomed_release_dir(preferred: Path, search_roots):
+    if preferred.exists():
+        return preferred
+    for root in search_roots:
+        for candidate in root.glob("SnomedCT_*/Snapshot/Terminology/sct2_Relationship_Snapshot_INT_*.txt"):
+            return candidate.parents[2]
+    return preferred
+
+
 def get_syn(class_id, SG: SnomedGraph):
     allc = SG.get_descendants(class_id)
     res = {a.sctid: a.synonyms for a in list(allc)}
@@ -63,17 +79,31 @@ if __name__ == "__main__":
         TRAIN_ANNOTAIONS_PATH = ROOT_DIR / "preprocess_data" / "splits" / "train_ann_split_0.csv"
         STATIC_DICT_PATH = ROOT_DIR / "preprocess_data" / "most_common_concept_val_0.pkl"
     else:
-        RAW_TRAIN_NOTES_PATH = ROOT_DIR / "competition_data" / "mimic-iv_notes_training_set.csv"
-        RAW_TRAIN_ANNOTAIONS_PATH = ROOT_DIR / "competition_data" / "train_annotations.csv"
+        RAW_TRAIN_NOTES_PATH = resolve_existing_path(
+            ROOT_DIR / "competition_data" / "mimic-iv_notes_training_set.csv",
+            ROOT_DIR / "competition_data" / "train_notes.csv",
+            root.parent / "data" / "mimic-iv_notes_training_set.csv",
+            root.parent / "data" / "train_notes.csv",
+        )
+        RAW_TRAIN_ANNOTAIONS_PATH = resolve_existing_path(
+            ROOT_DIR / "competition_data" / "train_annotations.csv",
+            root.parent / "data" / "train_annotations.csv",
+        )
+        if RAW_TRAIN_NOTES_PATH is None or RAW_TRAIN_ANNOTAIONS_PATH is None:
+            raise FileNotFoundError(
+                "Missing training data. Expected train_notes.csv or "
+                "mimic-iv_notes_training_set.csv, plus train_annotations.csv."
+            )
         TRAIN_NOTES_PATH = ROOT_DIR / "competition_data" / "cutmed_notes.csv"
         TRAIN_ANNOTAIONS_PATH = ROOT_DIR / "competition_data" / "cutmed_fixed_train_annotations.csv"
         STATIC_DICT_PATH = ROOT_DIR / "preprocess_data" / "most_common_concept.pkl"
 
     SPLIT_PATH = ROOT_DIR / "preprocess_data" / "splits"
-    SNOMED_GRAPH_RF2_DIR = (
+    SNOMED_GRAPH_RF2_DIR = resolve_snomed_release_dir(
         ROOT_DIR
         / "competition_data"
-        / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition"
+        / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition",
+        [ROOT_DIR / "competition_data", root.parent / "data"],
     )
     SNOMED_GRAPH_RF2_SERIALIZED = ROOT_DIR / "competition_data" / "graph.gml"
 

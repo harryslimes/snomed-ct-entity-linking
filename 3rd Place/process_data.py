@@ -7,6 +7,37 @@ app = typer.Typer()
 root_directory = Path(__file__).parent
 
 
+def resolve_snomed_release_dir(preferred: Path):
+    if preferred.exists():
+        return preferred
+    for candidate in (root_directory / "data").glob(
+        "SnomedCT_*/Snapshot/Terminology/sct2_Concept_Snapshot_INT_*.txt"
+    ):
+        return candidate.parents[2]
+    repo_data_dir = root_directory.parent / "data"
+    for candidate in repo_data_dir.glob(
+        "SnomedCT_*/Snapshot/Terminology/sct2_Concept_Snapshot_INT_*.txt"
+    ):
+        return candidate.parents[2]
+    return preferred
+
+
+def resolve_snapshot_file(terminology_dir: Path, pattern: str) -> Path:
+    matches = sorted(terminology_dir.glob(pattern))
+    if not matches:
+        raise FileNotFoundError(f"Missing SNOMED snapshot file: {terminology_dir / pattern}")
+    return matches[-1]
+
+
+def resolve_terminology_dir(data_path: Path) -> Path:
+    if data_path.name.lower() == "terminology":
+        return data_path
+    candidate = data_path / "Snapshot" / "Terminology"
+    if candidate.exists():
+        return candidate
+    return data_path
+
+
 def load_snomed_ct(data_path: Path):
     """
     Create a SNOMED CT concept DataFrame.
@@ -23,12 +54,13 @@ def load_snomed_ct(data_path: Path):
             df = pd.DataFrame(entities[1:], columns=entities[0])
         return df[df.active == "1"]
 
-    active_terms = _read_file_and_subset_to_active(
-        data_path / "sct2_Concept_Snapshot_INT_20230531.txt"
+    terminology_dir = resolve_terminology_dir(data_path)
+    concept_path = resolve_snapshot_file(terminology_dir, "sct2_Concept_Snapshot_INT_*.txt")
+    desc_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Description_Snapshot-en_INT_*.txt"
     )
-    active_descs = _read_file_and_subset_to_active(
-        data_path / "sct2_Description_Snapshot-en_INT_20230531.txt"
-    )
+    active_terms = _read_file_and_subset_to_active(concept_path)
+    active_descs = _read_file_and_subset_to_active(desc_path)
 
     df = pd.merge(active_terms, active_descs, left_on=["id"], right_on=["conceptId"], how="inner")[
         ["id_x", "term", "typeId"]
@@ -57,7 +89,7 @@ def make_flattened_terminology(
     output_path: Path = root_directory / "assets" / "dataflattened_terminology.csv",
 ):
     # unzip the terminology provided on the data download page and specify the path to the folder here
-    snomed_rf2_path = Path(snomed_ct_directory)
+    snomed_rf2_path = resolve_snomed_release_dir(Path(snomed_ct_directory))
 
     # load the SNOMED release
     df = load_snomed_ct(snomed_rf2_path / "Snapshot" / "Terminology")
@@ -100,6 +132,11 @@ def generate_sct_dictionary(
     flattened_terminology_path: Path = root_directory / "assets" / "dataflattened_terminology.csv",
     output_path: Path = root_directory / "assets" / "newdict_snomed.txt",
 ):
+    snapshot_root = resolve_snomed_release_dir(snapshot_path.parents[2])
+    terminology_dir = snapshot_root / "Snapshot" / "Terminology"
+    snapshot_path = resolve_snapshot_file(
+        terminology_dir, "sct2_Description_Snapshot-en_INT_*.txt"
+    )
     logger.info(
         f"Generating SNOMED-CT dictionary from {snapshot_path} and {flattened_terminology_path} and writing result to {output_path}"
     )

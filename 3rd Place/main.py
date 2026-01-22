@@ -60,6 +60,11 @@ def main(
     model_path_cache = None
     model_path_faiss_cache = None
 
+    if not os.path.exists(NOTES_PATH):
+        alt_notes = os.path.join(os.path.dirname(PROGRAM_PATH), "data", "test_notes.csv")
+        if os.path.exists(alt_notes):
+            NOTES_PATH = alt_notes
+
     lora_merge.merge_lora(base_model_path, model_path_peft, model_path)
     lora_merge.merge_lora(base_model_path, model_path_2_peft, model_path_2)
     lora_merge.merge_lora(

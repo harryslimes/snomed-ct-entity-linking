@@ -1,0 +1,29 @@
+# Local data (do not commit)
+data/
+outputs/
+
+# Winner-generated artifacts
+1st Place/data/
+1st Place/debug/
+1st Place/submission/
+
+2nd Place/data/
+2nd Place/build/
+2nd Place/src/*.egg-info/
+
+3rd Place/data
+3rd Place/data/
+3rd Place/models/
+3rd Place/assets/dataflattened_terminology.csv
+3rd Place/assets/newdict_snomed*.txt
+3rd Place/assets/faiss_index_*
+
+# Python caches
+**/__pycache__/
+**/*.pyc
+
+# Local devcontainer overrides
+.devcontainer/
+
+# Windows download metadata
+*Zone.Identifier

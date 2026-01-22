@@ -26,6 +26,20 @@ data_directory = Path(__file__).parent.parent / "data"
 src_directory = Path(__file__).parent
 
 
+def resolve_training_notes_path():
+    repo_data_dir = data_directory.parent.parent / "data"
+    candidates = [
+        data_directory / "raw" / "mimic-iv_notes_training_set.csv",
+        data_directory / "raw" / "train_notes.csv",
+        repo_data_dir / "mimic-iv_notes_training_set.csv",
+        repo_data_dir / "train_notes.csv",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
 def mimic_train_test(
     texts=None,
     annotations=None,
@@ -35,11 +49,12 @@ def mimic_train_test(
     headers=common_headers,
 ):
     if texts is None:
-        texts = pd.read_csv(data_directory / "raw" / "mimic-iv_notes_training_set.csv").set_index(
-            "note_id"
-        )["text"]
+        texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
     if annotations is None:
-        annotations = pd.read_csv(data_directory / "interim" / "train_annotations_cln.csv")
+        annotations = pd.read_csv(
+            data_directory / "interim" / "train_annotations_cln.csv",
+            keep_default_na=False,
+        )
 
     np.random.seed(12345)
     ids = list(texts.index)
@@ -60,11 +75,12 @@ def cross_validation(
     texts=None, annotations=None, n_folds=5, run_name="cv", headers=common_headers
 ):
     if texts is None:
-        texts = pd.read_csv(data_directory / "raw" / "mimic-iv_notes_training_set.csv").set_index(
-            "note_id"
-        )["text"]
+        texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
     if annotations is None:
-        annotations = pd.read_csv(data_directory / "interim" / "train_annotations_cln.csv")
+        annotations = pd.read_csv(
+            data_directory / "interim" / "train_annotations_cln.csv",
+            keep_default_na=False,
+        )
 
     np.random.seed(123456)
     ids = list(texts.index)
@@ -100,11 +116,12 @@ def do_train_test(texts, annotations, headers, run_name, train_ids, test_ids):
 
 def do_predict(d, uc_d={}, texts=None, annotations=None, test_size=54, run_name="default"):
     if texts is None:
-        texts = pd.read_csv(data_directory / "raw" / "mimic-iv_notes_training_set.csv").set_index(
-            "note_id"
-        )["text"]
+        texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
     if annotations is None:
-        annotations = pd.read_csv(data_directory / "intermi" / "train_annotations_cln.csv")
+        annotations = pd.read_csv(
+            data_directory / "intermi" / "train_annotations_cln.csv",
+            keep_default_na=False,
+        )
 
     np.random.seed(12345)
     ids = list(texts.index)
@@ -132,10 +149,11 @@ def make_submission(submission_number="", no_check=False, submission_path: Optio
         print(f"{submission_path} does not exist")
         return None
 
-    texts = pd.read_csv(data_directory / "raw" / "mimic-iv_notes_training_set.csv").set_index(
-        "note_id"
-    )["text"]
-    annotations = pd.read_csv(data_directory / "interim" / "train_annotations_cln.csv")
+    texts = pd.read_csv(resolve_training_notes_path()).set_index("note_id")["text"]
+    annotations = pd.read_csv(
+        data_directory / "interim" / "train_annotations_cln.csv",
+        keep_default_na=False,
+    )
     kiri_dicts = make_kiri_dicts(texts, annotations, submission_path)
     print("size of dict", len(kiri_dicts[0]), len(kiri_dicts[1]), " (should be around 1M)")
     shutil.copyfile(src_directory / "mimic_submission_main.py", submission_path / "main.py")
