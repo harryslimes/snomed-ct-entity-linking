@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 import torch
 import torch.nn.functional as F
 from tqdm.auto import tqdm
@@ -10,13 +12,17 @@ class SepBERTEmbedder:
     def __init__(self, cuda: bool = True):
         self.tokenizer = AutoTokenizer.from_pretrained(self.name)
         self.model = AutoModel.from_pretrained(self.name)
-        self.cuda = cuda
+        self.cuda = bool(cuda and torch.cuda.is_available())
         if self.cuda:
             self.model = self.model.cuda()
 
     def __call__(self, sentences):
         bs = 256
         all_embs = []
+        device = next(self.model.parameters()).device
+        amp_ctx = (
+            torch.amp.autocast(device_type="cuda") if device.type == "cuda" else nullcontext()
+        )
         for i in torch.arange(0, len(sentences), bs):
             toks = self.tokenizer.batch_encode_plus(
                 sentences[i : i + bs],
@@ -25,11 +31,9 @@ class SepBERTEmbedder:
                 truncation=True,
                 return_tensors="pt",
             )
-            toks_cuda = {}
-            for k, v in toks.items():
-                toks_cuda[k] = v.cuda()
-            with torch.no_grad(), torch.cuda.amp.autocast():
-                cls_rep = self.model(**toks_cuda)[0].mean(1)
+            toks_dev = {k: v.to(device) for k, v in toks.items()}
+            with torch.no_grad(), amp_ctx:
+                cls_rep = self.model(**toks_dev)[0].mean(1)
                 all_embs.append(cls_rep)
         all_embs = torch.cat(all_embs, 0)
         all_embs = F.normalize(all_embs, p=2, dim=1)

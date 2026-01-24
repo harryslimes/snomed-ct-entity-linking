@@ -1,6 +1,5 @@
 # Base image: Python 3.12
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bullseye
-
+FROM nvcr.io/nvidia/pytorch:25.12-py3
 # --- Install uv ---
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -9,8 +8,29 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
     jq \
     iproute2 \
+    sudo \
     unzip \
+    && mkdir -p /etc/sudoers.d \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# --- Create the vscode user safely ---
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN if getent passwd $USER_UID >/dev/null; then \
+        EXISTING_USER=$(getent passwd $USER_UID | cut -d: -f1); \
+        usermod -l $USERNAME $EXISTING_USER; \
+        groupmod -n $USERNAME $(getent group $USER_GID | cut -d: -f1) || true; \
+        usermod -d /home/$USERNAME -m $USERNAME; \
+    else \
+        if ! getent group $USER_GID >/dev/null; then \
+            groupadd --gid $USER_GID $USERNAME; \
+        fi; \
+        useradd --uid $USER_UID --gid $USER_GID -m $USERNAME; \
+    fi \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # --- Install Node.js --- (Required by Claude Code)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \

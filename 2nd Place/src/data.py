@@ -21,7 +21,9 @@ def add_concept_class(ann_df, sctid_syn_dir: Path):
     p_cids = load_sctid_syn(Path(sctid_syn_dir) / "proc_sctid_syn.json")
     p_cids.add(71388002)
     f_cids = load_sctid_syn(Path(sctid_syn_dir) / "find_sctid_syn.json")
+    f_cids.add(404684003)
     b_cids = load_sctid_syn(Path(sctid_syn_dir) / "body_sctid_syn.json")
+    b_cids.add(123037004)
     snomed_class = []
     for i, r in ann_df.iterrows():
         cid = r.concept_id

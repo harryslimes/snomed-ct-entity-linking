@@ -9,7 +9,7 @@ def add_text(df: pd.DataFrame, notes_df: pd.DataFrame) -> pd.DataFrame:
     notes_dict = dict(zip(notes_df.note_id, notes_df.text))
     for i, row in df.iterrows():
         note = notes_dict[row.note_id]
-        df.loc[i, "text"] = note[row.start : row.end]
+        df.loc[i, "text"] = note[int(row.start) : int(row.end)]
     return df
 
 
@@ -17,7 +17,7 @@ def static_preprocess(text):
     t = text.lower()
     t = t.replace("\n", "")
     t = re.sub("[^a-z]", "", t)
-    t = re.sub("\s+", " ", t)
+    t = re.sub(r"\s+", " ", t)
     t = t.strip()
     return t
 

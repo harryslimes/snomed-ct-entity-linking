@@ -28,3 +28,65 @@ Additional solution details can be found in the `reports` folder inside the dire
 **Winners Blog Post: [Meet the winners of the SNOMED CT Entity Linking Challenge](https://drivendata.co/blog/snomed-ct-entity-linking-challenge-winners)**
 
 **Benchmark Blog Post: [SNOMED CT Entity Linking Challenge - Benchmark](https://drivendata.co/blog/snomed-ct-entity-linking-benchmark)**
+
+## Training + Scoring (2nd Place / SNOBERT)
+
+This repo includes the full SNOBERT training code under `2nd Place/`. Two helper scripts are provided:
+
+- Train + export a first-stage checkpoint: `scripts/train_2nd_place.py`
+- Run inference + compute macro-IoU score: `scripts/evaluate_2nd_place.py`
+
+Example workflow (from the repo root):
+
+```bash
+# Install deps (set TORCH_CPU=false if you want GPU training)
+TORCH_CPU=false ./install_requirements.sh
+
+# Preprocess + train a single-fold model (adjust epochs as desired)
+python scripts/train_2nd_place.py --split 0 --epochs 100
+
+# Score on the training data (defaults to cutmed training files if present)
+python scripts/evaluate_2nd_place.py --copy-submission
+```
+
+## Diagnostics
+
+After you have a scored eval JSON (e.g. `outputs/2nd_place_train_eval.json`) you can generate more detailed error reports:
+
+- Per-class IoU + SNOMED term lookup: `python scripts/per_class_iou_report.py --eval-json outputs/2nd_place_train_eval.json --data-dir data --limit 0 > outputs/per_class_iou_sorted.tsv`
+- Span-level alignment (mismatches + context): `python scripts/span_alignment_report.py --eval-json outputs/2nd_place_train_eval.json --data-dir data --only-mismatches --include-snippets --include-context > outputs/2nd_place_span_alignment.tsv`
+- Per-note, LLM-ready diagnosis records (JSONL): `python scripts/llm_note_diagnoser.py --entry 2nd --eval-json outputs/2nd_place_train_eval.json --output outputs/llm_note_diagnosis_2nd.jsonl`
+
+For 1st place, start with the smoke test (the full dictionary matcher can be very slow on the full train set):
+
+- Smoke eval JSON: `python scripts/evaluate_1st_place.py --make-smoke-test --output outputs/1st_place_smoke_eval.json`
+- Span-level alignment (like `2nd_place_span_alignment_v2.tsv`): `python scripts/span_alignment_report.py --eval-json outputs/1st_place_smoke_eval.json --data-dir data --only-mismatches --include-snippets --include-context > outputs/1st_place_smoke_span_alignment_v2.tsv`
+
+If you need more than 3 notes, run a small subset with `--note-limit` (this avoids the "full train set takes forever" trap):
+
+- Subset eval JSON: `python scripts/evaluate_1st_place.py --notes data/train_notes.csv --annotations data/train_annotations.csv --note-limit 25`
+- Subset span alignment: `python scripts/span_alignment_report.py --eval-json outputs/1st_place_train_n25_eval.json --data-dir data --only-mismatches --include-snippets --include-context > outputs/1st_place_train_n25_span_alignment_v2.tsv`
+
+To speed up 1st-place inference, the submission code supports a few environment variables:
+
+- `KIRI_INDEX=1` (default): enable dictionary prefiltering (big speedup); set `KIRI_INDEX=0` for the original behavior.
+- `KIRI_WORKERS=4`: parallelize over notes (Linux only; uses `fork`). Start with 4–8.
+- `KIRI_PROGRESS=1`: show a progress bar during submission-mode inference.
+
+### Batch LLM post-mortems (vLLM)
+
+To batch-generate rule-based correction guidance from an entry-specific diagnosis file (example model: MedGemma NVFP4):
+
+- Dry-run (just writes prompts): `python scripts/vllm_batch_rules.py --entry 2nd --dry-run --note-limit 5`
+- Run vLLM inference: `python scripts/vllm_batch_rules.py --entry 2nd --model medgemma-1.5-4b-it-nvfp4 --quantization modelopt_fp4`
+
+The output JSONL contains the raw model response plus a best-effort parsed JSON object with keys like `rule_based_instructions` and `ignorance_concepts`.
+This requires `vllm` + `transformers` installed; for NVFP4 checkpoints, vLLM expects `--quantization modelopt_fp4` (the script auto-selects this when the model name contains `nvfp4`).
+
+### RTX 5090 / `sm_120` note
+
+If you see errors like `no kernel image is available for execution on the device` (or a warning that your PyTorch build does not support `sm_120`), install a newer CUDA-enabled PyTorch wheel that includes `sm_120` support. One option on Windows is:
+
+```bash
+python -m pip install --upgrade --index-url https://download.pytorch.org/whl/cu126 torch torchvision torchaudio
+```

@@ -19,6 +19,18 @@ ProcId = 71388002
 FindId = 404684003
 
 
+def normalize_annotation_spans(annotation: pd.DataFrame) -> pd.DataFrame:
+    annotation = annotation.copy()
+    for col in ("start", "end"):
+        if col in annotation.columns:
+            annotation[col] = pd.to_numeric(annotation[col], errors="coerce")
+    annotation = annotation.dropna(subset=["start", "end"]).copy()
+    annotation["start"] = annotation["start"].astype(int)
+    annotation["end"] = annotation["end"].astype(int)
+    annotation = annotation[annotation["end"] > annotation["start"]].copy()
+    return annotation
+
+
 def resolve_existing_path(*candidates):
     for candidate in candidates:
         if candidate and candidate.exists():
@@ -67,6 +79,38 @@ def get_checkpoint(name: str, path: Path):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--val", action="store_true")
+    args.add_argument(
+        "--cpu",
+        action="store_true",
+        help="Run embedding generation on CPU (very slow; useful if CUDA is unavailable).",
+    )
+    args.add_argument(
+        "--snomed-rf2",
+        type=Path,
+        default=None,
+        help=(
+            "Path to the SNOMED CT RF2 release directory (must contain Snapshot/Terminology/*). "
+            "If omitted, a best-effort search is performed."
+        ),
+    )
+    args.add_argument(
+        "--include-inactive",
+        action="store_true",
+        help=(
+            "Include inactive concepts/descriptions/relationships when building the SNOMED graph. "
+            "Use this to match competition annotations that may reference retired concepts."
+        ),
+    )
+    args.add_argument(
+        "--force-graph",
+        action="store_true",
+        help="Rebuild the serialized SNOMED graph even if it already exists.",
+    )
+    args.add_argument(
+        "--force-sctid-syn",
+        action="store_true",
+        help="Regenerate proc/find/body sctid synonym JSONs even if they already exist.",
+    )
     args = args.parse_args()
 
     root = Path(__file__).parent.parent
@@ -99,12 +143,15 @@ if __name__ == "__main__":
         STATIC_DICT_PATH = ROOT_DIR / "preprocess_data" / "most_common_concept.pkl"
 
     SPLIT_PATH = ROOT_DIR / "preprocess_data" / "splits"
-    SNOMED_GRAPH_RF2_DIR = resolve_snomed_release_dir(
-        ROOT_DIR
-        / "competition_data"
-        / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition",
-        [ROOT_DIR / "competition_data", root.parent / "data"],
-    )
+    if args.snomed_rf2 is not None:
+        SNOMED_GRAPH_RF2_DIR = args.snomed_rf2
+    else:
+        SNOMED_GRAPH_RF2_DIR = resolve_snomed_release_dir(
+            ROOT_DIR
+            / "competition_data"
+            / "SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z_Challenge_Edition",
+            [ROOT_DIR / "competition_data", root.parent / "data"],
+        )
     SNOMED_GRAPH_RF2_SERIALIZED = ROOT_DIR / "competition_data" / "graph.gml"
 
     PROC_SCTID_SYN_PATH = ROOT_DIR / "preprocess_data" / "proc_sctid_syn.json"
@@ -120,8 +167,10 @@ if __name__ == "__main__":
     else:
         notes = pd.read_csv(RAW_TRAIN_NOTES_PATH)
         annotation = pd.read_csv(RAW_TRAIN_ANNOTAIONS_PATH)
+        annotation = normalize_annotation_spans(annotation)
         print(notes.shape, annotation.shape)
         notes, annotation = cut_headers(notes, annotation)
+        annotation = normalize_annotation_spans(annotation)
         print(notes.shape, annotation.shape)
         notes.to_csv(TRAIN_NOTES_PATH, index=False)
 
@@ -141,15 +190,32 @@ if __name__ == "__main__":
             val_ann_split.to_csv(SPLIT_PATH / f"val_ann_split_{n}.csv", index=False)
             train_ann_split = annotation[annotation.note_id.isin(train_note_split.note_id)]
             train_ann_split.to_csv(SPLIT_PATH / f"train_ann_split_{n}.csv", index=False)
-    if all(
-        [PROC_SCTID_SYN_PATH.exists(), FIND_SCTID_SYN_PATH.exists(), BODY_SCTID_SYN_PATH.exists()]
+    if (
+        not args.force_sctid_syn
+        and all(
+            [
+                PROC_SCTID_SYN_PATH.exists(),
+                FIND_SCTID_SYN_PATH.exists(),
+                BODY_SCTID_SYN_PATH.exists(),
+            ]
+        )
     ):
         logger.warning("sctid_syns already exist, skipping")
     else:
+        if args.force_graph and SNOMED_GRAPH_RF2_SERIALIZED.exists():
+            SNOMED_GRAPH_RF2_SERIALIZED.unlink()
         if not SNOMED_GRAPH_RF2_SERIALIZED.exists():
             assert SNOMED_GRAPH_RF2_DIR.exists(), f"{SNOMED_GRAPH_RF2_DIR} does not exist"
-            convert_snomed_rf2_to_serialized(SNOMED_GRAPH_RF2_DIR, SNOMED_GRAPH_RF2_SERIALIZED)
-        SG = SnomedGraph.from_serialized(SNOMED_GRAPH_RF2_SERIALIZED)
+            logger.info(
+                "Building SNOMED graph with "
+                + ("inactive rows included" if args.include_inactive else "active rows only")
+            )
+            SG = SnomedGraph.from_rf2(
+                str(SNOMED_GRAPH_RF2_DIR), active_only=not args.include_inactive
+            )
+            SG.save(str(SNOMED_GRAPH_RF2_SERIALIZED))
+            logger.info(f"serialized snomed graph saved to {SNOMED_GRAPH_RF2_SERIALIZED}")
+        SG = SnomedGraph.from_serialized(str(SNOMED_GRAPH_RF2_SERIALIZED))
         for path, concept_id in [
             (PROC_SCTID_SYN_PATH, ProcId),
             (FIND_SCTID_SYN_PATH, FindId),
@@ -164,6 +230,7 @@ if __name__ == "__main__":
     else:
         notes = pd.read_csv(TRAIN_NOTES_PATH)
         annotation = pd.read_csv(TRAIN_ANNOTAIONS_PATH)
+        annotation = normalize_annotation_spans(annotation)
         get_most_common_concept(STATIC_DICT_PATH, notes, annotation)
         logger.info(f"static_dict saved to {STATIC_DICT_PATH}")
     for path, name in SECOND_STAGE_MODELS.items():
@@ -172,7 +239,7 @@ if __name__ == "__main__":
         else:
             get_checkpoint(name, SECOND_STAGE_PATH / path)
 
-    cuda = True
+    cuda = torch.cuda.is_available() and not args.cpu
     embedders = [
         (SepBERTEmbedder(cuda), "sapbert", "sapbertmean"),
     ]

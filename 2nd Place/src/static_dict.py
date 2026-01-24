@@ -84,7 +84,7 @@ class StaticDict:
         t = t.replace("\n", " ")
         t = re.sub("[^a-z0-9]", " ", t)
         if not keep_len:
-            t = re.sub("\s+", " ", t)
+            t = re.sub(r"\s+", " ", t)
             t = t.strip()
         return t
 
@@ -104,7 +104,12 @@ class StaticDict:
         for note_id in tqdm(note_ids, desc="Processing notes", total=len(note_ids)):
             note = notes.loc[note_id].text
             for i, row in annotation[annotation.note_id == note_id].iterrows():
-                term = self.preprocess_text(note[row.start : row.end], keep_len=False)
+                try:
+                    start = int(row.start)
+                    end = int(row.end)
+                except (TypeError, ValueError):
+                    continue
+                term = self.preprocess_text(note[start:end], keep_len=False)
                 if term in self.ignore_term_list:
                     continue
                 concepts.append([note_id, row.concept_id, term])

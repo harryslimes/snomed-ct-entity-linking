@@ -48,6 +48,69 @@ internal_blacklist = [
 ]
 
 pattern_cache = {}
+_WORD_RE = re.compile(r"[A-Za-z0-9]+")
+# get_pattern() does NOT escape these, so treat mentions containing them as unsafe for
+# token-based prefiltering (they can change matching semantics).
+_UNSAFE_MENTION_RE = re.compile(r"[.^$?|\\\\]")
+
+
+class IndexedDict:
+    """
+    Lightweight prefilter to reduce the number of regex scans per note.
+
+    Preserves matching semantics by only prefiltering "safe" mentions using the
+    first two alphanumeric tokens. Mentions containing regex metacharacters that
+    get_pattern() doesn't escape are always evaluated.
+    """
+
+    def __init__(self, d: dict):
+        self._items = list(d.items())  # preserve original dict iteration order
+        self._bigram_index: dict[tuple[str, str], list[int]] = {}
+        self._unigram_index: dict[str, list[int]] = {}
+        self._always: list[int] = []
+
+        for idx, ((section, source_text), cid) in enumerate(self._items):
+            s = str(source_text)
+            if _UNSAFE_MENTION_RE.search(s):
+                self._always.append(idx)
+                continue
+
+            toks = _WORD_RE.findall(s.lower())
+            if not toks:
+                self._always.append(idx)
+                continue
+
+            if len(toks) >= 2:
+                self._bigram_index.setdefault((toks[0], toks[1]), []).append(idx)
+                # get_pattern() appends "s*" to the full pattern, so for 2-token mentions
+                # the 2nd token may appear with an extra trailing "s" in text (plural).
+                if len(toks) == 2:
+                    self._bigram_index.setdefault((toks[0], toks[1] + "s"), []).append(idx)
+            else:
+                self._unigram_index.setdefault(toks[0], []).append(idx)
+                # Same "s*" behavior for single-token mentions (e.g. wheeze -> wheezes).
+                self._unigram_index.setdefault(toks[0] + "s", []).append(idx)
+
+    def iter_items_for_text(self, text: str):
+        toks = _WORD_RE.findall(text.lower())
+        if not toks:
+            for idx in self._always:
+                yield self._items[idx]
+            return
+
+        bigrams = set(zip(toks, toks[1:], strict=False))
+        unigrams = set(toks)
+
+        idxs = set(self._always)
+        for bg in bigrams:
+            for idx in self._bigram_index.get(bg, []):
+                idxs.add(idx)
+        for u in unigrams:
+            for idx in self._unigram_index.get(u, []):
+                idxs.add(idx)
+
+        for idx in sorted(idxs):
+            yield self._items[idx]
 
 
 def get_pattern(s):
@@ -127,7 +190,11 @@ def add_break_lines(pos_header, text):
 def annotate_with_dict(text, d, headers, note_id, keep_overlaps=False):
     ann = pd.DataFrame(columns=["note_id", "start", "end", "concept_id", "section", "dict_entry"])
     h_positions, pos_header = get_sections(text, headers)
-    for (section, source_text), cid in d.items():
+    if isinstance(d, IndexedDict):
+        items_iter = d.iter_items_for_text(text)
+    else:
+        items_iter = d.items()
+    for (section, source_text), cid in items_iter:
 
         p = get_pattern(source_text)
         if p is None:

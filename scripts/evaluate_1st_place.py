@@ -158,7 +158,22 @@ def main():
     parser.add_argument("--notes", default=str(ROOT / "data" / "test_notes.csv"))
     parser.add_argument("--annotations", default=None)
     parser.add_argument("--make-smoke-test", action="store_true")
-    parser.add_argument("--output", default=str(ROOT / "outputs" / "1st_place_eval.json"))
+    default_output = str(ROOT / "outputs" / "1st_place_eval.json")
+    parser.add_argument("--output", default=default_output)
+    parser.add_argument(
+        "--tag",
+        default="",
+        help=(
+            "Optional tag used to name the copied submission CSV and (if --output is left at its default) the eval JSON. "
+            "If unset, a tag is inferred (e.g. smoke/train/test)."
+        ),
+    )
+    parser.add_argument(
+        "--note-limit",
+        type=int,
+        default=0,
+        help="If >0, only run inference on the first N notes (and filter annotations to those notes for scoring).",
+    )
     parser.add_argument("--submission-dir", default=str(ROOT / "1st Place" / "submission"))
     parser.add_argument("--rebuild", action="store_true")
     args = parser.parse_args()
@@ -177,6 +192,24 @@ def main():
             out_annotations=annotations_path,
         )
 
+    inferred_tag = args.tag
+    if not inferred_tag:
+        if args.make_smoke_test:
+            inferred_tag = "smoke"
+        else:
+            name = notes_path.name.lower()
+            if "train" in name:
+                inferred_tag = "train"
+            elif "test" in name:
+                inferred_tag = "test"
+            else:
+                inferred_tag = notes_path.stem
+    if args.note_limit and args.note_limit > 0:
+        inferred_tag = f"{inferred_tag}_n{args.note_limit}"
+
+    if args.output == default_output and inferred_tag:
+        args.output = str(ROOT / "outputs" / f"1st_place_{inferred_tag}_eval.json")
+
     ensure_submission_dir(submission_dir, rebuild=args.rebuild)
 
     if not notes_path.exists():
@@ -184,7 +217,22 @@ def main():
 
     dst_notes = submission_dir / "data" / "test_notes.csv"
     dst_notes.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(notes_path, dst_notes)
+    used_notes_path = notes_path
+    used_annotations_path = annotations_path
+    if args.note_limit and args.note_limit > 0:
+        ROOT.joinpath("outputs").mkdir(parents=True, exist_ok=True)
+        used_notes_path = ROOT / "outputs" / f"1st_place_{inferred_tag}_notes.csv"
+        notes_df = pd.read_csv(notes_path)
+        notes_df = notes_df.head(args.note_limit).copy()
+        used_note_ids = set(notes_df["note_id"].astype(str).tolist())
+        notes_df.to_csv(used_notes_path, index=False)
+        if annotations_path and annotations_path.exists():
+            used_annotations_path = ROOT / "outputs" / f"1st_place_{inferred_tag}_annotations.csv"
+            ann_df = pd.read_csv(annotations_path)
+            ann_df = ann_df[ann_df["note_id"].astype(str).isin(used_note_ids)].copy()
+            ann_df.to_csv(used_annotations_path, index=False)
+
+    shutil.copyfile(used_notes_path, dst_notes)
 
     run_cmd(["python", "main.py"], cwd=submission_dir)
 
@@ -193,29 +241,29 @@ def main():
         raise FileNotFoundError(f"Expected output not found: {pred_path}")
 
     ROOT.joinpath("outputs").mkdir(parents=True, exist_ok=True)
-    copied_pred_path = ROOT / "outputs" / "submission_1st_place.csv"
+    copied_pred_path = ROOT / "outputs" / f"submission_1st_place_{inferred_tag}.csv"
     shutil.copyfile(pred_path, copied_pred_path)
 
     result = {
         "timestamp_utc": datetime.now(tz=timezone.utc).isoformat(),
-        "notes_path": str(notes_path),
+        "notes_path": str(used_notes_path),
         "submission_csv": str(copied_pred_path),
     }
 
-    notes_df = pd.read_csv(notes_path)
+    notes_df = pd.read_csv(used_notes_path)
     result["n_notes"] = int(len(notes_df))
 
     pred_df = pd.read_csv(copied_pred_path)
     result["n_predictions"] = int(len(pred_df))
 
-    if annotations_path and annotations_path.exists():
-        gold_df = pd.read_csv(annotations_path)
+    if used_annotations_path and used_annotations_path.exists():
+        gold_df = pd.read_csv(used_annotations_path)
         score = score_macro_iou(pred_df, gold_df)
-        result["annotations_path"] = str(annotations_path)
+        result["annotations_path"] = str(used_annotations_path)
         result.update({k: v for k, v in score.items() if k != "per_class_iou"})
         result["per_class_iou"] = {str(k): v for k, v in score["per_class_iou"].items()}
     else:
-        result["annotations_path"] = str(annotations_path) if annotations_path else None
+        result["annotations_path"] = str(used_annotations_path) if used_annotations_path else None
         result["macro_iou"] = None
         result["n_classes"] = None
 

@@ -1,4 +1,5 @@
 import re
+from collections import deque
 from itertools import groupby
 from typing import Dict, Generator, List, Set, Tuple
 
@@ -44,12 +45,14 @@ class SnomedRelationship:
         group: int,
         type: str,
         type_id: str,
+        active: int = 1,
     ) -> None:
         self.src = src
         self.tgt = tgt
         self.group = group
         self.type = type
         self.type_id = type_id
+        self.active = active
 
     def __repr__(self):
         return f"[{self.src}] ---[{self.type}]---> [{self.tgt}]"
@@ -221,16 +224,25 @@ class SnomedGraph:
         Returns:
             A list containing the SCTIDs of all descendants.
         """
-        if steps_removed is None:
-            steps_removed = 99999
-        elif steps_removed <= 0:
+        if steps_removed is not None and steps_removed <= 0:
             raise AssertionError("steps_removed must be > 0 or None")
-        children = self.get_children(sctid)
-        descendants = set(children)
-        if steps_removed > 1:
-            for c in children:
-                descendants = descendants.union(self.get_descendants(c.sctid, steps_removed - 1))
-        return descendants
+        max_depth = steps_removed
+
+        visited: Set[int] = set()
+        q = deque([(sctid, 0)])
+        while q:
+            node, depth = q.popleft()
+            if max_depth is not None and depth >= max_depth:
+                continue
+            for child_id, _, attrs in self.G.in_edges(node, data=True):
+                if attrs.get("type_id") != SnomedGraph.is_a_relationship_typeId:
+                    continue
+                if child_id in visited:
+                    continue
+                visited.add(child_id)
+                q.append((child_id, depth + 1))
+
+        return set([self.get_concept_details(cid) for cid in visited])
 
     def get_ancestors(self, sctid: int, steps_removed: int = None) -> List[SnomedConceptDetails]:
         """
@@ -244,16 +256,27 @@ class SnomedGraph:
         Returns:
             A list containing the SCTIDs of all descendants.
         """
-        if steps_removed is None:
-            steps_removed = 99999
-        elif steps_removed <= 0:
+        if steps_removed is not None and steps_removed <= 0:
             raise AssertionError("steps_removed must be > 0 or None")
-        parents = self.get_parents(sctid)
-        ancestors = set(parents)
-        if steps_removed > 1:
-            for p in parents:
-                ancestors = ancestors.union(self.get_ancestors(p.sctid, steps_removed - 1))
-        return set([a for a in ancestors if not a.sctid == SnomedGraph.root_concept_id])
+        max_depth = steps_removed
+
+        visited: Set[int] = set()
+        q = deque([(sctid, 0)])
+        while q:
+            node, depth = q.popleft()
+            if max_depth is not None and depth >= max_depth:
+                continue
+            for _, parent_id, attrs in self.G.out_edges(node, data=True):
+                if attrs.get("type_id") != SnomedGraph.is_a_relationship_typeId:
+                    continue
+                if parent_id == SnomedGraph.root_concept_id:
+                    continue
+                if parent_id in visited:
+                    continue
+                visited.add(parent_id)
+                q.append((parent_id, depth + 1))
+
+        return set([self.get_concept_details(cid) for cid in visited])
 
     def get_neighbourhood(self, sctid: int, steps_removed: int = 1) -> List[SnomedConceptDetails]:
         """
@@ -371,12 +394,15 @@ class SnomedGraph:
         return SnomedGraph(G)
 
     @staticmethod
-    def from_rf2(path: str):
+    def from_rf2(path: str, *, active_only: bool = True):
         """
         Create a SnomedGraph from a SNOMED RF2 release path.
 
         Args:
             path: Path to RF2 release folder.
+            active_only: If True, keep only active concepts/descriptions/relationships (default).
+                         If False, include inactive rows as well (useful when annotations reference
+                         retired concepts).
         Returns:
             A SnomedGraph
         """
@@ -396,22 +422,32 @@ class SnomedGraph:
                 f"{path}/Snapshot/Terminology/sct2_Relationship_Snapshot_INT_{release_date}.txt",
                 delimiter="\t",
             )
-            relationships_df = relationships_df[relationships_df.active == 1]
+            if active_only:
+                relationships_df = relationships_df[relationships_df.active == 1]
+            else:
+                # Ensure active relationships override inactive ones when collapsing into a DiGraph.
+                relationships_df = relationships_df.sort_values("active")
 
             # Load concepts
             concepts_df = pd.read_csv(
                 f"{path}/Snapshot/Terminology/sct2_Description_Snapshot-en_INT_{release_date}.txt",
                 delimiter="\t",
             )
-            concepts_df = concepts_df[concepts_df.active == 1]
+            if active_only:
+                concepts_df = concepts_df[concepts_df.active == 1]
             concepts_df.set_index("conceptId", inplace=True)
 
             # Create relationships type lookup
-            relationship_types = concepts_df.loc[relationships_df.typeId.unique()]
-            relationship_types = relationship_types[
-                relationship_types.typeId == SnomedGraph.fsn_typeId
-            ]
-            relationship_types = relationship_types.term.to_dict()
+            type_ids = set(map(int, relationships_df.typeId.unique()))
+            rel_type_rows = concepts_df.loc[concepts_df.index.intersection(type_ids)]
+            rel_type_rows = rel_type_rows[rel_type_rows.typeId == SnomedGraph.fsn_typeId]
+            if not active_only:
+                # Prefer active FSNs when present, otherwise fall back to any FSN.
+                active_fsn = rel_type_rows[rel_type_rows.active == 1].term.to_dict()
+                all_fsn = rel_type_rows.term.to_dict()
+                relationship_types = {**all_fsn, **active_fsn}
+            else:
+                relationship_types = rel_type_rows.term.to_dict()
 
             # Initialise the graph
             n_concepts = concepts_df.shape[0]
@@ -424,29 +460,57 @@ class SnomedGraph:
             # Create relationships
             print("Creating Relationships...")
             for r in relationships_df.to_dict(orient="records"):
+                type_term = relationship_types.get(r["typeId"], str(r["typeId"]))
                 G.add_edge(
                     r["sourceId"],
                     r["destinationId"],
                     group=r["relationshipGroup"],
-                    type=relationship_types[r["typeId"]],
+                    type=type_term,
                     type_id=r["typeId"],
+                    active=r["active"],
                 )
 
             # Add concepts
             print("Adding Concepts...")
             for sctid, rows in concepts_df.groupby(concepts_df.index):
-                synonyms = [
-                    row.term for _, row in rows.iterrows() if row.typeId != SnomedGraph.fsn_typeId
-                ]
-                try:
-                    fsn = rows[rows.typeId == SnomedGraph.fsn_typeId].term.values[0]
-                except IndexError:
-                    fsn = synonyms[0]
-                    synonyms = synonyms[1:]
-                    print(f"Concept with SCTID {sctid} has no FSN. Using synonym '{fsn}' instead.")
+                fsn_rows = rows[rows.typeId == SnomedGraph.fsn_typeId]
+                syn_rows = rows[rows.typeId != SnomedGraph.fsn_typeId]
+                if not active_only:
+                    fsn = None
+                    fsn_active = fsn_rows[fsn_rows.active == 1]
+                    if len(fsn_active) > 0:
+                        fsn = fsn_active.term.values[0]
+                    elif len(fsn_rows) > 0:
+                        fsn = fsn_rows.term.values[0]
+                    syn_active = syn_rows[syn_rows.active == 1]
+                    if len(syn_active) > 0:
+                        synonyms = [row.term for _, row in syn_active.iterrows()]
+                    else:
+                        synonyms = [row.term for _, row in syn_rows.iterrows()]
+                else:
+                    synonyms = [row.term for _, row in syn_rows.iterrows()]
+                    fsn = fsn_rows.term.values[0] if len(fsn_rows) else None
+
+                if fsn is None:
+                    if synonyms:
+                        fsn = synonyms[0]
+                        synonyms = synonyms[1:]
+                        print(
+                            f"Concept with SCTID {sctid} has no FSN. Using synonym '{fsn}' instead."
+                        )
+                    else:
+                        fsn = str(sctid)
                 G.add_node(sctid, fsn=fsn, synonyms=synonyms)
 
-            # Remove isolates
+            # Ensure nodes introduced only by edges still have required attributes.
+            for sctid in list(G.nodes):
+                attrs = G.nodes[sctid]
+                if "fsn" not in attrs:
+                    G.nodes[sctid]["fsn"] = str(sctid)
+                if "synonyms" not in attrs:
+                    G.nodes[sctid]["synonyms"] = []
+
+            # Remove isolates (keeps graphs smaller; should not affect is-a traversal in practice).
             G.remove_nodes_from(list(nx.isolates(G)))
 
             # Initialise class

@@ -6,22 +6,70 @@ Created on Fri Feb 23 09:29:11 2024
 """
 
 import pickle
+import os
 from pathlib import Path
 
 import pandas as pd
-from mimic_common import annotate_with_dict, common_headers, remove_overlaps
+from mimic_common import IndexedDict, annotate_with_dict, common_headers, remove_overlaps
 from mimic_postprocess_attributes import postprocess_annotations
 from tqdm import tqdm
 
 data_directory = Path(__file__).parent.parent / "data"
 
 
+_GLOBAL_TEXTS = None
+_GLOBAL_HEADERS = None
+_GLOBAL_DICT = None
+
+
+def _annotate_one(note_id: str):
+    return annotate_with_dict(_GLOBAL_TEXTS[note_id], _GLOBAL_DICT, _GLOBAL_HEADERS, note_id)
+
+
 def predict(texts, headers, d, submission, run_name):
+    if submission and isinstance(d, dict):
+        if str(os.environ.get("KIRI_INDEX", "1")).lower() not in {"0", "false", "no"}:
+            d = IndexedDict(d)
+
+    progress = str(os.environ.get("KIRI_PROGRESS", "0")).lower() in {"1", "true", "yes"}
+    workers_raw = str(os.environ.get("KIRI_WORKERS", "0")).strip()
+    try:
+        workers = int(workers_raw) if workers_raw else 0
+    except Exception:
+        workers = 0
+    if workers <= 0:
+        workers = min(8, (os.cpu_count() or 1))
+
     pred = []
     if not submission:
         print("generating predictions")
-    for i in tqdm(texts.index, disable=submission):
-        pred.append(annotate_with_dict(texts[i], d, headers, i))
+    note_ids = list(texts.index)
+    if submission and workers > 1 and os.name == "posix":
+        global _GLOBAL_TEXTS, _GLOBAL_HEADERS, _GLOBAL_DICT
+        _GLOBAL_TEXTS = texts
+        _GLOBAL_HEADERS = headers
+        _GLOBAL_DICT = d
+
+        chunksize_raw = str(os.environ.get("KIRI_CHUNKSIZE", "")).strip()
+        try:
+            chunksize = int(chunksize_raw) if chunksize_raw else 1
+        except Exception:
+            chunksize = 1
+        if chunksize < 1:
+            chunksize = 1
+
+        import multiprocessing as mp
+
+        ctx = mp.get_context("fork")
+        it = note_ids
+        if progress:
+            it = tqdm(it, total=len(note_ids), disable=False)
+        with ctx.Pool(processes=workers) as pool:
+            for df in pool.imap(_annotate_one, note_ids, chunksize=chunksize):
+                pred.append(df)
+    else:
+        for i in tqdm(note_ids, disable=(submission and not progress)):
+            pred.append(annotate_with_dict(texts[i], d, headers, i))
     pred = pd.concat(pred)
     if not submission:
         pred.to_csv(f"../debug/{run_name}_pred.csv")
