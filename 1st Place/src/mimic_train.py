@@ -5,17 +5,21 @@ Created on Fri Feb 23 09:19:31 2024
 @author: Yonatan
 """
 
+import os
 import pickle
 from collections import Counter
 from itertools import permutations
 from pathlib import Path
+from time import perf_counter
 
 import pandas as pd
 from mimic_common import (
+    IndexedDict,
     annotate_with_dict,
     common_headers,
     get_header_by_pos,
     get_sections,
+    get_pattern,
     internal_blacklist,
 )
 from tqdm import tqdm
@@ -31,6 +35,10 @@ blacklist_thresh = 2000
 train_size = 150
 test_size = None
 words_counter = Counter()
+_CACHED_SNO_UNIGRAMS_3K = None
+_CACHED_SNO_UNIGRAMS_20K = None
+_CACHED_UC_MENTIONS = None
+_CACHED_UC_MENTIONS_SIG = None
 
 
 def get_blacklist():
@@ -63,9 +71,18 @@ def build_dict(text, text_annotations, headers, blacklist):
     return d
 
 
-def score_dict(text, ref, d, headers):
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def score_dict(text, ref, d, d_for_annot, headers):
     scores = {}
-    ann = annotate_with_dict(text, d, headers, None, keep_overlaps=True)
+    # `d` is used for lookup/membership. For faster matching, optionally wrap
+    # with `IndexedDict` (semantics-preserving prefilter) during annotation.
+    ann = annotate_with_dict(text, d_for_annot, headers, None, keep_overlaps=True)
     ann["start"] = ann["start"].astype(int)
     ann["end"] = ann["end"].astype(int)
     ann["concept_id"] = ann["concept_id"].astype(int)
@@ -84,6 +101,26 @@ def score_dict(text, ref, d, headers):
             print("key not in dict:", k)
 
     return scores, scores_counter
+
+
+_SCORE_TEXTS = None
+_SCORE_REFS = None
+_SCORE_D = None
+_SCORE_D_FOR_ANNOT = None
+_SCORE_HEADERS = None
+
+
+def _score_one(note_id: str):
+    return (
+        note_id,
+        score_dict(
+            _SCORE_TEXTS[note_id],
+            _SCORE_REFS[note_id],
+            _SCORE_D,
+            _SCORE_D_FOR_ANNOT,
+            _SCORE_HEADERS,
+        ),
+    )
 
 
 def compare_ref_pred(ref, ann):
@@ -153,9 +190,11 @@ def add_snomed_syn(d, c_id, c_name, min_len, max_len):
 
 
 def get_snomed_synonyms(min_len=snomed_min_len, max_len=snomed_max_len, fsn_only=False):
-    snomed_syns = pd.read_csv(
-        data_directory / "interim" / "flattened_terminology_syn_snomed+omop_v5.csv"
-    ).drop_duplicates("concept_name", keep="first")
+    synonyms_path = os.environ.get(
+        "KIRI_SYNONYMS_PATH",
+        str(data_directory / "interim" / "flattened_terminology_syn_snomed+omop_v5.csv"),
+    )
+    snomed_syns = pd.read_csv(synonyms_path).drop_duplicates("concept_name", keep="first")
 
     sno_fsn = (
         pd.read_csv(data_directory / "interim" / "flattened_terminology.csv")
@@ -347,34 +386,117 @@ def mock_train(texts, annotations, headers, run_name):
     scores_by_note = {}
     scores_by_mention = {}
     scores_counter = {}
-    print("scoring")
-    for i in tqdm(ids):
-        t, scores_counter[i] = score_dict(
-            texts[i], annotations.query(f'note_id == "{i}"'), d, headers
-        )
-        for k in t:
-            scores_by_mention.setdefault(k, []).extend(t[k])
-            for s in [1, -1]:
-                if s in t[k]:
-                    scores_by_note.setdefault(k, []).append(s)
+    print("scoring (training dict; used to remove bad keys)")
+    t0 = perf_counter()
+
+    refs = {
+        str(note_id): df[["start", "end", "concept_id", "source"]].copy()
+        for note_id, df in annotations[annotations["note_id"].isin(ids)].groupby("note_id", sort=False)
+    }
+
+    use_index = _env_bool("KIRI_TRAIN_INDEX", True)
+    d_for_annot = IndexedDict(d) if use_index else d
+
+    want_parallel = _env_bool("KIRI_TRAIN_PARALLEL", _env_bool("KIRI_PARALLEL", False))
+    workers = 1
+    if want_parallel and os.name == "posix":
+        raw = str(os.environ.get("KIRI_TRAIN_WORKERS", "")).strip()
+        if not raw:
+            # Back-compat / convenience: allow the more general env var to drive training too.
+            raw = str(os.environ.get("KIRI_WORKERS", "")).strip()
+        try:
+            workers = int(raw) if raw else min(8, (os.cpu_count() or 1))
+        except Exception:
+            workers = min(8, (os.cpu_count() or 1))
+        if workers < 1:
+            workers = 1
+
+    if want_parallel and workers > 1 and os.name == "posix":
+        chunksize_raw = str(os.environ.get("KIRI_TRAIN_CHUNKSIZE", "")).strip()
+        try:
+            chunksize = int(chunksize_raw) if chunksize_raw else 1
+        except Exception:
+            chunksize = 1
+        if chunksize < 1:
+            chunksize = 1
+
+        precompile = _env_bool("KIRI_TRAIN_PRECOMPILE", True)
+        log_cfg = _env_bool("KIRI_TRAIN_LOG", True)
+        if log_cfg:
+            print(
+                f"[train-score] notes={len(ids)} use_index={use_index} parallel={want_parallel} "
+                f"workers={workers} chunksize={chunksize} precompile={precompile}",
+                flush=True,
+            )
+
+        # Precompile regex patterns once in the parent so forked workers can
+        # share them via copy-on-write (avoids N workers recompiling the same patterns).
+        if precompile:
+            for mention in set(k[1] for k in d.keys()):
+                get_pattern(mention)
+
+        global _SCORE_TEXTS, _SCORE_REFS, _SCORE_D, _SCORE_D_FOR_ANNOT, _SCORE_HEADERS
+        _SCORE_TEXTS = texts
+        _SCORE_REFS = refs
+        _SCORE_D = d
+        _SCORE_D_FOR_ANNOT = d_for_annot
+        _SCORE_HEADERS = headers
+
+        import multiprocessing as mp
+
+        ctx = mp.get_context("fork")
+        with ctx.Pool(processes=workers) as pool:
+            for note_id, (t, ctr) in tqdm(
+                pool.imap_unordered(_score_one, list(ids), chunksize=chunksize),
+                total=len(ids),
+            ):
+                scores_counter[note_id] = ctr
+                for k in t:
+                    scores_by_mention.setdefault(k, []).extend(t[k])
+                    for s in [1, -1]:
+                        if s in t[k]:
+                            scores_by_note.setdefault(k, []).append(s)
+    else:
+        log_cfg = _env_bool("KIRI_TRAIN_LOG", True)
+        if log_cfg:
+            print(
+                f"[train-score] notes={len(ids)} use_index={use_index} parallel={want_parallel} workers={workers}",
+                flush=True,
+            )
+        for i in tqdm(ids):
+            t, scores_counter[i] = score_dict(texts[i], refs[str(i)], d, d_for_annot, headers)
+            for k in t:
+                scores_by_mention.setdefault(k, []).extend(t[k])
+                for s in [1, -1]:
+                    if s in t[k]:
+                        scores_by_note.setdefault(k, []).append(s)
+    print(f"scoring done in {perf_counter() - t0:0.1f}s")
 
     d_full = d.copy()
+    t1 = perf_counter()
     bad_keys = remove_bad_keys(d, scores_by_note)
+    print(f"remove_bad_keys done in {perf_counter() - t1:0.1f}s")
 
-    with (debug_directory / f"{run_name}.pkl").open("wb") as fp:
-        pickle.dump(
-            {
-                "d_trained": d,
-                "d_full": d_full,
-                "d_all": d_all,
-                "bad_keys": bad_keys,
-                "d_combined": d_combined,
-                "scores_by_note": scores_by_note,
-                "scores_by_mention": scores_by_mention,
-                "scores_counter": scores_counter,
-            },
-            fp,
-        )
+    # This debug pickle can get very large (especially `d_all`) and can dominate
+    # wall time on slower disks/volumes while using little CPU.
+    save_debug = _env_bool("KIRI_TRAIN_SAVE_DEBUG", True)
+    save_d_all = _env_bool("KIRI_TRAIN_SAVE_D_ALL", True)
+    if save_debug:
+        t2 = perf_counter()
+        payload = {
+            "d_trained": d,
+            "d_full": d_full,
+            "bad_keys": bad_keys,
+            "d_combined": d_combined,
+            "scores_by_note": scores_by_note,
+            "scores_by_mention": scores_by_mention,
+            "scores_counter": scores_counter,
+        }
+        if save_d_all:
+            payload["d_all"] = d_all
+        with (debug_directory / f"{run_name}.pkl").open("wb") as fp:
+            pickle.dump(payload, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f"debug pickle dump done in {perf_counter() - t2:0.1f}s")
 
     return d, scores_by_note, scores_by_mention
 
@@ -419,21 +541,60 @@ def cond_update(d, d2, sno_fsn, blacklist):
             d[k] = v
 
 
+def _uppercase_mentions_set(annotations: pd.DataFrame, thr: float = 0.99) -> set[str]:
+    """
+    Find mentions whose original surface forms are "almost always" upper-case.
+
+    This replaces an O(|dict| * |annotations|) filter loop with a single vectorized
+    groupby over annotations.
+    """
+    global _CACHED_UC_MENTIONS, _CACHED_UC_MENTIONS_SIG
+    # Cache by dataframe identity; this function is often called twice back-to-back
+    # in compare runs (default/super) with the same annotations object.
+    sig = (id(annotations), len(annotations))
+    if _CACHED_UC_MENTIONS is not None and _CACHED_UC_MENTIONS_SIG == sig:
+        return _CACHED_UC_MENTIONS
+
+    if annotations.empty or "source" not in annotations or "source orig" not in annotations:
+        _CACHED_UC_MENTIONS = set()
+        _CACHED_UC_MENTIONS_SIG = sig
+        return _CACHED_UC_MENTIONS
+
+    src = annotations["source"]
+    orig = annotations["source orig"]
+    # Match the prior semantics: NaNs should not count as "upper".
+    is_upper = orig.notna() & orig.eq(orig.str.upper())
+    frac_upper = is_upper.groupby(src, sort=False).mean()
+    _CACHED_UC_MENTIONS = set(frac_upper[frac_upper > thr].index.astype(str))
+    _CACHED_UC_MENTIONS_SIG = sig
+    return _CACHED_UC_MENTIONS
+
+
 def extract_uppercase_mentions(d, annotations):
+    uc_mentions = _uppercase_mentions_set(annotations, thr=0.99)
     uc_d = {}
     to_remove = []
+
+    # Avoid re-scanning `common_headers` for every key.
+    sec_map = {h.lower() + ":": h + ":" for h in common_headers}
+    sec_map["other"] = "other"
+    sec_map["any"] = "any"
+
     for k in d:
         section, mention = k
-        mention_source = annotations.loc[annotations["source"] == mention, "source orig"]
-        if (mention_source == mention_source.str.upper()).mean() > 0.99:
-            uc_d[(capitalize_section(section), mention.upper())] = d[k]
+        if str(mention) in uc_mentions:
+            uc_d[(capitalize_section(section, sec_map), str(mention).upper())] = d[k]
             to_remove.append(k)
     for k in to_remove:
         d.pop(k, None)
     return uc_d
 
 
-def capitalize_section(section):
+def capitalize_section(section, sec_map=None):
+    if sec_map is not None:
+        out = sec_map.get(section)
+        if out is not None:
+            return out
     if section in ["other", "any"]:
         return section
     for h in common_headers:
@@ -444,35 +605,54 @@ def capitalize_section(section):
 
 
 def add_external_dicts(d, sno_syns, sno_fsn, blacklist):
+    t0 = perf_counter()
     print("initial dict size", len(d))
 
+    t1 = perf_counter()
     cond_update(d, sno_syns, sno_fsn, blacklist)
     print("after adding snomed", len(d))
+    print(f"[train] add_snomed_syns in {perf_counter() - t1:0.1f}s", flush=True)
 
-    with open(
-        data_directory / "interim" / "snomed_unigrams_annotation_dict_3k_v4_new.pkl", "rb"
-    ) as fp:
-        d_unigrams = pickle.load(fp)
+    t2 = perf_counter()
+    global _CACHED_SNO_UNIGRAMS_3K
+    if _CACHED_SNO_UNIGRAMS_3K is None:
+        with open(
+            data_directory / "interim" / "snomed_unigrams_annotation_dict_3k_v4_new.pkl", "rb"
+        ) as fp:
+            _CACHED_SNO_UNIGRAMS_3K = pickle.load(fp)
+    d_unigrams = _CACHED_SNO_UNIGRAMS_3K
     cond_update(d, d_unigrams, sno_fsn, blacklist)
     print("after adding snomed unigrams", len(d))
+    print(f"[train] add_unigrams_3k in {perf_counter() - t2:0.1f}s", flush=True)
 
-    with open(
-        data_directory / "interim" / "snomed_unigrams_annotation_dict_20k_v4_fsn.pkl", "rb"
-    ) as fp:
-        d_unigrams = pickle.load(fp)
+    t3 = perf_counter()
+    global _CACHED_SNO_UNIGRAMS_20K
+    if _CACHED_SNO_UNIGRAMS_20K is None:
+        with open(
+            data_directory / "interim" / "snomed_unigrams_annotation_dict_20k_v4_fsn.pkl", "rb"
+        ) as fp:
+            _CACHED_SNO_UNIGRAMS_20K = pickle.load(fp)
+    d_unigrams = _CACHED_SNO_UNIGRAMS_20K
     cond_update(d, d_unigrams, sno_fsn, blacklist)
     print("after adding FSN snomed unigrams", len(d))
+    print(f"[train] add_unigrams_20k in {perf_counter() - t3:0.1f}s", flush=True)
 
+    t4 = perf_counter()
     wr = get_word_replacements(d)
     cond_update(d, wr, sno_fsn, blacklist)
     print("after doing word replacements", len(d))
+    print(f"[train] word_replacements in {perf_counter() - t4:0.1f}s", flush=True)
 
+    t5 = perf_counter()
     permuted = get_permutations(d, blacklist)
     cond_update(d, permuted, sno_fsn, blacklist)
     print("after adding permutations", len(d))
+    print(f"[train] permutations in {perf_counter() - t5:0.1f}s", flush=True)
+    print(f"[train] add_external_dicts total {perf_counter() - t0:0.1f}s", flush=True)
 
 
 def train(texts, annotations, headers=common_headers, run_name="debug"):
+    t0 = perf_counter()
     texts_lc = texts.str.lower()
     words = "\n".join(texts_lc).split()
     if len(words_counter) == 0:
@@ -486,15 +666,33 @@ def train(texts, annotations, headers=common_headers, run_name="debug"):
     sno_syns, sno_fsn, cid_to_type = get_snomed_synonyms()
     allowed_sec = get_allowed_sections(texts_lc, annotations, headers, cid_to_type)
 
+    t1 = perf_counter()
     d, scores_by_note, scores_by_mention = mock_train(texts_lc, annotations, headers, run_name)
+    print(f"[train] mock_train done in {perf_counter() - t1:0.1f}s", flush=True)
+
+    t2 = perf_counter()
     uc_d = extract_uppercase_mentions(d, annotations)
     print("number of entries moved to uc dict", len(uc_d))
+    print(f"[train] extract_uppercase_mentions done in {perf_counter() - t2:0.1f}s", flush=True)
 
+    t3 = perf_counter()
     add_external_dicts(d, sno_syns, sno_fsn, get_blacklist())
+    print(f"[train] add_external_dicts done in {perf_counter() - t3:0.1f}s", flush=True)
 
+    t4 = perf_counter()
     limit_any_to_allowed_sections(d, allowed_sec, cid_to_type)
+    print(
+        f"[train] limit_any_to_allowed_sections done in {perf_counter() - t4:0.1f}s",
+        flush=True,
+    )
 
-    with (debug_directory / f"{run_name}_full.pkl").open("wb") as fp:
-        pickle.dump(d, fp)
+    save_full = _env_bool("KIRI_TRAIN_SAVE_FULL", True)
+    if save_full:
+        t5 = perf_counter()
+        with (debug_directory / f"{run_name}_full.pkl").open("wb") as fp:
+            pickle.dump(d, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f"[train] full dict pickle dump done in {perf_counter() - t5:0.1f}s", flush=True)
+
+    print(f"[train] total train() time {perf_counter() - t0:0.1f}s", flush=True)
 
     return d, uc_d
