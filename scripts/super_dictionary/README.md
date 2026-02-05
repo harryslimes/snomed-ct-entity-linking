@@ -95,7 +95,46 @@ python scripts/super_dictionary/compare_kiri.py \
   --super-synonyms "1st Place/data/interim/flattened_terminology_syn_super.csv"
 ```
 
+To score on the **entire training set** (train on all notes and evaluate on the same full set), use:
+
+```bash
+python scripts/super_dictionary/compare_kiri.py --eval-all
+```
+
+To additionally enable lightweight linguistic rule wiring for the **super** run only
+(stopword-transparent matching + small abbreviation/permutation variants), add:
+
+```bash
+python scripts/super_dictionary/compare_kiri.py --super-rules
+```
+
 This also prints the runtime-style **macro‑averaged character IoU**.
+
+### Stopword-transparent matching knobs
+
+Stopword transparency is controlled via env vars used by KIRI’s matcher:
+
+- `KIRI_STOPWORD_TRANSPARENT=1`: enable
+- `KIRI_STOPWORDS="of,the,a,an"`: allowed stopwords **between** tokens (defaults to a conservative set)
+- `KIRI_STOPWORD_MIN_TOKENS=3`: only apply to mentions with at least this many tokens (default `3`)
+- `KIRI_STOPWORD_ALLOW_2TOKENS="fracture,fx"`: allowlisted tokens that permit 2-token mentions
+
+### Where did it help vs hurt?
+
+After `compare_kiri.py` writes `outputs/super_dictionary/*_pred.csv` and `*_class_iou.csv`, you can generate
+delta reports:
+
+```bash
+python scripts/super_dictionary/kiri_delta_report.py
+```
+
+Outputs (by default) to `outputs/super_dictionary/delta_report/`:
+
+- `note_deltas.csv`: per-note concept-set IoU deltas + added/removed TPs/FPs
+- `concept_deltas.csv`: per-concept character-IoU deltas
+- `lost_correct_pairs.tsv`: character-level flips where default was correct and super became wrong
+- `gained_correct_pairs.tsv`: character-level flips where default was wrong and super became correct
+- `new_fp.tsv` / `removed_fp.tsv`: new/removed false-positive concepts by character count
 
 You can score any `submission.csv` vs. ground truth directly:
 

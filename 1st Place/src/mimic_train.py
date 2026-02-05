@@ -59,7 +59,7 @@ def build_dict(text, text_annotations, headers, blacklist):
         if type(bl) == tuple:
             section_blacklist.setdefault(bl[0], set()).add(bl[1])
 
-    rows = (length > 1) & ~text_annotations["source"].isin(blacklist)
+    rows = (length > 1) & text_annotations["source"].notna() & ~text_annotations["source"].isin(blacklist)
     for i in text_annotations.index[rows]:
         mention = text_annotations["source"][i]
         h = get_header_by_pos(text_annotations["start"][i], h_positions, pos_header, headers)
@@ -272,11 +272,120 @@ def get_word_replacements(d):
     }
     for k in d:
         mention = k[1]
+        if not isinstance(mention, str):
+            continue
         for s1, s2 in replacements.items():
             if s1 in mention:
                 wr[(k[0], mention.replace(s1, s2))] = d[k]
 
     return wr
+
+
+_LINGUISTIC_ABBREV_EXPANSIONS = {
+    "pt": "patient",
+    "c/o": "complains of",
+    "l": "left",
+    "r": "right",
+    "fx": "fracture",
+}
+_LINGUISTIC_ABBREV_CONTRACTIONS = {
+    "patient": "pt",
+    "left": "l",
+    "right": "r",
+    "fracture": "fx",
+}
+
+
+def _fracture_phrase_variants(text: str) -> list[str]:
+    variants: list[str] = []
+    lower = text.lower()
+    if "fracture" not in lower and "fx" not in lower:
+        return variants
+
+    if lower.startswith("fracture of "):
+        rest = text[len("fracture of ") :].strip()
+        if rest:
+            variants.append(f"fx of {rest}")
+            variants.append(f"{rest} fx")
+    if lower.startswith("fx of "):
+        rest = text[len("fx of ") :].strip()
+        if rest:
+            variants.append(f"fracture of {rest}")
+            variants.append(f"{rest} fracture")
+    if lower.endswith(" fracture"):
+        rest = text[: -len(" fracture")].strip()
+        if rest:
+            variants.append(f"{rest} fx")
+            variants.append(f"fx of {rest}")
+    if lower.endswith(" fx"):
+        rest = text[: -len(" fx")].strip()
+        if rest:
+            variants.append(f"{rest} fracture")
+            variants.append(f"fracture of {rest}")
+    return variants
+
+
+def _abbreviation_variants(text: str, max_variants: int = 16) -> list[str]:
+    tokens = str(text).split()
+    variants = {""}
+    for token in tokens:
+        options = [token]
+        lower = token.lower()
+        if lower in _LINGUISTIC_ABBREV_EXPANSIONS:
+            options.append(_LINGUISTIC_ABBREV_EXPANSIONS[lower])
+        if lower in _LINGUISTIC_ABBREV_CONTRACTIONS:
+            options.append(_LINGUISTIC_ABBREV_CONTRACTIONS[lower])
+
+        next_variants = set()
+        for v in variants:
+            for opt in options:
+                combined = f"{v} {opt}".strip()
+                next_variants.add(combined)
+                if len(next_variants) >= max_variants:
+                    break
+            if len(next_variants) >= max_variants:
+                break
+        variants = next_variants
+        if len(variants) >= max_variants:
+            break
+    return list(variants)
+
+
+def add_linguistic_variants(d, blacklist, max_variants_per_key: int = 16) -> int:
+    """
+    Augment dictionary keys with lightweight clinical NLP style variants.
+
+    Enabled via env var: `KIRI_LINGUISTIC_RULES=1`.
+    """
+    added = 0
+    trigger_tokens = set(_LINGUISTIC_ABBREV_EXPANSIONS) | set(_LINGUISTIC_ABBREV_CONTRACTIONS)
+    for (section, mention) in list(d.keys()):
+        if section != "any":
+            continue
+        if mention in blacklist:
+            continue
+
+        toks = set(str(mention).lower().split())
+        if "fracture" not in toks and "fx" not in toks and not (toks & trigger_tokens):
+            continue
+
+        base_variants = _abbreviation_variants(mention, max_variants=max_variants_per_key)
+        all_mentions: set[str] = set(base_variants)
+        for v in list(all_mentions):
+            for fv in _fracture_phrase_variants(v):
+                all_mentions.add(fv)
+
+        for new_mention in all_mentions:
+            if not new_mention or len(new_mention) < 2:
+                continue
+            if not str(new_mention)[0].isalnum():
+                continue
+            new_key = (section, new_mention)
+            if new_key in d:
+                continue
+            d[new_key] = d[(section, mention)]
+            added += 1
+    return added
 
 
 def remove_bad_keys(d, scores, scores_include_cid=False):
@@ -395,7 +504,11 @@ def mock_train(texts, annotations, headers, run_name):
     }
 
     use_index = _env_bool("KIRI_TRAIN_INDEX", True)
-    d_for_annot = IndexedDict(d) if use_index else d
+    if use_index:
+        prefilter = "unigram" if _env_bool("KIRI_STOPWORD_TRANSPARENT", False) else "bigram"
+        d_for_annot = IndexedDict(d, prefilter=prefilter)
+    else:
+        d_for_annot = d
 
     want_parallel = _env_bool("KIRI_TRAIN_PARALLEL", _env_bool("KIRI_PARALLEL", False))
     workers = 1
@@ -535,9 +648,13 @@ def limit_any_to_allowed_sections(d, allowed_sec, cid_to_type):
 
 def cond_update(d, d2, sno_fsn, blacklist):
     for k, v in d2.items():
+        if not isinstance(k, tuple) or len(k) != 2 or not isinstance(k[1], str):
+            continue
         if k[1] in blacklist:
             continue
-        if k not in d or k[1] == sno_fsn.loc[v].lower():
+        sno_name = sno_fsn.loc[v] if v in sno_fsn.index else None
+        sno_name_lc = sno_name.lower() if isinstance(sno_name, str) else None
+        if k not in d or (sno_name_lc is not None and k[1] == sno_name_lc):
             d[k] = v
 
 
@@ -612,6 +729,12 @@ def add_external_dicts(d, sno_syns, sno_fsn, blacklist):
     cond_update(d, sno_syns, sno_fsn, blacklist)
     print("after adding snomed", len(d))
     print(f"[train] add_snomed_syns in {perf_counter() - t1:0.1f}s", flush=True)
+
+    if _env_bool("KIRI_LINGUISTIC_RULES", False):
+        t_lr = perf_counter()
+        added = add_linguistic_variants(d, blacklist, max_variants_per_key=16)
+        print(f"after adding linguistic variants (+{added:,})", len(d))
+        print(f"[train] linguistic_variants in {perf_counter() - t_lr:0.1f}s", flush=True)
 
     t2 = perf_counter()
     global _CACHED_SNO_UNIGRAMS_3K

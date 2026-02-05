@@ -39,7 +39,8 @@ def predict(texts, headers, d, submission, run_name):
     # semantics-preserving and significantly reduces regex scans.
     use_index = _env_bool("KIRI_INDEX", not submission)
     if use_index and isinstance(d, dict):
-        d = IndexedDict(d)
+        prefilter = "unigram" if _env_bool("KIRI_STOPWORD_TRANSPARENT", False) else "bigram"
+        d = IndexedDict(d, prefilter=prefilter)
 
     want_parallel = _env_bool("KIRI_PARALLEL", submission)
     progress = _env_bool("KIRI_PROGRESS", not submission)

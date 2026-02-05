@@ -5,6 +5,7 @@ Created on Fri Feb 23 09:10:31 2024
 @author: Yonatan
 """
 
+import os
 import re
 from collections import Counter
 
@@ -52,6 +53,56 @@ _WORD_RE = re.compile(r"[A-Za-z0-9]+")
 # get_pattern() does NOT escape these, so treat mentions containing them as unsafe for
 # token-based prefiltering (they can change matching semantics).
 _UNSAFE_MENTION_RE = re.compile(r"[.^$?|\\\\]")
+# Stopwords allowed *between* mention tokens when stopword-transparency is enabled.
+# Keep this list conservative; broad stopword sets tend to increase false positives.
+_DEFAULT_STOPWORDS = {"of", "the", "a", "an"}
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _env_stopwords() -> set[str]:
+    raw = os.environ.get("KIRI_STOPWORDS")
+    if raw is None or str(raw).strip() == "":
+        return set(_DEFAULT_STOPWORDS)
+    parts = re.split(r"[,\s]+", str(raw).strip())
+    out = {p.strip().lower() for p in parts if p.strip()}
+    return out or set(_DEFAULT_STOPWORDS)
+
+
+def _escape_token_like_get_pattern(token: str) -> str:
+    p = token
+    for c in "+(){}[]*":
+        p = p.replace(c, f"\\{c}")
+    p = p.replace("-", "[- ]")
+    p = p.replace("/", "[/ ]")
+    return p
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        v = int(str(raw).strip())
+    except Exception:
+        return default
+    return v
+
+
+def _env_token_set(name: str, default: set[str]) -> set[str]:
+    raw = os.environ.get(name)
+    if raw is None:
+        return set(default)
+    if str(raw).strip() == "":
+        return set()
+    parts = re.split(r"[,\s]+", str(raw).strip())
+    out = {p.strip().lower() for p in parts if p.strip()}
+    return out or set(default)
 
 
 class IndexedDict:
@@ -63,7 +114,9 @@ class IndexedDict:
     get_pattern() doesn't escape are always evaluated.
     """
 
-    def __init__(self, d: dict):
+    def __init__(self, d: dict, prefilter: str = "bigram"):
+        if prefilter not in {"bigram", "unigram"}:
+            raise ValueError(f"Unknown prefilter mode: {prefilter!r}")
         self._items = list(d.items())  # preserve original dict iteration order
         self._bigram_index: dict[tuple[str, str], list[int]] = {}
         self._unigram_index: dict[str, list[int]] = {}
@@ -80,7 +133,10 @@ class IndexedDict:
                 self._always.append(idx)
                 continue
 
-            if len(toks) >= 2:
+            if prefilter == "unigram":
+                self._unigram_index.setdefault(toks[0], []).append(idx)
+                self._unigram_index.setdefault(toks[0] + "s", []).append(idx)
+            elif len(toks) >= 2:
                 self._bigram_index.setdefault((toks[0], toks[1]), []).append(idx)
                 # get_pattern() appends "s*" to the full pattern, so for 2-token mentions
                 # the 2nd token may appear with an extra trailing "s" in text (plural).
@@ -127,10 +183,67 @@ class IndexedDict:
 
 
 def get_pattern(s):
-    if s in pattern_cache:
-        return pattern_cache[s]
+    stopword_transparent = _env_bool("KIRI_STOPWORD_TRANSPARENT", False)
+    stopwords = _env_stopwords() if stopword_transparent else set()
+    min_tokens = _env_int("KIRI_STOPWORD_MIN_TOKENS", 3) if stopword_transparent else 0
+    allow_2 = (
+        _env_token_set("KIRI_STOPWORD_ALLOW_2TOKENS", {"fracture", "fx"})
+        if stopword_transparent
+        else set()
+    )
+    cache_key = (
+        str(s),
+        stopword_transparent,
+        tuple(sorted(stopwords)) if stopword_transparent else (),
+        int(min_tokens) if stopword_transparent else 0,
+        tuple(sorted(allow_2)) if stopword_transparent else (),
+    )
+    if cache_key in pattern_cache:
+        return pattern_cache[cache_key]
 
-    p = " ".join(s.split())
+    if stopword_transparent:
+        p = " ".join(str(s).split())
+        tokens = [t for t in p.split(" ") if t]
+        if len(tokens) < min_tokens:
+            # Allow selected high-precision 2-token patterns (e.g. "fracture femur").
+            if not (len(tokens) == 2 and (tokens[0].lower() in allow_2 or tokens[1].lower() in allow_2)):
+                stopword_transparent = False
+                stopwords = set()
+
+        # Safer semantics: only allow stopwords to appear *between* content tokens in text.
+        # Do not drop stopwords that are part of the mention itself, since that can collapse
+        # keys and explode matches (e.g., "patient discharge" -> "discharge").
+        if stopword_transparent and any(t.lower() in stopwords for t in tokens):
+            stopword_transparent = False
+            stopwords = set()
+        else:
+            filtered = tokens
+            # Safety: never collapse a multi-token mention down to a single token (or zero).
+            if stopword_transparent and len(filtered) < 2:
+                stopword_transparent = False
+                stopwords = set()
+                filtered = []
+
+        if stopword_transparent:
+            # Allow arbitrary (possibly repeated) stopwords between content tokens.
+            stopword_alt = "|".join(re.escape(w) for w in sorted(stopwords))
+            sep = r"[\s,;:/-]+"
+            between = rf"(?:{sep}(?:{stopword_alt})\b)*{sep}" if stopword_alt else sep
+
+            pattern_str = _escape_token_like_get_pattern(filtered[0])
+            for tok in filtered[1:]:
+                pattern_str += between + _escape_token_like_get_pattern(tok)
+            pattern_str += "s*"
+
+            try:
+                r = re.compile(pattern_str)
+            except Exception:
+                print(pattern_str)
+                return None
+            pattern_cache[cache_key] = r
+            return r
+
+    p = " ".join(str(s).split())
     for c in "+(){}[]*":
         p = p.replace(c, f"\\{c}")
     p = p.replace(" ", "\\s+")
@@ -143,7 +256,7 @@ def get_pattern(s):
     except Exception:
         print(p)
         return None
-    pattern_cache[s] = r
+    pattern_cache[cache_key] = r
     return r
 
 
@@ -160,7 +273,15 @@ def get_header_by_pos(pos, headers_position, pos_header, legal_headers):
         return None
     header_pos = max(prev_pos)
     h = pos_header[header_pos]
-    if h not in legal_headers and h[:-1] not in legal_headers:
+
+    # Normalize case and optional trailing ":" against known headers.
+    h_clean = str(h).strip()
+    h_no_colon = h_clean[:-1] if h_clean.endswith(":") else h_clean
+    legal_map = {str(lh).rstrip(":").strip().casefold(): str(lh).rstrip(":").strip() for lh in legal_headers}
+    key = h_no_colon.strip().casefold()
+    if key in legal_map:
+        return legal_map[key] + ":"
+    if h_clean not in legal_headers and h_no_colon not in legal_headers:
         return "other"
     if h[-1] != ":":
         return h + ":"
