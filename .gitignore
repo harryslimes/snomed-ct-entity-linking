@@ -1,1 +1,28 @@
 data/umls/
+
+# Python artifacts
+**/__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local envs
+.venv/
+venv/
+
+# Local data / outputs
+outputs/
+data/
+1st Place/data/
+1st Place/debug/
+1st Place/submission/
+2nd Place/build/
+3rd Place/data/
+
+# Devcontainer local env
+.devcontainer/.env
