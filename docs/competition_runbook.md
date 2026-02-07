@@ -145,3 +145,32 @@ python scripts/glinker/run_l1_l2_pipeline.py \
   --out-jsonl outputs/glinker/l1_l2_candidates_exact_only.jsonl \
   --no-es
 ```
+
+## 8) Run end-to-end notes -> L1 spans -> L2 candidates
+
+```bash
+python scripts/glinker/run_end_to_end_l1_l2.py \
+  --notes-csv data/test_notes.csv \
+  --l1-model-path models/gliner_finetuned_l1 \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --out-jsonl outputs/glinker/e2e_l1_l2_candidates.jsonl \
+  --out-flat-csv outputs/glinker/e2e_l1_l2_candidates.csv
+```
+
+Exact-only mode (no ES):
+
+```bash
+python scripts/glinker/run_end_to_end_l1_l2.py \
+  --notes-csv data/test_notes.csv \
+  --l1-model-path models/gliner_finetuned_l1 \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --out-jsonl outputs/glinker/e2e_l1_l2_candidates_exact_only.jsonl \
+  --no-es
+```
+
+Notes:
+
+- If L1 output already exists, pass `--l1-spans-csv ... --reuse-existing-l1-spans`.
+- For long notes, try `--l1-window-chars 12000 --l1-window-overlap-chars 512`.
