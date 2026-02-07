@@ -190,6 +190,9 @@ def _run_fold(
     notes_text_col: str,
     entity_types: str,
     l1_threshold: float,
+    l1_device: str,
+    l1_attn_impl: str,
+    l1_autocast_dtype: str,
     no_es: bool,
     es_url: str,
     es_index_name: str,
@@ -254,6 +257,12 @@ def _run_fold(
                 entity_types,
                 "--threshold",
                 str(l1_threshold),
+                "--device",
+                str(l1_device),
+                "--attn-impl",
+                str(l1_attn_impl),
+                "--autocast-dtype",
+                str(l1_autocast_dtype),
             ]
         )
         if rc_l1 != 0:
@@ -422,6 +431,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--notes-text-col", default="text")
     ap.add_argument("--entity-types", default="finding,procedure,body_structure")
     ap.add_argument("--l1-threshold", type=float, default=0.4)
+    ap.add_argument("--l1-device", default="auto")
+    ap.add_argument("--l1-attn-impl", default="auto")
+    ap.add_argument("--l1-autocast-dtype", default="auto")
 
     ap.add_argument("--exact-dict-tsv", required=True)
     ap.add_argument("--no-es", action="store_true")
@@ -477,6 +489,9 @@ def main(argv: list[str]) -> int:
             notes_text_col=str(args.notes_text_col),
             entity_types=str(args.entity_types),
             l1_threshold=float(args.l1_threshold),
+            l1_device=str(args.l1_device),
+            l1_attn_impl=str(args.l1_attn_impl),
+            l1_autocast_dtype=str(args.l1_autocast_dtype),
             no_es=bool(args.no_es),
             es_url=str(args.es_url),
             es_index_name=str(args.es_index_name),
@@ -518,6 +533,9 @@ def main(argv: list[str]) -> int:
             "fold_pattern": str(args.fold_pattern),
             "fold_limit": int(args.fold_limit),
             "l1_source": str(args.l1_source),
+            "l1_device": str(args.l1_device),
+            "l1_attn_impl": str(args.l1_attn_impl),
+            "l1_autocast_dtype": str(args.l1_autocast_dtype),
             "no_es": bool(args.no_es),
         },
         "n_folds": len(metrics),
@@ -551,4 +569,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

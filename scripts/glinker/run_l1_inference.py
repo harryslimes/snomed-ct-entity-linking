@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,14 +55,50 @@ def load_notes(notes_csv: Path, *, note_id_col: str, text_col: str) -> list[tupl
     return out
 
 
-def _load_gliner_model(model_path: str):
+def _resolve_device(device: str) -> str:
+    d = str(device).strip().lower()
+    if d and d != "auto":
+        return device
+    try:
+        import torch  # type: ignore
+
+        if bool(torch.cuda.is_available()):
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+
+def _resolve_autocast_dtype(autocast_dtype: str, *, map_location: str):
+    raw = str(autocast_dtype).strip().lower()
+    if raw in {"", "none", "off", "false", "0"}:
+        return None
+    if raw == "auto":
+        return "float16" if str(map_location).startswith("cuda") else None
+    if raw in {"float16", "fp16"}:
+        return "float16"
+    if raw in {"bfloat16", "bf16"}:
+        return "bfloat16"
+    raise ValueError(f"Unsupported --autocast-dtype value: {autocast_dtype}")
+
+
+def _load_gliner_model(model_path: str, *, map_location: str, attn_impl: str):
     try:
         from gliner import GLiNER  # type: ignore
     except Exception as e:
         raise RuntimeError(
             "Failed to import gliner. Install it in your environment before running L1 inference."
         ) from e
-    return GLiNER.from_pretrained(model_path)
+    attn = str(attn_impl).strip().lower()
+    kwargs: dict[str, Any] = {"map_location": map_location}
+    if attn not in {"", "auto", "default", "none"}:
+        kwargs["_attn_implementation"] = attn
+    try:
+        return GLiNER.from_pretrained(model_path, **kwargs)
+    except TypeError:
+        # Older GLiNER versions may not expose _attn_implementation.
+        kwargs.pop("_attn_implementation", None)
+        return GLiNER.from_pretrained(model_path, **kwargs)
 
 
 def _predict_entities_raw(
@@ -72,12 +107,25 @@ def _predict_entities_raw(
     *,
     labels: list[str],
     threshold: float,
+    map_location: str,
+    autocast_dtype: str | None,
 ) -> list[dict[str, Any]]:
+    def _run_predict():
+        # GLiNER APIs can differ slightly by version; try common signatures.
+        try:
+            return model.predict_entities(text, labels=labels, threshold=threshold)
+        except TypeError:
+            return model.predict_entities(text, labels=labels)
+
     # GLiNER APIs can differ slightly by version; try common signatures.
-    try:
-        out = model.predict_entities(text, labels=labels, threshold=threshold)
-    except TypeError:
-        out = model.predict_entities(text, labels=labels)
+    if autocast_dtype is not None and str(map_location).startswith("cuda"):
+        import torch  # type: ignore
+
+        dtype = torch.float16 if autocast_dtype == "float16" else torch.bfloat16
+        with torch.autocast(device_type="cuda", dtype=dtype):
+            out = _run_predict()
+    else:
+        out = _run_predict()
     if out is None:
         return []
     return [dict(x) for x in out]
@@ -105,6 +153,8 @@ def extract_l1_spans_for_note(
     text: str,
     labels: list[str],
     threshold: float,
+    map_location: str,
+    autocast_dtype: str | None,
     window_chars: int,
     window_overlap_chars: int,
     strict_label_filter: bool,
@@ -115,7 +165,14 @@ def extract_l1_spans_for_note(
         text, window_size=window_chars, overlap=window_overlap_chars
     ):
         chunk = text[start:end]
-        preds = _predict_entities_raw(model, chunk, labels=labels, threshold=threshold)
+        preds = _predict_entities_raw(
+            model,
+            chunk,
+            labels=labels,
+            threshold=threshold,
+            map_location=map_location,
+            autocast_dtype=autocast_dtype,
+        )
         for pred in preds:
             p_start = pred.get("start")
             p_end = pred.get("end")
@@ -179,10 +236,19 @@ def run_inference(
     window_chars: int = 0,
     window_overlap_chars: int = 256,
     limit_notes: int = 0,
+    device: str = "auto",
+    attn_impl: str = "auto",
+    autocast_dtype: str = "auto",
     model=None,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     labels = entity_types or ["finding", "procedure", "body_structure"]
-    model_obj = model or _load_gliner_model(model_path)
+    map_location = _resolve_device(device)
+    resolved_autocast_dtype = _resolve_autocast_dtype(autocast_dtype, map_location=map_location)
+    model_obj = model or _load_gliner_model(
+        model_path,
+        map_location=map_location,
+        attn_impl=attn_impl,
+    )
     notes = load_notes(notes_csv, note_id_col=note_id_col, text_col=text_col)
     if limit_notes > 0:
         notes = notes[:limit_notes]
@@ -211,6 +277,8 @@ def run_inference(
                 text=text,
                 labels=labels,
                 threshold=threshold,
+                map_location=map_location,
+                autocast_dtype=resolved_autocast_dtype,
                 window_chars=window_chars,
                 window_overlap_chars=window_overlap_chars,
                 strict_label_filter=strict_label_filter,
@@ -231,7 +299,23 @@ def run_inference(
                     ]
                 )
                 n_spans += 1
-    return {"notes": n_notes, "spans": n_spans}
+    model_param_device = "unknown"
+    model_param_dtype = "unknown"
+    try:
+        p = next(model_obj.model.parameters())  # type: ignore[attr-defined]
+        model_param_device = str(p.device)
+        model_param_dtype = str(p.dtype)
+    except Exception:
+        pass
+    return {
+        "notes": n_notes,
+        "spans": n_spans,
+        "device": map_location,
+        "attn_impl": str(attn_impl),
+        "autocast_dtype": str(resolved_autocast_dtype or "none"),
+        "model_param_device": model_param_device,
+        "model_param_dtype": model_param_dtype,
+    }
 
 
 def main(argv: list[str]) -> int:
@@ -251,6 +335,21 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--window-chars", type=int, default=0)
     ap.add_argument("--window-overlap-chars", type=int, default=256)
     ap.add_argument("--limit-notes", type=int, default=0)
+    ap.add_argument(
+        "--device",
+        default="auto",
+        help="GLiNER load map_location (auto|cpu|cuda|cuda:0).",
+    )
+    ap.add_argument(
+        "--attn-impl",
+        default="auto",
+        help="Attention backend (auto|flash_attention_2|sdpa|eager|none).",
+    )
+    ap.add_argument(
+        "--autocast-dtype",
+        default="auto",
+        help="Autocast dtype for CUDA inference (auto|float16|bfloat16|none).",
+    )
     args = ap.parse_args(argv)
 
     entity_types = [x.strip() for x in str(args.entity_types).split(",") if x.strip()]
@@ -266,7 +365,15 @@ def main(argv: list[str]) -> int:
         window_chars=max(0, int(args.window_chars)),
         window_overlap_chars=max(0, int(args.window_overlap_chars)),
         limit_notes=max(0, int(args.limit_notes)),
+        device=str(args.device),
+        attn_impl=str(args.attn_impl),
+        autocast_dtype=str(args.autocast_dtype),
     )
+    print(f"model_device: {stats['device']}")
+    print(f"attn_impl: {stats['attn_impl']}")
+    print(f"autocast_dtype: {stats['autocast_dtype']}")
+    print(f"model_param_device: {stats['model_param_device']}")
+    print(f"model_param_dtype: {stats['model_param_dtype']}")
     print(f"processed notes: {stats['notes']:,}")
     print(f"predicted spans: {stats['spans']:,}")
     print(f"out_spans_csv: {args.out_spans_csv}")
@@ -275,4 +382,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
