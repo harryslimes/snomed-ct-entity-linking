@@ -61,3 +61,24 @@ Outputs:
 - `data/interim/glinker/folds/fold_XX/val_annotations.csv`
 - `data/interim/glinker/folds/fold_XX/train_span_aliases.tsv` (train-only)
 - `data/interim/glinker/folds/full_train/train_*.csv` (final submission mode)
+
+## 5) Build L2 exact dictionary + Elasticsearch fuzzy index
+
+```bash
+python scripts/glinker/build_es_index.py \
+  --super-dict-jsonl data/interim/glinker/super_dictionary_scoped.jsonl \
+  --exact-out-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --es-index-body configs/es_index.json \
+  --recreate-index
+```
+
+If you only want exact lookup artifacts and no ES calls:
+
+```bash
+python scripts/glinker/build_es_index.py \
+  --super-dict-jsonl data/interim/glinker/super_dictionary_scoped.jsonl \
+  --exact-out-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --no-es
+```

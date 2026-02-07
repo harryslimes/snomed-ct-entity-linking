@@ -15,9 +15,12 @@ pipeline:
 
   l2:
     exact_dictionary: true
+    exact_dictionary_path: "data/interim/glinker/l2_exact_dictionary.tsv"
     elasticsearch:
       enabled: true
+      base_url: "http://127.0.0.1:9200"
       index_name: "snomed_super_dict_v1"
+      index_body_path: "configs/es_index.json"
       top_k: 50
 
   l3:
@@ -35,4 +38,3 @@ postprocess:
   trim_punctuation: true
   trim_history_of_prefix: true
   enforce_allowed_concepts: true
-

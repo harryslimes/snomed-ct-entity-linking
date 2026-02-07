@@ -1,0 +1,28 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "analysis": {
+      "normalizer": {
+        "lowercase_norm": {
+          "type": "custom",
+          "char_filter": [],
+          "filter": ["lowercase", "asciifolding"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "concept_id": {"type": "keyword"},
+      "l1_type": {"type": "keyword"},
+      "alias": {"type": "text"},
+      "alias_exact": {"type": "keyword", "normalizer": "lowercase_norm"},
+      "alias_len": {"type": "integer"},
+      "priority": {"type": "integer"},
+      "source_count": {"type": "integer"}
+    }
+  }
+}
+
