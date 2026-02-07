@@ -18,20 +18,6 @@ from scripts.glinker.l2_elasticsearch import ElasticsearchAliasRetriever, Elasti
 from scripts.glinker.l2_hybrid import HybridL2Config, HybridL2Retriever
 
 
-def _as_float(text: str) -> float:
-    try:
-        return float(text)
-    except Exception:
-        return 0.0
-
-
-def _as_int(text: str) -> int:
-    try:
-        return int(text)
-    except Exception:
-        return 0
-
-
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(
         description=(
@@ -191,4 +177,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
