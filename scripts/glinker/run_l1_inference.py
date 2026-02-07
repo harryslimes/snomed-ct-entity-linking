@@ -82,7 +82,40 @@ def _resolve_autocast_dtype(autocast_dtype: str, *, map_location: str):
     raise ValueError(f"Unsupported --autocast-dtype value: {autocast_dtype}")
 
 
-def _load_gliner_model(model_path: str, *, map_location: str, attn_impl: str):
+def _resolve_load_torch_dtype(
+    load_dtype: str,
+    *,
+    map_location: str,
+    autocast_dtype: str | None,
+):
+    raw = str(load_dtype).strip().lower()
+    if raw == "auto":
+        if not str(map_location).startswith("cuda"):
+            return None
+        raw = str(autocast_dtype or "").strip().lower()
+        if raw not in {"float16", "bfloat16"}:
+            return None
+    elif raw in {"", "none", "off", "false", "0"}:
+        return None
+
+    import torch  # type: ignore
+
+    if raw in {"float16", "fp16"}:
+        return torch.float16
+    if raw in {"bfloat16", "bf16"}:
+        return torch.bfloat16
+    if raw in {"float32", "fp32"}:
+        return torch.float32
+    raise ValueError(f"Unsupported --load-dtype value: {load_dtype}")
+
+
+def _load_gliner_model(
+    model_path: str,
+    *,
+    map_location: str,
+    attn_impl: str,
+    load_torch_dtype,
+):
     try:
         from gliner import GLiNER  # type: ignore
     except Exception as e:
@@ -93,12 +126,53 @@ def _load_gliner_model(model_path: str, *, map_location: str, attn_impl: str):
     kwargs: dict[str, Any] = {"map_location": map_location}
     if attn not in {"", "auto", "default", "none"}:
         kwargs["_attn_implementation"] = attn
-    try:
-        return GLiNER.from_pretrained(model_path, **kwargs)
-    except TypeError:
-        # Older GLiNER versions may not expose _attn_implementation.
-        kwargs.pop("_attn_implementation", None)
-        return GLiNER.from_pretrained(model_path, **kwargs)
+    if load_torch_dtype is not None:
+        kwargs["torch_dtype"] = load_torch_dtype
+        kwargs["dtype"] = load_torch_dtype
+
+    # GLiNER versions vary; try with and without newer kwargs.
+    attempts: list[dict[str, Any]] = [dict(kwargs)]
+    optional_keys = ["_attn_implementation", "torch_dtype", "dtype"]
+    for key in optional_keys:
+        if key in kwargs:
+            k = dict(kwargs)
+            k.pop(key, None)
+            attempts.append(k)
+    for k1 in optional_keys:
+        for k2 in optional_keys:
+            if k1 >= k2:
+                continue
+            if k1 in kwargs and k2 in kwargs:
+                k = dict(kwargs)
+                k.pop(k1, None)
+                k.pop(k2, None)
+                attempts.append(k)
+    if any(k in kwargs for k in optional_keys):
+        k = dict(kwargs)
+        for key in optional_keys:
+            k.pop(key, None)
+        attempts.append(k)
+
+    # De-duplicate attempt kwargs preserving order.
+    uniq: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    for a in attempts:
+        key = tuple(sorted((str(k), str(v)) for k, v in a.items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(a)
+
+    last_err: Exception | None = None
+    for a in uniq:
+        try:
+            return GLiNER.from_pretrained(model_path, **a)
+        except TypeError as e:
+            last_err = e
+            continue
+    if last_err is not None:
+        raise last_err
+    return GLiNER.from_pretrained(model_path, **kwargs)
 
 
 def _predict_entities_raw(
@@ -129,6 +203,21 @@ def _predict_entities_raw(
     if out is None:
         return []
     return [dict(x) for x in out]
+
+
+def _cast_model_to_dtype(model_obj, *, target_dtype) -> None:
+    if target_dtype is None:
+        return
+    try:
+        inner = getattr(model_obj, "model", None)
+        if inner is not None and hasattr(inner, "to"):
+            inner.to(dtype=target_dtype)
+            return
+        if hasattr(model_obj, "to"):
+            model_obj.to(dtype=target_dtype)
+    except Exception:
+        # Best-effort cast; keep inference running even if unsupported.
+        return
 
 
 def _iter_windows(text: str, *, window_size: int, overlap: int) -> Iterable[tuple[int, int]]:
@@ -239,16 +328,24 @@ def run_inference(
     device: str = "auto",
     attn_impl: str = "auto",
     autocast_dtype: str = "auto",
+    load_dtype: str = "auto",
     model=None,
 ) -> dict[str, Any]:
     labels = entity_types or ["finding", "procedure", "body_structure"]
     map_location = _resolve_device(device)
     resolved_autocast_dtype = _resolve_autocast_dtype(autocast_dtype, map_location=map_location)
+    load_torch_dtype = _resolve_load_torch_dtype(
+        load_dtype,
+        map_location=map_location,
+        autocast_dtype=resolved_autocast_dtype,
+    )
     model_obj = model or _load_gliner_model(
         model_path,
         map_location=map_location,
         attn_impl=attn_impl,
+        load_torch_dtype=load_torch_dtype,
     )
+    _cast_model_to_dtype(model_obj, target_dtype=load_torch_dtype)
     notes = load_notes(notes_csv, note_id_col=note_id_col, text_col=text_col)
     if limit_notes > 0:
         notes = notes[:limit_notes]
@@ -313,6 +410,7 @@ def run_inference(
         "device": map_location,
         "attn_impl": str(attn_impl),
         "autocast_dtype": str(resolved_autocast_dtype or "none"),
+        "load_dtype": str(load_torch_dtype or "none"),
         "model_param_device": model_param_device,
         "model_param_dtype": model_param_dtype,
     }
@@ -350,6 +448,11 @@ def main(argv: list[str]) -> int:
         default="auto",
         help="Autocast dtype for CUDA inference (auto|float16|bfloat16|none).",
     )
+    ap.add_argument(
+        "--load-dtype",
+        default="auto",
+        help="Model load dtype override (auto|float16|bfloat16|float32|none).",
+    )
     args = ap.parse_args(argv)
 
     entity_types = [x.strip() for x in str(args.entity_types).split(",") if x.strip()]
@@ -368,10 +471,12 @@ def main(argv: list[str]) -> int:
         device=str(args.device),
         attn_impl=str(args.attn_impl),
         autocast_dtype=str(args.autocast_dtype),
+        load_dtype=str(args.load_dtype),
     )
     print(f"model_device: {stats['device']}")
     print(f"attn_impl: {stats['attn_impl']}")
     print(f"autocast_dtype: {stats['autocast_dtype']}")
+    print(f"load_dtype: {stats['load_dtype']}")
     print(f"model_param_device: {stats['model_param_device']}")
     print(f"model_param_dtype: {stats['model_param_dtype']}")
     print(f"processed notes: {stats['notes']:,}")
