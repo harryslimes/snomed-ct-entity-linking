@@ -82,3 +82,35 @@ python scripts/glinker/build_es_index.py \
   --exact-out-tsv data/interim/glinker/l2_exact_dictionary.tsv \
   --no-es
 ```
+
+## 6) Run hybrid L2 candidate generation (exact + ES fallback)
+
+Input is a mentions CSV with at least:
+
+- `mention_id`
+- `mention`
+- optional `l1_type` (`finding`, `procedure`, `body_structure`)
+
+```bash
+python scripts/glinker/run_l2_candidates.py \
+  --mentions-csv data/interim/glinker/l2_mentions.csv \
+  --mention-id-col mention_id \
+  --mention-col mention \
+  --l1-type-col l1_type \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --top-k-final 50 \
+  --out-jsonl outputs/glinker/l2_candidates.jsonl \
+  --out-flat-csv outputs/glinker/l2_candidates.csv
+```
+
+For exact-only mode:
+
+```bash
+python scripts/glinker/run_l2_candidates.py \
+  --mentions-csv data/interim/glinker/l2_mentions.csv \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --out-jsonl outputs/glinker/l2_candidates_exact_only.jsonl \
+  --no-es
+```

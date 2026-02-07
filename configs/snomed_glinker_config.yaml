@@ -16,6 +16,17 @@ pipeline:
   l2:
     exact_dictionary: true
     exact_dictionary_path: "data/interim/glinker/l2_exact_dictionary.tsv"
+    gating:
+      exact_short_circuit_unique: true
+      exact_ambiguity_max_candidates: 1
+      exact_decisive_min_score: 0.0
+      exact_decisive_min_margin: 0.0
+      fallback_on_no_exact: true
+      fallback_on_ambiguous_exact: true
+      top_k_exact: 50
+      top_k_fuzzy: 50
+      top_k_final: 50
+      fuzziness: "AUTO"
     elasticsearch:
       enabled: true
       base_url: "http://127.0.0.1:9200"
