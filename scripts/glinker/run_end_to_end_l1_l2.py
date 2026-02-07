@@ -33,6 +33,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--text-col", default="text")
     ap.add_argument("--entity-types", default="finding,procedure,body_structure")
     ap.add_argument("--l1-threshold", type=float, default=0.4)
+    ap.add_argument("--l1-window-chars", type=int, default=0)
+    ap.add_argument("--l1-window-overlap-chars", type=int, default=256)
     ap.add_argument("--l1-device", default="auto")
     ap.add_argument("--l1-attn-impl", default="auto")
     ap.add_argument("--l1-autocast-dtype", default="auto")
@@ -96,6 +98,10 @@ def main(argv: list[str]) -> int:
             str(args.entity_types),
             "--threshold",
             str(args.l1_threshold),
+            "--window-chars",
+            str(max(0, int(args.l1_window_chars))),
+            "--window-overlap-chars",
+            str(max(0, int(args.l1_window_overlap_chars))),
             "--device",
             str(args.l1_device),
             "--attn-impl",

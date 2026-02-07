@@ -190,6 +190,8 @@ def _run_fold(
     notes_text_col: str,
     entity_types: str,
     l1_threshold: float,
+    l1_window_chars: int,
+    l1_window_overlap_chars: int,
     l1_device: str,
     l1_attn_impl: str,
     l1_autocast_dtype: str,
@@ -257,6 +259,10 @@ def _run_fold(
                 entity_types,
                 "--threshold",
                 str(l1_threshold),
+                "--window-chars",
+                str(l1_window_chars),
+                "--window-overlap-chars",
+                str(l1_window_overlap_chars),
                 "--device",
                 str(l1_device),
                 "--attn-impl",
@@ -431,6 +437,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--notes-text-col", default="text")
     ap.add_argument("--entity-types", default="finding,procedure,body_structure")
     ap.add_argument("--l1-threshold", type=float, default=0.4)
+    ap.add_argument("--l1-window-chars", type=int, default=0)
+    ap.add_argument("--l1-window-overlap-chars", type=int, default=256)
     ap.add_argument("--l1-device", default="auto")
     ap.add_argument("--l1-attn-impl", default="auto")
     ap.add_argument("--l1-autocast-dtype", default="auto")
@@ -489,6 +497,8 @@ def main(argv: list[str]) -> int:
             notes_text_col=str(args.notes_text_col),
             entity_types=str(args.entity_types),
             l1_threshold=float(args.l1_threshold),
+            l1_window_chars=max(0, int(args.l1_window_chars)),
+            l1_window_overlap_chars=max(0, int(args.l1_window_overlap_chars)),
             l1_device=str(args.l1_device),
             l1_attn_impl=str(args.l1_attn_impl),
             l1_autocast_dtype=str(args.l1_autocast_dtype),
@@ -536,6 +546,8 @@ def main(argv: list[str]) -> int:
             "l1_device": str(args.l1_device),
             "l1_attn_impl": str(args.l1_attn_impl),
             "l1_autocast_dtype": str(args.l1_autocast_dtype),
+            "l1_window_chars": int(args.l1_window_chars),
+            "l1_window_overlap_chars": int(args.l1_window_overlap_chars),
             "no_es": bool(args.no_es),
         },
         "n_folds": len(metrics),
