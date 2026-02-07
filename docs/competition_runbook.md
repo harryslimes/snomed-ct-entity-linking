@@ -201,3 +201,36 @@ python scripts/glinker/run_end_to_end_l1_l2.py \
   --out-resolved-csv outputs/glinker/e2e_l1_l2_resolved.csv \
   --out-decisions-csv outputs/glinker/e2e_l1_l2_decisions.csv
 ```
+
+## 10) Cross-validation evaluation harness
+
+Fast linker-focused baseline (uses gold spans as L1 input, no ES):
+
+```bash
+python scripts/glinker/eval_cv.py \
+  --folds-dir /tmp/glinker_folds \
+  --output-dir outputs/glinker/eval_cv_gold_noes \
+  --l1-source gold \
+  --exact-dict-tsv /tmp/l2_exact_dictionary.tsv \
+  --no-es \
+  --resolver-min-top1-score-exact 0.2 \
+  --resolver-min-top1-score-fuzzy 6.0
+```
+
+Full model path (L1 model + L2):
+
+```bash
+python scripts/glinker/eval_cv.py \
+  --folds-dir /tmp/glinker_folds \
+  --output-dir outputs/glinker/eval_cv_model \
+  --l1-source model \
+  --l1-model-path models/gliner_finetuned_l1 \
+  --exact-dict-tsv /tmp/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1
+```
+
+Outputs:
+
+- `outputs/.../fold_metrics.csv`
+- `outputs/.../summary.json`
