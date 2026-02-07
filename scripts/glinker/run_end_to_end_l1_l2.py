@@ -35,11 +35,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l1-threshold", type=float, default=0.4)
     ap.add_argument("--l1-window-chars", type=int, default=0)
     ap.add_argument("--l1-window-overlap-chars", type=int, default=256)
+    ap.add_argument("--l1-section-header-lookback-chars", type=int, default=0)
     ap.add_argument("--l1-device", default="auto")
     ap.add_argument("--l1-attn-impl", default="auto")
     ap.add_argument("--l1-autocast-dtype", default="auto")
-    ap.add_argument("--l1-window-chars", type=int, default=0)
-    ap.add_argument("--l1-window-overlap-chars", type=int, default=256)
     ap.add_argument("--l1-limit-notes", type=int, default=0)
     ap.add_argument("--no-strict-l1-label-filter", action="store_true")
 
@@ -102,16 +101,14 @@ def main(argv: list[str]) -> int:
             str(max(0, int(args.l1_window_chars))),
             "--window-overlap-chars",
             str(max(0, int(args.l1_window_overlap_chars))),
+            "--section-header-lookback-chars",
+            str(max(0, int(args.l1_section_header_lookback_chars))),
             "--device",
             str(args.l1_device),
             "--attn-impl",
             str(args.l1_attn_impl),
             "--autocast-dtype",
             str(args.l1_autocast_dtype),
-            "--window-chars",
-            str(args.l1_window_chars),
-            "--window-overlap-chars",
-            str(args.l1_window_overlap_chars),
             "--limit-notes",
             str(args.l1_limit_notes),
         ]

@@ -235,6 +235,29 @@ def _iter_windows(text: str, *, window_size: int, overlap: int) -> Iterable[tupl
         pos += stride
 
 
+def _nearest_section_header(text: str, *, pos: int, lookback_chars: int) -> str:
+    if pos <= 0 or lookback_chars <= 0:
+        return ""
+    lo = max(0, int(pos) - int(lookback_chars))
+    segment = text[lo:pos]
+    if not segment:
+        return ""
+    lines = [ln.strip() for ln in segment.splitlines()]
+    for line in reversed(lines):
+        if not line:
+            continue
+        if len(line) > 120:
+            continue
+        # Typical MIMIC section headers, e.g. "History of Present Illness:".
+        if line.endswith(":"):
+            return line
+        # Fallback for all-caps heading without trailing colon.
+        alpha = [ch for ch in line if ch.isalpha()]
+        if alpha and all(ch.isupper() for ch in alpha):
+            return line
+    return ""
+
+
 def extract_l1_spans_for_note(
     *,
     model,
@@ -242,11 +265,12 @@ def extract_l1_spans_for_note(
     text: str,
     labels: list[str],
     threshold: float,
-    map_location: str,
-    autocast_dtype: str | None,
-    window_chars: int,
-    window_overlap_chars: int,
-    strict_label_filter: bool,
+    map_location: str = "cpu",
+    autocast_dtype: str | None = None,
+    window_chars: int = 0,
+    window_overlap_chars: int = 256,
+    section_header_lookback_chars: int = 0,
+    strict_label_filter: bool = True,
 ) -> list[L1Span]:
     spans: list[L1Span] = []
     seen: set[tuple[int, int, str]] = set()
@@ -254,9 +278,20 @@ def extract_l1_spans_for_note(
         text, window_size=window_chars, overlap=window_overlap_chars
     ):
         chunk = text[start:end]
+        prefix = ""
+        if section_header_lookback_chars > 0 and start > 0:
+            hdr = _nearest_section_header(
+                text,
+                pos=start,
+                lookback_chars=section_header_lookback_chars,
+            )
+            if hdr:
+                prefix = f"{hdr}\n"
+        infer_text = f"{prefix}{chunk}" if prefix else chunk
+        prefix_len = len(prefix)
         preds = _predict_entities_raw(
             model,
-            chunk,
+            infer_text,
             labels=labels,
             threshold=threshold,
             map_location=map_location,
@@ -276,6 +311,9 @@ def extract_l1_spans_for_note(
                 e_local = int(p_end)
             except Exception:
                 continue
+            if prefix_len > 0:
+                s_local -= prefix_len
+                e_local -= prefix_len
             if e_local <= s_local:
                 continue
 
@@ -324,6 +362,7 @@ def run_inference(
     strict_label_filter: bool = True,
     window_chars: int = 0,
     window_overlap_chars: int = 256,
+    section_header_lookback_chars: int = 0,
     limit_notes: int = 0,
     device: str = "auto",
     attn_impl: str = "auto",
@@ -378,6 +417,7 @@ def run_inference(
                 autocast_dtype=resolved_autocast_dtype,
                 window_chars=window_chars,
                 window_overlap_chars=window_overlap_chars,
+                section_header_lookback_chars=section_header_lookback_chars,
                 strict_label_filter=strict_label_filter,
             )
             n_notes += 1
@@ -432,6 +472,15 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--no-strict-label-filter", action="store_true")
     ap.add_argument("--window-chars", type=int, default=0)
     ap.add_argument("--window-overlap-chars", type=int, default=256)
+    ap.add_argument(
+        "--section-header-lookback-chars",
+        type=int,
+        default=0,
+        help=(
+            "If >0, prepend nearest prior section header found within this character lookback "
+            "to each inference window (offsets are remapped back to original text)."
+        ),
+    )
     ap.add_argument("--limit-notes", type=int, default=0)
     ap.add_argument(
         "--device",
@@ -467,6 +516,7 @@ def main(argv: list[str]) -> int:
         strict_label_filter=not bool(args.no_strict_label_filter),
         window_chars=max(0, int(args.window_chars)),
         window_overlap_chars=max(0, int(args.window_overlap_chars)),
+        section_header_lookback_chars=max(0, int(args.section_header_lookback_chars)),
         limit_notes=max(0, int(args.limit_notes)),
         device=str(args.device),
         attn_impl=str(args.attn_impl),

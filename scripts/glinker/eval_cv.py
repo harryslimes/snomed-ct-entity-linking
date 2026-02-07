@@ -192,6 +192,7 @@ def _run_fold(
     l1_threshold: float,
     l1_window_chars: int,
     l1_window_overlap_chars: int,
+    l1_section_header_lookback_chars: int,
     l1_device: str,
     l1_attn_impl: str,
     l1_autocast_dtype: str,
@@ -263,6 +264,8 @@ def _run_fold(
                 str(l1_window_chars),
                 "--window-overlap-chars",
                 str(l1_window_overlap_chars),
+                "--section-header-lookback-chars",
+                str(l1_section_header_lookback_chars),
                 "--device",
                 str(l1_device),
                 "--attn-impl",
@@ -439,6 +442,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l1-threshold", type=float, default=0.4)
     ap.add_argument("--l1-window-chars", type=int, default=0)
     ap.add_argument("--l1-window-overlap-chars", type=int, default=256)
+    ap.add_argument("--l1-section-header-lookback-chars", type=int, default=0)
     ap.add_argument("--l1-device", default="auto")
     ap.add_argument("--l1-attn-impl", default="auto")
     ap.add_argument("--l1-autocast-dtype", default="auto")
@@ -499,6 +503,7 @@ def main(argv: list[str]) -> int:
             l1_threshold=float(args.l1_threshold),
             l1_window_chars=max(0, int(args.l1_window_chars)),
             l1_window_overlap_chars=max(0, int(args.l1_window_overlap_chars)),
+            l1_section_header_lookback_chars=max(0, int(args.l1_section_header_lookback_chars)),
             l1_device=str(args.l1_device),
             l1_attn_impl=str(args.l1_attn_impl),
             l1_autocast_dtype=str(args.l1_autocast_dtype),
@@ -548,6 +553,7 @@ def main(argv: list[str]) -> int:
             "l1_autocast_dtype": str(args.l1_autocast_dtype),
             "l1_window_chars": int(args.l1_window_chars),
             "l1_window_overlap_chars": int(args.l1_window_overlap_chars),
+            "l1_section_header_lookback_chars": int(args.l1_section_header_lookback_chars),
             "no_es": bool(args.no_es),
         },
         "n_folds": len(metrics),
