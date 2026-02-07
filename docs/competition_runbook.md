@@ -114,3 +114,34 @@ python scripts/glinker/run_l2_candidates.py \
   --out-jsonl outputs/glinker/l2_candidates_exact_only.jsonl \
   --no-es
 ```
+
+## 7) Run direct L1->L2 candidate pipeline
+
+Input is an L1 spans CSV with:
+
+- `note_id`
+- `start_char`
+- `end_char`
+- optional `mention` (if missing, provide `--notes-csv` to slice from text)
+- optional `l1_type`
+
+```bash
+python scripts/glinker/run_l1_l2_pipeline.py \
+  --l1-spans-csv outputs/glinker/l1_spans.csv \
+  --notes-csv data/test_notes.csv \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --out-jsonl outputs/glinker/l1_l2_candidates.jsonl \
+  --out-flat-csv outputs/glinker/l1_l2_candidates.csv
+```
+
+For exact-only mode:
+
+```bash
+python scripts/glinker/run_l1_l2_pipeline.py \
+  --l1-spans-csv outputs/glinker/l1_spans.csv \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --out-jsonl outputs/glinker/l1_l2_candidates_exact_only.jsonl \
+  --no-es
+```
