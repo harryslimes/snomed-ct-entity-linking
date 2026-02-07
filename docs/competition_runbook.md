@@ -174,3 +174,30 @@ Notes:
 
 - If L1 output already exists, pass `--l1-spans-csv ... --reuse-existing-l1-spans`.
 - For long notes, try `--l1-window-chars 12000 --l1-window-overlap-chars 512`.
+
+## 9) Resolve L2 candidates to one concept per span (submission-ready)
+
+```bash
+python scripts/glinker/resolve_l2_links.py \
+  --candidates-jsonl outputs/glinker/e2e_l1_l2_candidates.jsonl \
+  --out-resolved-csv outputs/glinker/e2e_l1_l2_resolved.csv \
+  --out-decisions-csv outputs/glinker/e2e_l1_l2_decisions.csv \
+  --min-top1-score-exact 0.2 \
+  --min-top1-score-fuzzy 6.0 \
+  --min-score-margin 0.0 \
+  --max-second-to-first-ratio 1.0
+```
+
+You can also run this inside the orchestration command:
+
+```bash
+python scripts/glinker/run_end_to_end_l1_l2.py \
+  --notes-csv data/test_notes.csv \
+  --l1-model-path models/gliner_finetuned_l1 \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --out-jsonl outputs/glinker/e2e_l1_l2_candidates.jsonl \
+  --out-resolved-csv outputs/glinker/e2e_l1_l2_resolved.csv \
+  --out-decisions-csv outputs/glinker/e2e_l1_l2_decisions.csv
+```

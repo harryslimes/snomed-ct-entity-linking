@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
-from scripts.glinker import run_l1_inference, run_l1_l2_pipeline
+from scripts.glinker import resolve_l2_links, run_l1_inference, run_l1_l2_pipeline
 
 
 def main(argv: list[str]) -> int:
@@ -23,6 +23,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l1-model-path", required=True)
     ap.add_argument("--out-jsonl", required=True)
     ap.add_argument("--out-flat-csv", default="")
+    ap.add_argument("--out-resolved-csv", default="")
+    ap.add_argument("--out-decisions-csv", default="")
     ap.add_argument("--work-dir", default="outputs/glinker/tmp")
     ap.add_argument("--l1-spans-csv", default="")
     ap.add_argument("--reuse-existing-l1-spans", action="store_true")
@@ -53,10 +55,20 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--no-fallback-on-no-exact", action="store_true")
     ap.add_argument("--no-fallback-on-ambiguous", action="store_true")
     ap.add_argument("--fuzziness", default="AUTO")
+
+    ap.add_argument("--resolver-allowed-concepts", default="")
+    ap.add_argument("--resolver-no-fuzzy-top1", action="store_true")
+    ap.add_argument("--resolver-require-l1-type-match", action="store_true")
+    ap.add_argument("--resolver-min-top1-score-exact", type=float, default=0.2)
+    ap.add_argument("--resolver-min-top1-score-fuzzy", type=float, default=6.0)
+    ap.add_argument("--resolver-min-score-margin", type=float, default=0.0)
+    ap.add_argument("--resolver-max-second-to-first-ratio", type=float, default=1.0)
     args = ap.parse_args(argv)
 
     out_jsonl = Path(args.out_jsonl)
     out_flat = Path(args.out_flat_csv) if args.out_flat_csv else None
+    out_resolved = Path(args.out_resolved_csv) if args.out_resolved_csv else None
+    out_decisions = Path(args.out_decisions_csv) if args.out_decisions_csv else None
 
     if args.l1_spans_csv:
         l1_spans_path = Path(args.l1_spans_csv)
@@ -149,13 +161,44 @@ def main(argv: list[str]) -> int:
     if rc_l2 != 0:
         return rc_l2
 
+    if out_resolved is not None:
+        resolver_argv = [
+            "--candidates-jsonl",
+            str(out_jsonl),
+            "--out-resolved-csv",
+            str(out_resolved),
+            "--min-top1-score-exact",
+            str(args.resolver_min_top1_score_exact),
+            "--min-top1-score-fuzzy",
+            str(args.resolver_min_top1_score_fuzzy),
+            "--min-score-margin",
+            str(args.resolver_min_score_margin),
+            "--max-second-to-first-ratio",
+            str(args.resolver_max_second_to_first_ratio),
+        ]
+        if out_decisions is not None:
+            resolver_argv += ["--out-decisions-csv", str(out_decisions)]
+        if args.resolver_allowed_concepts:
+            resolver_argv += ["--allowed-concepts", str(args.resolver_allowed_concepts)]
+        if args.resolver_no_fuzzy_top1:
+            resolver_argv.append("--no-fuzzy-top1")
+        if args.resolver_require_l1_type_match:
+            resolver_argv.append("--require-l1-type-match")
+
+        rc_resolve = resolve_l2_links.main(resolver_argv)
+        if rc_resolve != 0:
+            return rc_resolve
+
     print(f"l1_spans_csv: {l1_spans_path}")
     print(f"l1_l2_jsonl: {out_jsonl}")
     if out_flat is not None:
         print(f"l1_l2_flat_csv: {out_flat}")
+    if out_resolved is not None:
+        print(f"resolved_csv: {out_resolved}")
+    if out_decisions is not None:
+        print(f"decisions_csv: {out_decisions}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

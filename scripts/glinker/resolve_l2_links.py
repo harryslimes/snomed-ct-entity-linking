@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+import sys
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
+from scripts.glinker.io import detect_delimiter
+
+
+@dataclass(frozen=True)
+class ResolverConfig:
+    allow_fuzzy_top1: bool = True
+    require_l1_type_match: bool = False
+    min_top1_score_exact: float = 0.2
+    min_top1_score_fuzzy: float = 6.0
+    min_score_margin: float = 0.0
+    max_second_to_first_ratio: float = 1.0
+
+
+def _to_int(value) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except Exception:
+        try:
+            return int(float(str(value)))
+        except Exception:
+            return None
+
+
+def _to_float(value) -> float:
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except Exception:
+        return 0.0
+
+
+def _load_allowed_concepts(path: Path) -> set[str]:
+    if not path.exists() and path.suffix.lower() == ".parquet":
+        fallback = path.with_suffix(".csv")
+        if fallback.exists():
+            path = fallback
+    if not path.exists():
+        raise FileNotFoundError(f"Allowed concepts file not found: {path}")
+
+    out: set[str] = set()
+    if path.suffix.lower() == ".parquet":
+        try:
+            import pandas as pd  # type: ignore
+        except Exception as e:
+            raise RuntimeError(
+                "Reading parquet allowed_concepts requires pandas+pyarrow in this environment."
+            ) from e
+        df = pd.read_parquet(path)
+        if "concept_id" not in df.columns:
+            raise ValueError(f"{path} must contain concept_id column")
+        out = {str(x).strip() for x in df["concept_id"].tolist() if str(x).strip()}
+        return out
+
+    delim = detect_delimiter(path)
+    with path.open("r", encoding="utf-8", newline="") as fp:
+        reader = csv.DictReader(fp, delimiter=delim)
+        for row in reader:
+            cid = str(row.get("concept_id") or "").strip()
+            if cid:
+                out.add(cid)
+    return out
+
+
+def resolve_record(
+    record: dict,
+    *,
+    cfg: ResolverConfig,
+    allowed_concepts: set[str] | None = None,
+) -> tuple[bool, str, dict | None]:
+    cands = record.get("final_candidates") or []
+    note_id = str(record.get("note_id") or "").strip()
+    start = _to_int(record.get("start_char"))
+    end = _to_int(record.get("end_char"))
+    mention_id = str(record.get("mention_id") or "").strip()
+    mention_l1 = str(record.get("l1_type") or "").strip() or None
+
+    if not note_id:
+        return (False, "missing_note_id", None)
+    if start is None or end is None or end <= start:
+        return (False, "invalid_span", None)
+    if not cands:
+        return (False, "no_candidates", None)
+
+    top1 = cands[0]
+    top2 = cands[1] if len(cands) > 1 else None
+
+    concept_id = str(top1.get("concept_id") or "").strip()
+    cand_l1 = str(top1.get("l1_type") or "").strip() or None
+    top1_method = str(top1.get("method") or "").strip()
+    top1_score = _to_float(top1.get("score"))
+    if not concept_id:
+        return (False, "missing_concept_id", None)
+
+    if allowed_concepts is not None and concept_id not in allowed_concepts:
+        return (False, "not_allowed", None)
+
+    if (not cfg.allow_fuzzy_top1) and top1_method != "l2_exact":
+        return (False, "fuzzy_top1_disabled", None)
+
+    if cfg.require_l1_type_match and mention_l1 and cand_l1 and cand_l1 != mention_l1:
+        return (False, "l1_type_mismatch", None)
+
+    min_score = (
+        cfg.min_top1_score_exact if top1_method == "l2_exact" else cfg.min_top1_score_fuzzy
+    )
+    if top1_score < min_score:
+        return (False, "low_score", None)
+
+    margin = math.inf
+    second_ratio = 0.0
+    if top2 is not None:
+        top2_score = _to_float(top2.get("score"))
+        margin = top1_score - top2_score
+        if top1_score > 0:
+            second_ratio = top2_score / top1_score
+        top2_cid = str(top2.get("concept_id") or "").strip()
+        if top2_cid and top2_cid != concept_id:
+            if margin < cfg.min_score_margin:
+                return (False, "low_margin", None)
+            if second_ratio > cfg.max_second_to_first_ratio:
+                return (False, "high_second_ratio", None)
+
+    decision = {
+        "mention_id": mention_id,
+        "note_id": note_id,
+        "start_char": start,
+        "end_char": end,
+        "concept_id": concept_id,
+        "score": top1_score,
+        "method": top1_method,
+        "l1_type": cand_l1 or "",
+        "margin_to_second": margin if margin != math.inf else "",
+        "second_to_first_ratio": second_ratio if top2 is not None else "",
+    }
+    return (True, "accepted", decision)
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(
+        description=(
+            "Resolve L2 candidate bundles to one concept per span using threshold/margin "
+            "rules, then write submission-ready resolved CSV."
+        )
+    )
+    ap.add_argument("--candidates-jsonl", required=True)
+    ap.add_argument("--out-resolved-csv", required=True)
+    ap.add_argument("--out-decisions-csv", default="")
+    ap.add_argument("--allowed-concepts", default="")
+    ap.add_argument("--no-fuzzy-top1", action="store_true")
+    ap.add_argument("--require-l1-type-match", action="store_true")
+    ap.add_argument("--min-top1-score-exact", type=float, default=0.2)
+    ap.add_argument("--min-top1-score-fuzzy", type=float, default=6.0)
+    ap.add_argument("--min-score-margin", type=float, default=0.0)
+    ap.add_argument("--max-second-to-first-ratio", type=float, default=1.0)
+    args = ap.parse_args(argv)
+
+    cfg = ResolverConfig(
+        allow_fuzzy_top1=not bool(args.no_fuzzy_top1),
+        require_l1_type_match=bool(args.require_l1_type_match),
+        min_top1_score_exact=float(args.min_top1_score_exact),
+        min_top1_score_fuzzy=float(args.min_top1_score_fuzzy),
+        min_score_margin=float(args.min_score_margin),
+        max_second_to_first_ratio=float(args.max_second_to_first_ratio),
+    )
+
+    allowed: set[str] | None = None
+    if args.allowed_concepts:
+        allowed = _load_allowed_concepts(Path(args.allowed_concepts))
+
+    in_path = Path(args.candidates_jsonl)
+    out_resolved = Path(args.out_resolved_csv)
+    out_resolved.parent.mkdir(parents=True, exist_ok=True)
+    out_decisions = Path(args.out_decisions_csv) if args.out_decisions_csv else None
+    if out_decisions is not None:
+        out_decisions.parent.mkdir(parents=True, exist_ok=True)
+
+    reason_counts: Counter[str] = Counter()
+    seen_rows: set[tuple[str, int, int, str]] = set()
+    accepted_rows: list[dict] = []
+    decision_rows: list[dict] = []
+
+    with in_path.open("r", encoding="utf-8") as fp:
+        for line in fp:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            ok, reason, row = resolve_record(rec, cfg=cfg, allowed_concepts=allowed)
+            reason_counts[reason] += 1
+            if ok and row is not None:
+                dedupe_key = (
+                    str(row["note_id"]),
+                    int(row["start_char"]),
+                    int(row["end_char"]),
+                    str(row["concept_id"]),
+                )
+                if dedupe_key not in seen_rows:
+                    seen_rows.add(dedupe_key)
+                    accepted_rows.append(row)
+                if out_decisions is not None:
+                    row_copy = dict(row)
+                    row_copy["decision"] = "accepted"
+                    row_copy["reason"] = reason
+                    decision_rows.append(row_copy)
+            elif out_decisions is not None:
+                decision_rows.append(
+                    {
+                        "mention_id": str(rec.get("mention_id") or ""),
+                        "note_id": str(rec.get("note_id") or ""),
+                        "start_char": _to_int(rec.get("start_char")) or "",
+                        "end_char": _to_int(rec.get("end_char")) or "",
+                        "concept_id": "",
+                        "score": "",
+                        "method": "",
+                        "l1_type": str(rec.get("l1_type") or ""),
+                        "margin_to_second": "",
+                        "second_to_first_ratio": "",
+                        "decision": "rejected",
+                        "reason": reason,
+                    }
+                )
+
+    accepted_rows.sort(key=lambda r: (r["note_id"], int(r["start_char"]), int(r["end_char"]), str(r["concept_id"])))
+    with out_resolved.open("w", encoding="utf-8", newline="") as fp:
+        writer = csv.writer(fp)
+        writer.writerow(["note_id", "start_char", "end_char", "concept_id"])
+        for r in accepted_rows:
+            writer.writerow([r["note_id"], r["start_char"], r["end_char"], r["concept_id"]])
+
+    if out_decisions is not None:
+        with out_decisions.open("w", encoding="utf-8", newline="") as fp:
+            writer = csv.DictWriter(
+                fp,
+                fieldnames=[
+                    "mention_id",
+                    "note_id",
+                    "start_char",
+                    "end_char",
+                    "concept_id",
+                    "score",
+                    "method",
+                    "l1_type",
+                    "margin_to_second",
+                    "second_to_first_ratio",
+                    "decision",
+                    "reason",
+                ],
+            )
+            writer.writeheader()
+            for r in decision_rows:
+                writer.writerow(r)
+
+    total = sum(reason_counts.values())
+    print(f"processed candidate bundles: {total:,}")
+    print(f"accepted: {len(accepted_rows):,}")
+    for reason, n in sorted(reason_counts.items()):
+        print(f"reason[{reason}]={n}")
+    print(f"resolved_csv: {out_resolved}")
+    if out_decisions is not None:
+        print(f"decisions_csv: {out_decisions}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
+
