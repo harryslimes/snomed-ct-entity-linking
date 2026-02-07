@@ -1,0 +1,38 @@
+pipeline:
+  name: "snomed_super_dict_v1"
+
+  data:
+    allowed_concepts: "data/interim/glinker/allowed_concepts.parquet"
+    super_dictionary_jsonl: "data/interim/glinker/super_dictionary_scoped.jsonl"
+    folds_dir: "data/interim/glinker/folds"
+
+  l1:
+    model_path: "models/gliner_finetuned_l1"
+    threshold: 0.4
+    device: "cuda"
+    entity_types: ["finding", "procedure", "body_structure"]
+    max_len: 4096
+
+  l2:
+    exact_dictionary: true
+    elasticsearch:
+      enabled: true
+      index_name: "snomed_super_dict_v1"
+      top_k: 50
+
+  l3:
+    type: "bi_encoder_retrieval"
+    model: "knowledgator/gliner-linker-large-v1.0"
+    index_path: "data/interim/glinker/super_dict_faiss.index"
+    top_k: 10
+
+  l4:
+    type: "cross_encoder_rerank"
+    model: "knowledgator/gliner-linker-rerank-v1.0"
+    top_n: 1
+
+postprocess:
+  trim_punctuation: true
+  trim_history_of_prefix: true
+  enforce_allowed_concepts: true
+
