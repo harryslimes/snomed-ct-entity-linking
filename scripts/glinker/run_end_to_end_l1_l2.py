@@ -67,6 +67,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--resolver-min-top1-score-fuzzy", type=float, default=6.0)
     ap.add_argument("--resolver-min-score-margin", type=float, default=0.0)
     ap.add_argument("--resolver-max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument("--resolver-no-trim-non-alnum-edges", action="store_true")
+    ap.add_argument("--resolver-no-trim-history-of-prefix", action="store_true")
     args = ap.parse_args(argv)
 
     out_jsonl = Path(args.out_jsonl)
@@ -196,6 +198,10 @@ def main(argv: list[str]) -> int:
             resolver_argv.append("--no-fuzzy-top1")
         if args.resolver_require_l1_type_match:
             resolver_argv.append("--require-l1-type-match")
+        if args.resolver_no_trim_non_alnum_edges:
+            resolver_argv.append("--no-trim-non-alnum-edges")
+        if args.resolver_no_trim_history_of_prefix:
+            resolver_argv.append("--no-trim-history-of-prefix")
 
         rc_resolve = resolve_l2_links.main(resolver_argv)
         if rc_resolve != 0:

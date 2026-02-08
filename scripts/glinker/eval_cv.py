@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
-from scripts.glinker import resolve_l2_links, run_l1_inference, run_l1_l2_pipeline
+from scripts.glinker import analyze_l1_errors, resolve_l2_links, run_l1_inference, run_l1_l2_pipeline
 from scripts.glinker.io import detect_delimiter
 from scripts.super_dictionary.runtime_scoring import class_char_iou, macro_char_iou
 
@@ -218,7 +218,10 @@ def _run_fold(
     resolver_min_top1_score_fuzzy: float,
     resolver_min_score_margin: float,
     resolver_max_second_to_first_ratio: float,
+    resolver_no_trim_non_alnum_edges: bool,
+    resolver_no_trim_history_of_prefix: bool,
     l1_map: dict[str, str],
+    emit_l1_error_report: bool,
 ) -> dict:
     val_notes = fold_dir / "val_notes.csv"
     val_ann = fold_dir / "val_annotations.csv"
@@ -278,6 +281,22 @@ def _run_fold(
             raise RuntimeError(f"L1 inference failed for {fold_dir.name}")
     else:
         raise ValueError(f"Unsupported l1_source: {l1_source}")
+
+    l1_error_summary: dict | None = None
+    l1_error_summary_path = ""
+    if emit_l1_error_report:
+        l1_error_dir = out_dir / "l1_error_report"
+        l1_error_summary = analyze_l1_errors.run_analysis(
+            gold_annotations_csv=val_ann,
+            l1_spans_csv=l1_spans_csv,
+            notes_csv=val_notes,
+            out_dir=l1_error_dir,
+            allowed_concepts_path=resolver_allowed_concepts,
+            note_id_col=note_id_col,
+            notes_text_col=notes_text_col,
+            section_lookback_chars=max(0, int(l1_section_header_lookback_chars)),
+        )
+        l1_error_summary_path = str(l1_error_dir / "summary.json")
 
     l2_argv = [
         "--l1-spans-csv",
@@ -352,6 +371,10 @@ def _run_fold(
         resolver_argv.append("--no-fuzzy-top1")
     if resolver_require_l1_type_match:
         resolver_argv.append("--require-l1-type-match")
+    if resolver_no_trim_non_alnum_edges:
+        resolver_argv.append("--no-trim-non-alnum-edges")
+    if resolver_no_trim_history_of_prefix:
+        resolver_argv.append("--no-trim-history-of-prefix")
 
     rc_resolve = resolve_l2_links.main(resolver_argv)
     if rc_resolve != 0:
@@ -369,6 +392,15 @@ def _run_fold(
     )
 
     route_counts = _route_stats(candidates_jsonl)
+    l1_recall_overlap = (
+        float(l1_error_summary.get("recall_overlap")) if l1_error_summary is not None else float("nan")
+    )
+    l1_recall_iou50 = (
+        float(l1_error_summary.get("recall_iou50")) if l1_error_summary is not None else float("nan")
+    )
+    l1_exact_match_rate = (
+        float(l1_error_summary.get("exact_match_rate")) if l1_error_summary is not None else float("nan")
+    )
     return {
         "fold": fold_dir.name,
         "n_notes": int(gold_df["note_id"].astype(str).nunique()),
@@ -379,6 +411,10 @@ def _run_fold(
         "runtime_sec": float(runtime_sec),
         "sec_per_note": float(runtime_sec / max(1, int(gold_df["note_id"].astype(str).nunique()))),
         "route_counts": route_counts,
+        "l1_recall_overlap": l1_recall_overlap,
+        "l1_recall_iou50": l1_recall_iou50,
+        "l1_exact_match_rate": l1_exact_match_rate,
+        "l1_error_summary_json": l1_error_summary_path,
     }
 
 
@@ -403,6 +439,10 @@ def _write_metrics_csv(path: Path, rows: list[dict]) -> None:
                 "note_concept_iou",
                 "runtime_sec",
                 "sec_per_note",
+                "l1_recall_overlap",
+                "l1_recall_iou50",
+                "l1_exact_match_rate",
+                "l1_error_summary_json",
                 "route_counts_json",
             ]
         )
@@ -417,6 +457,22 @@ def _write_metrics_csv(path: Path, rows: list[dict]) -> None:
                     f"{r['note_concept_iou']:.6f}",
                     f"{r['runtime_sec']:.6f}",
                     f"{r['sec_per_note']:.6f}",
+                    (
+                        ""
+                        if math.isnan(float(r["l1_recall_overlap"]))
+                        else f"{float(r['l1_recall_overlap']):.6f}"
+                    ),
+                    (
+                        ""
+                        if math.isnan(float(r["l1_recall_iou50"]))
+                        else f"{float(r['l1_recall_iou50']):.6f}"
+                    ),
+                    (
+                        ""
+                        if math.isnan(float(r["l1_exact_match_rate"]))
+                        else f"{float(r['l1_exact_match_rate']):.6f}"
+                    ),
+                    str(r.get("l1_error_summary_json") or ""),
                     json.dumps(r["route_counts"], sort_keys=True),
                 ]
             )
@@ -471,6 +527,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--resolver-min-top1-score-fuzzy", type=float, default=6.0)
     ap.add_argument("--resolver-min-score-margin", type=float, default=0.0)
     ap.add_argument("--resolver-max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument("--resolver-no-trim-non-alnum-edges", action="store_true")
+    ap.add_argument("--resolver-no-trim-history-of-prefix", action="store_true")
+    ap.add_argument("--emit-l1-error-report", action="store_true")
     args = ap.parse_args(argv)
 
     folds_dir = Path(args.folds_dir)
@@ -529,7 +588,10 @@ def main(argv: list[str]) -> int:
             resolver_min_top1_score_fuzzy=float(args.resolver_min_top1_score_fuzzy),
             resolver_min_score_margin=float(args.resolver_min_score_margin),
             resolver_max_second_to_first_ratio=float(args.resolver_max_second_to_first_ratio),
+            resolver_no_trim_non_alnum_edges=bool(args.resolver_no_trim_non_alnum_edges),
+            resolver_no_trim_history_of_prefix=bool(args.resolver_no_trim_history_of_prefix),
             l1_map=l1_map,
+            emit_l1_error_report=bool(args.emit_l1_error_report),
         )
         metrics.append(m)
         print(
@@ -541,6 +603,9 @@ def main(argv: list[str]) -> int:
     note_vals = [m["note_concept_iou"] for m in metrics]
     runtime_vals = [m["runtime_sec"] for m in metrics]
     sec_per_note_vals = [m["sec_per_note"] for m in metrics]
+    l1_overlap_vals = [float(m["l1_recall_overlap"]) for m in metrics if not math.isnan(float(m["l1_recall_overlap"]))]
+    l1_iou50_vals = [float(m["l1_recall_iou50"]) for m in metrics if not math.isnan(float(m["l1_recall_iou50"]))]
+    l1_exact_vals = [float(m["l1_exact_match_rate"]) for m in metrics if not math.isnan(float(m["l1_exact_match_rate"]))]
 
     summary = {
         "config": {
@@ -555,6 +620,9 @@ def main(argv: list[str]) -> int:
             "l1_window_overlap_chars": int(args.l1_window_overlap_chars),
             "l1_section_header_lookback_chars": int(args.l1_section_header_lookback_chars),
             "no_es": bool(args.no_es),
+            "emit_l1_error_report": bool(args.emit_l1_error_report),
+            "resolver_no_trim_non_alnum_edges": bool(args.resolver_no_trim_non_alnum_edges),
+            "resolver_no_trim_history_of_prefix": bool(args.resolver_no_trim_history_of_prefix),
         },
         "n_folds": len(metrics),
         "macro_char_iou_mean": float(statistics.mean(macro_vals)),
@@ -564,6 +632,9 @@ def main(argv: list[str]) -> int:
         "runtime_sec_total": float(sum(runtime_vals)),
         "runtime_sec_mean": float(statistics.mean(runtime_vals)),
         "sec_per_note_mean": float(statistics.mean(sec_per_note_vals)),
+        "l1_recall_overlap_mean": float(statistics.mean(l1_overlap_vals)) if l1_overlap_vals else None,
+        "l1_recall_iou50_mean": float(statistics.mean(l1_iou50_vals)) if l1_iou50_vals else None,
+        "l1_exact_match_rate_mean": float(statistics.mean(l1_exact_vals)) if l1_exact_vals else None,
         "folds": metrics,
     }
 
@@ -580,6 +651,10 @@ def main(argv: list[str]) -> int:
     print(f"note_concept_iou_mean: {summary['note_concept_iou_mean']:.4f}")
     print(f"runtime_sec_total: {summary['runtime_sec_total']:.2f}")
     print(f"sec_per_note_mean: {summary['sec_per_note_mean']:.4f}")
+    if summary["l1_recall_overlap_mean"] is not None:
+        print(f"l1_recall_overlap_mean: {summary['l1_recall_overlap_mean']:.4f}")
+        print(f"l1_recall_iou50_mean: {summary['l1_recall_iou50_mean']:.4f}")
+        print(f"l1_exact_match_rate_mean: {summary['l1_exact_match_rate_mean']:.4f}")
     print(f"fold_metrics_csv: {metrics_csv}")
     print(f"summary_json: {summary_json}")
     return 0

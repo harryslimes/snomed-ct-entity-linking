@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import math
+import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
@@ -27,6 +28,15 @@ class ResolverConfig:
     max_second_to_first_ratio: float = 1.0
 
 
+@dataclass(frozen=True)
+class BoundaryPostprocessConfig:
+    trim_non_alnum_edges: bool = True
+    trim_history_of_prefix: bool = True
+
+
+_HISTORY_OF_RE = re.compile(r"^\s*history of\s+", flags=re.IGNORECASE)
+
+
 def _to_int(value) -> int | None:
     if value is None:
         return None
@@ -46,6 +56,67 @@ def _to_float(value) -> float:
         return float(value)
     except Exception:
         return 0.0
+
+
+def _looks_like_history_concept(top1: dict) -> bool:
+    probe = " ".join(
+        str(top1.get(k) or "")
+        for k in ("matched_alias", "canonical_name", "name", "term", "display_name")
+    ).strip()
+    if not probe:
+        return False
+    s = probe.lower()
+    return ("history of " in s) or s.startswith("h/o ")
+
+
+def _trim_span_by_mention_text(
+    *,
+    start: int,
+    end: int,
+    mention: str,
+    top1: dict,
+    cfg: BoundaryPostprocessConfig,
+) -> tuple[int, int, str]:
+    if not mention:
+        return (start, end, "")
+    # Only remap offsets when mention length aligns exactly with the original span.
+    if len(mention) != (end - start):
+        return (start, end, "unaligned_mention")
+
+    s = start
+    e = end
+    left = 0
+    right = 0
+    n = len(mention)
+
+    if cfg.trim_non_alnum_edges:
+        while left < n and not mention[left].isalnum():
+            left += 1
+        while right < (n - left) and not mention[n - 1 - right].isalnum():
+            right += 1
+        if left > 0:
+            s += left
+        if right > 0:
+            e -= right
+
+    if e <= s:
+        return (start, end, "invalid_after_edge_trim")
+
+    core = mention[left : n - right] if (left > 0 or right > 0) else mention
+    if cfg.trim_history_of_prefix and core:
+        m = _HISTORY_OF_RE.match(core)
+        if m and not _looks_like_history_concept(top1):
+            shift = int(m.end())
+            if shift < len(core):
+                s += shift
+            else:
+                return (start, end, "invalid_after_history_trim")
+
+    if e <= s:
+        return (start, end, "invalid_after_history_trim")
+    if s == start and e == end:
+        return (s, e, "")
+    return (s, e, "trimmed")
 
 
 def _load_allowed_concepts(path: Path) -> set[str]:
@@ -85,20 +156,22 @@ def resolve_record(
     *,
     cfg: ResolverConfig,
     allowed_concepts: set[str] | None = None,
-) -> tuple[bool, str, dict | None]:
+    boundary_cfg: BoundaryPostprocessConfig | None = None,
+) -> tuple[bool, str, dict | None, str]:
     cands = record.get("final_candidates") or []
     note_id = str(record.get("note_id") or "").strip()
     start = _to_int(record.get("start_char"))
     end = _to_int(record.get("end_char"))
     mention_id = str(record.get("mention_id") or "").strip()
+    mention = str(record.get("mention") or "")
     mention_l1 = str(record.get("l1_type") or "").strip() or None
 
     if not note_id:
-        return (False, "missing_note_id", None)
+        return (False, "missing_note_id", None, "")
     if start is None or end is None or end <= start:
-        return (False, "invalid_span", None)
+        return (False, "invalid_span", None, "")
     if not cands:
-        return (False, "no_candidates", None)
+        return (False, "no_candidates", None, "")
 
     top1 = cands[0]
     top2 = cands[1] if len(cands) > 1 else None
@@ -108,22 +181,22 @@ def resolve_record(
     top1_method = str(top1.get("method") or "").strip()
     top1_score = _to_float(top1.get("score"))
     if not concept_id:
-        return (False, "missing_concept_id", None)
+        return (False, "missing_concept_id", None, "")
 
     if allowed_concepts is not None and concept_id not in allowed_concepts:
-        return (False, "not_allowed", None)
+        return (False, "not_allowed", None, "")
 
     if (not cfg.allow_fuzzy_top1) and top1_method != "l2_exact":
-        return (False, "fuzzy_top1_disabled", None)
+        return (False, "fuzzy_top1_disabled", None, "")
 
     if cfg.require_l1_type_match and mention_l1 and cand_l1 and cand_l1 != mention_l1:
-        return (False, "l1_type_mismatch", None)
+        return (False, "l1_type_mismatch", None, "")
 
     min_score = (
         cfg.min_top1_score_exact if top1_method == "l2_exact" else cfg.min_top1_score_fuzzy
     )
     if top1_score < min_score:
-        return (False, "low_score", None)
+        return (False, "low_score", None, "")
 
     margin = math.inf
     second_ratio = 0.0
@@ -135,9 +208,19 @@ def resolve_record(
         top2_cid = str(top2.get("concept_id") or "").strip()
         if top2_cid and top2_cid != concept_id:
             if margin < cfg.min_score_margin:
-                return (False, "low_margin", None)
+                return (False, "low_margin", None, "")
             if second_ratio > cfg.max_second_to_first_ratio:
-                return (False, "high_second_ratio", None)
+                return (False, "high_second_ratio", None, "")
+
+    postprocess_reason = ""
+    if boundary_cfg is not None:
+        start, end, postprocess_reason = _trim_span_by_mention_text(
+            start=start,
+            end=end,
+            mention=mention,
+            top1=top1,
+            cfg=boundary_cfg,
+        )
 
     decision = {
         "mention_id": mention_id,
@@ -150,8 +233,9 @@ def resolve_record(
         "l1_type": cand_l1 or "",
         "margin_to_second": margin if margin != math.inf else "",
         "second_to_first_ratio": second_ratio if top2 is not None else "",
+        "postprocess": postprocess_reason,
     }
-    return (True, "accepted", decision)
+    return (True, "accepted", decision, postprocess_reason)
 
 
 def main(argv: list[str]) -> int:
@@ -171,6 +255,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--min-top1-score-fuzzy", type=float, default=6.0)
     ap.add_argument("--min-score-margin", type=float, default=0.0)
     ap.add_argument("--max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument("--no-trim-non-alnum-edges", action="store_true")
+    ap.add_argument("--no-trim-history-of-prefix", action="store_true")
     args = ap.parse_args(argv)
 
     cfg = ResolverConfig(
@@ -180,6 +266,10 @@ def main(argv: list[str]) -> int:
         min_top1_score_fuzzy=float(args.min_top1_score_fuzzy),
         min_score_margin=float(args.min_score_margin),
         max_second_to_first_ratio=float(args.max_second_to_first_ratio),
+    )
+    boundary_cfg = BoundaryPostprocessConfig(
+        trim_non_alnum_edges=not bool(args.no_trim_non_alnum_edges),
+        trim_history_of_prefix=not bool(args.no_trim_history_of_prefix),
     )
 
     allowed: set[str] | None = None
@@ -194,6 +284,7 @@ def main(argv: list[str]) -> int:
         out_decisions.parent.mkdir(parents=True, exist_ok=True)
 
     reason_counts: Counter[str] = Counter()
+    postprocess_counts: Counter[str] = Counter()
     seen_rows: set[tuple[str, int, int, str]] = set()
     accepted_rows: list[dict] = []
     decision_rows: list[dict] = []
@@ -204,9 +295,16 @@ def main(argv: list[str]) -> int:
             if not line:
                 continue
             rec = json.loads(line)
-            ok, reason, row = resolve_record(rec, cfg=cfg, allowed_concepts=allowed)
+            ok, reason, row, postprocess_reason = resolve_record(
+                rec,
+                cfg=cfg,
+                allowed_concepts=allowed,
+                boundary_cfg=boundary_cfg,
+            )
             reason_counts[reason] += 1
             if ok and row is not None:
+                if postprocess_reason:
+                    postprocess_counts[postprocess_reason] += 1
                 dedupe_key = (
                     str(row["note_id"]),
                     int(row["start_char"]),
@@ -234,6 +332,7 @@ def main(argv: list[str]) -> int:
                         "l1_type": str(rec.get("l1_type") or ""),
                         "margin_to_second": "",
                         "second_to_first_ratio": "",
+                        "postprocess": "",
                         "decision": "rejected",
                         "reason": reason,
                     }
@@ -261,6 +360,7 @@ def main(argv: list[str]) -> int:
                     "l1_type",
                     "margin_to_second",
                     "second_to_first_ratio",
+                    "postprocess",
                     "decision",
                     "reason",
                 ],
@@ -274,6 +374,8 @@ def main(argv: list[str]) -> int:
     print(f"accepted: {len(accepted_rows):,}")
     for reason, n in sorted(reason_counts.items()):
         print(f"reason[{reason}]={n}")
+    for reason, n in sorted(postprocess_counts.items()):
+        print(f"postprocess[{reason}]={n}")
     print(f"resolved_csv: {out_resolved}")
     if out_decisions is not None:
         print(f"decisions_csv: {out_decisions}")
@@ -282,4 +384,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
