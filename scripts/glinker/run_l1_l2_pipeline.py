@@ -16,6 +16,9 @@ from scripts.glinker.io import detect_delimiter
 from scripts.glinker.l2_dictionary import ExactDictionaryMatcher
 from scripts.glinker.l2_elasticsearch import ElasticsearchAliasRetriever, ElasticsearchConfig
 from scripts.glinker.l2_hybrid import HybridL2Config, HybridL2Retriever
+from scripts.glinker.l3_biencoder import L3BiEncoderRetriever
+from scripts.glinker.l3_l4_enrich import L3Config, L3L4Config, L4Config, enrich_record
+from scripts.glinker.l4_reranker import CrossEncoderReranker, L4RerankConfig
 
 
 def _to_int(value: str | int | float | None) -> int | None:
@@ -108,6 +111,36 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--no-fallback-on-no-exact", action="store_true")
     ap.add_argument("--no-fallback-on-ambiguous", action="store_true")
     ap.add_argument("--fuzziness", default="AUTO")
+    ap.add_argument("--enable-l3", action="store_true")
+    ap.add_argument("--l3-index-npz", default="")
+    ap.add_argument("--l3-model-path", default="")
+    ap.add_argument("--l3-backend", default="auto", help="auto|hf|hash")
+    ap.add_argument("--l3-device", default="auto")
+    ap.add_argument("--l3-batch-size", type=int, default=128)
+    ap.add_argument("--l3-max-length", type=int, default=64)
+    ap.add_argument("--l3-load-dtype", default="auto")
+    ap.add_argument("--l3-search-backend", default="auto")
+    ap.add_argument("--l3-ann-index-dir", default="")
+    ap.add_argument("--l3-ann-candidate-pool", type=int, default=256)
+    ap.add_argument("--l3-ann-ivf-nlist", type=int, default=4096)
+    ap.add_argument("--l3-ann-ivf-nprobe", type=int, default=16)
+    ap.add_argument("--l3-ann-hnsw-m", type=int, default=32)
+    ap.add_argument("--l3-ann-hnsw-ef-search", type=int, default=64)
+    ap.add_argument("--l3-trigger", default="no_exact", help="no_exact|ambiguous_or_no_exact|always")
+    ap.add_argument("--l3-top-k", type=int, default=50)
+    ap.add_argument("--l3-max-merge-k", type=int, default=50)
+
+    ap.add_argument("--enable-l4", action="store_true")
+    ap.add_argument("--l4-model-path", default="")
+    ap.add_argument("--l4-backend", default="auto", help="auto|hf|hash")
+    ap.add_argument("--l4-device", default="auto")
+    ap.add_argument("--l4-batch-size", type=int, default=64)
+    ap.add_argument("--l4-max-length", type=int, default=128)
+    ap.add_argument("--l4-load-dtype", default="auto")
+    ap.add_argument("--l4-top-n", type=int, default=1)
+    ap.add_argument("--l4-max-pool-k", type=int, default=50)
+    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument("--l4-min-candidates", type=int, default=2)
     args = ap.parse_args(argv)
 
     l1_spans_path = Path(args.l1_spans_csv)
@@ -148,6 +181,54 @@ def main(argv: list[str]) -> int:
         fuzziness=str(args.fuzziness),
     )
     retriever = HybridL2Retriever(exact_matcher=exact, fuzzy_retriever=es_client, config=cfg)
+    l3_retriever = None
+    if args.enable_l3:
+        if not args.l3_index_npz or not args.l3_model_path:
+            raise ValueError("--enable-l3 requires --l3-index-npz and --l3-model-path")
+        l3_retriever = L3BiEncoderRetriever(
+            index_npz=Path(args.l3_index_npz),
+            model_path=str(args.l3_model_path),
+            backend=str(args.l3_backend),
+            device=str(args.l3_device),
+            batch_size=int(args.l3_batch_size),
+            max_length=int(args.l3_max_length),
+            load_dtype=str(args.l3_load_dtype),
+            search_backend=str(args.l3_search_backend),
+            ann_candidate_pool=int(args.l3_ann_candidate_pool),
+            ann_ivf_nlist=int(args.l3_ann_ivf_nlist),
+            ann_ivf_nprobe=int(args.l3_ann_ivf_nprobe),
+            ann_hnsw_m=int(args.l3_ann_hnsw_m),
+            ann_hnsw_ef_search=int(args.l3_ann_hnsw_ef_search),
+            ann_index_dir=str(args.l3_ann_index_dir),
+        )
+    l4_reranker = None
+    if args.enable_l4:
+        if not args.l4_model_path:
+            raise ValueError("--enable-l4 requires --l4-model-path")
+        l4_reranker = CrossEncoderReranker(
+            model_path=str(args.l4_model_path),
+            backend=str(args.l4_backend),
+            device=str(args.l4_device),
+            batch_size=int(args.l4_batch_size),
+            max_length=int(args.l4_max_length),
+            load_dtype=str(args.l4_load_dtype),
+            config=L4RerankConfig(top_n=int(args.l4_top_n)),
+        )
+    l3_l4_cfg = L3L4Config(
+        l3=L3Config(
+            enabled=bool(args.enable_l3),
+            trigger_mode=str(args.l3_trigger),
+            top_k=int(args.l3_top_k),
+            max_merge_k=int(args.l3_max_merge_k),
+        ),
+        l4=L4Config(
+            enabled=bool(args.enable_l4),
+            top_n=int(args.l4_top_n),
+            max_pool_k=int(args.l4_max_pool_k),
+            trigger_mode=str(args.l4_trigger),
+            min_candidates=int(args.l4_min_candidates),
+        ),
+    )
 
     out_jsonl.parent.mkdir(parents=True, exist_ok=True)
     if out_flat is not None:
@@ -211,7 +292,6 @@ def main(argv: list[str]) -> int:
                     continue
 
                 result = retriever.retrieve(mention, l1_type=l1_for_lookup)
-                route_counter[result.route] += 1
                 rows += 1
 
                 payload = {
@@ -237,10 +317,17 @@ def main(argv: list[str]) -> int:
                     "n_exact": len(result.exact_candidates),
                     "n_fuzzy": len(result.fuzzy_candidates),
                 }
+                payload = enrich_record(
+                    payload,
+                    cfg=l3_l4_cfg,
+                    l3_retriever=l3_retriever,
+                    l4_reranker=l4_reranker,
+                )
+                route_counter[str(payload.get("route") or result.route)] += 1
                 fp_out.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
                 if flat_writer is not None:
-                    for rank, cand in enumerate(result.final_candidates):
+                    for rank, cand in enumerate(payload.get("final_candidates") or []):
                         flat_writer.writerow(
                             [
                                 mention_id,
@@ -249,13 +336,13 @@ def main(argv: list[str]) -> int:
                                 end if end is not None else "",
                                 mention,
                                 l1_type_norm or "",
-                                result.route,
+                                str(payload.get("route") or result.route),
                                 rank,
-                                cand.concept_id,
-                                cand.l1_type,
-                                f"{cand.score:.6f}",
-                                cand.method,
-                                cand.matched_alias,
+                                str(cand.get("concept_id") or ""),
+                                str(cand.get("l1_type") or ""),
+                                f"{float(cand.get('score') or 0.0):.6f}",
+                                str(cand.get("method") or ""),
+                                str(cand.get("matched_alias") or ""),
                             ]
                         )
         finally:
@@ -276,4 +363,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
