@@ -8,7 +8,7 @@ import math
 import re
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -24,8 +24,13 @@ class ResolverConfig:
     require_l1_type_match: bool = False
     min_top1_score_exact: float = 0.2
     min_top1_score_fuzzy: float = 6.0
+    min_top1_score_l3: float = 0.0
+    min_top1_score_l4: float = 0.0
     min_score_margin: float = 0.0
     max_second_to_first_ratio: float = 1.0
+    route_min_top1_score: dict[str, float] = field(default_factory=dict)
+    route_min_score_margin: dict[str, float] = field(default_factory=dict)
+    route_max_second_to_first_ratio: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -56,6 +61,28 @@ def _to_float(value) -> float:
         return float(value)
     except Exception:
         return 0.0
+
+
+def _parse_route_float_overrides(values: list[str], *, flag: str) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for raw in values:
+        token = str(raw or "").strip()
+        if not token:
+            continue
+        if "=" in token:
+            route, score_text = token.split("=", 1)
+        elif ":" in token:
+            route, score_text = token.split(":", 1)
+        else:
+            raise ValueError(f"Invalid {flag} value '{token}'. Expected route=number.")
+        route = route.strip()
+        if not route:
+            raise ValueError(f"Invalid {flag} value '{token}'. Route cannot be empty.")
+        try:
+            out[route] = float(score_text.strip())
+        except ValueError as e:
+            raise ValueError(f"Invalid {flag} value '{token}'. Score must be numeric.") from e
+    return out
 
 
 def _looks_like_history_concept(top1: dict) -> bool:
@@ -165,6 +192,7 @@ def resolve_record(
     mention_id = str(record.get("mention_id") or "").strip()
     mention = str(record.get("mention") or "")
     mention_l1 = str(record.get("l1_type") or "").strip() or None
+    route = str(record.get("route") or "").strip()
 
     if not note_id:
         return (False, "missing_note_id", None, "")
@@ -192,14 +220,27 @@ def resolve_record(
     if cfg.require_l1_type_match and mention_l1 and cand_l1 and cand_l1 != mention_l1:
         return (False, "l1_type_mismatch", None, "")
 
-    min_score = (
-        cfg.min_top1_score_exact if top1_method == "l2_exact" else cfg.min_top1_score_fuzzy
-    )
+    if top1_method == "l2_exact":
+        min_score = cfg.min_top1_score_exact
+    elif top1_method == "l3_biencoder":
+        min_score = cfg.min_top1_score_l3
+    elif top1_method == "l4_cross_rerank":
+        min_score = cfg.min_top1_score_l4
+    else:
+        min_score = cfg.min_top1_score_fuzzy
+    if route and route in cfg.route_min_top1_score:
+        min_score = float(cfg.route_min_top1_score[route])
     if top1_score < min_score:
         return (False, "low_score", None, "")
 
     margin = math.inf
     second_ratio = 0.0
+    min_margin = cfg.min_score_margin
+    max_second_ratio = cfg.max_second_to_first_ratio
+    if route and route in cfg.route_min_score_margin:
+        min_margin = float(cfg.route_min_score_margin[route])
+    if route and route in cfg.route_max_second_to_first_ratio:
+        max_second_ratio = float(cfg.route_max_second_to_first_ratio[route])
     if top2 is not None:
         top2_score = _to_float(top2.get("score"))
         margin = top1_score - top2_score
@@ -207,9 +248,9 @@ def resolve_record(
             second_ratio = top2_score / top1_score
         top2_cid = str(top2.get("concept_id") or "").strip()
         if top2_cid and top2_cid != concept_id:
-            if margin < cfg.min_score_margin:
+            if margin < min_margin:
                 return (False, "low_margin", None, "")
-            if second_ratio > cfg.max_second_to_first_ratio:
+            if second_ratio > max_second_ratio:
                 return (False, "high_second_ratio", None, "")
 
     postprocess_reason = ""
@@ -234,6 +275,7 @@ def resolve_record(
         "margin_to_second": margin if margin != math.inf else "",
         "second_to_first_ratio": second_ratio if top2 is not None else "",
         "postprocess": postprocess_reason,
+        "route": route,
     }
     return (True, "accepted", decision, postprocess_reason)
 
@@ -253,8 +295,28 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--require-l1-type-match", action="store_true")
     ap.add_argument("--min-top1-score-exact", type=float, default=0.2)
     ap.add_argument("--min-top1-score-fuzzy", type=float, default=6.0)
+    ap.add_argument("--min-top1-score-l3", type=float, default=0.0)
+    ap.add_argument("--min-top1-score-l4", type=float, default=0.0)
     ap.add_argument("--min-score-margin", type=float, default=0.0)
     ap.add_argument("--max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument(
+        "--route-min-top1-score",
+        action="append",
+        default=[],
+        help="Per-route score threshold override. Format: route=score",
+    )
+    ap.add_argument(
+        "--route-min-score-margin",
+        action="append",
+        default=[],
+        help="Per-route score margin override. Format: route=margin",
+    )
+    ap.add_argument(
+        "--route-max-second-to-first-ratio",
+        action="append",
+        default=[],
+        help="Per-route 2nd/1st score ratio override. Format: route=ratio",
+    )
     ap.add_argument("--no-trim-non-alnum-edges", action="store_true")
     ap.add_argument("--no-trim-history-of-prefix", action="store_true")
     args = ap.parse_args(argv)
@@ -264,8 +326,20 @@ def main(argv: list[str]) -> int:
         require_l1_type_match=bool(args.require_l1_type_match),
         min_top1_score_exact=float(args.min_top1_score_exact),
         min_top1_score_fuzzy=float(args.min_top1_score_fuzzy),
+        min_top1_score_l3=float(args.min_top1_score_l3),
+        min_top1_score_l4=float(args.min_top1_score_l4),
         min_score_margin=float(args.min_score_margin),
         max_second_to_first_ratio=float(args.max_second_to_first_ratio),
+        route_min_top1_score=_parse_route_float_overrides(
+            list(args.route_min_top1_score), flag="--route-min-top1-score"
+        ),
+        route_min_score_margin=_parse_route_float_overrides(
+            list(args.route_min_score_margin), flag="--route-min-score-margin"
+        ),
+        route_max_second_to_first_ratio=_parse_route_float_overrides(
+            list(args.route_max_second_to_first_ratio),
+            flag="--route-max-second-to-first-ratio",
+        ),
     )
     boundary_cfg = BoundaryPostprocessConfig(
         trim_non_alnum_edges=not bool(args.no_trim_non_alnum_edges),
@@ -333,6 +407,7 @@ def main(argv: list[str]) -> int:
                         "margin_to_second": "",
                         "second_to_first_ratio": "",
                         "postprocess": "",
+                        "route": str(rec.get("route") or ""),
                         "decision": "rejected",
                         "reason": reason,
                     }
@@ -361,6 +436,7 @@ def main(argv: list[str]) -> int:
                     "margin_to_second",
                     "second_to_first_ratio",
                     "postprocess",
+                    "route",
                     "decision",
                     "reason",
                 ],

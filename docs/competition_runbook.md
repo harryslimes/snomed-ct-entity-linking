@@ -175,6 +175,57 @@ Notes:
 - If L1 output already exists, pass `--l1-spans-csv ... --reuse-existing-l1-spans`.
 - For long notes, try `--l1-window-chars 12000 --l1-window-overlap-chars 512`.
 
+## 8b) Build and enable true L3 (bi-encoder) + L4 (cross-encoder)
+
+Build L3 alias embedding index:
+
+```bash
+python scripts/glinker/build_l3_index.py \
+  --super-dict-jsonl data/interim/glinker/super_dictionary_scoped.jsonl \
+  --out-index-npz data/interim/glinker/l3_biencoder_index.npz \
+  --backend auto \
+  --model-path knowledgator/gliner-linker-large-v1.0
+```
+
+L3 retrieval search backends:
+
+- `--l3-search-backend auto` (recommended): uses `faiss_hnsw` if `faiss` is installed, else `bruteforce`
+- `--l3-search-backend faiss_hnsw|faiss_ivf|faiss_flat|bruteforce`
+
+Build persisted FAISS ANN indexes once (recommended for CV speed):
+
+```bash
+python scripts/glinker/build_l3_ann_index.py \
+  --index-npz data/interim/glinker/l3_biencoder_index.npz \
+  --out-dir data/interim/glinker/l3_ann_faiss \
+  --mode faiss_hnsw
+```
+
+Run end-to-end with L3 backoff on no-exact and L4 reranking:
+
+```bash
+python scripts/glinker/run_end_to_end_l1_l2.py \
+  --notes-csv data/test_notes.csv \
+  --l1-model-path models/gliner_finetuned_l1 \
+  --exact-dict-tsv data/interim/glinker/l2_exact_dictionary.tsv \
+  --es-url http://127.0.0.1:9200 \
+  --es-index-name snomed_super_dict_v1 \
+  --enable-l3 \
+  --l3-index-npz data/interim/glinker/l3_biencoder_index.npz \
+  --l3-model-path knowledgator/gliner-linker-large-v1.0 \
+  --l3-search-backend auto \
+  --l3-ann-index-dir data/interim/glinker/l3_ann_faiss \
+  --l3-trigger no_exact \
+  --enable-l4 \
+  --l4-model-path knowledgator/gliner-linker-rerank-v1.0 \
+  --l4-trigger ambiguous \
+  --l4-min-candidates 2 \
+  --resolver-route-min-top1-score none+l3+l4=0.6 \
+  --out-jsonl outputs/glinker/e2e_l1_l2_l3_l4_candidates.jsonl \
+  --out-resolved-csv outputs/glinker/e2e_l1_l2_l3_l4_resolved.csv \
+  --out-decisions-csv outputs/glinker/e2e_l1_l2_l3_l4_decisions.csv
+```
+
 ## 9) Resolve L2 candidates to one concept per span (submission-ready)
 
 ```bash
@@ -187,6 +238,25 @@ python scripts/glinker/resolve_l2_links.py \
   --min-score-margin 0.0 \
   --max-second-to-first-ratio 1.0
 ```
+
+Route-aware resolver thresholds are supported for fine-grained gating:
+
+```bash
+python scripts/glinker/resolve_l2_links.py \
+  --candidates-jsonl outputs/glinker/e2e_l1_l2_l3_l4_candidates.jsonl \
+  --out-resolved-csv outputs/glinker/e2e_l1_l2_l3_l4_resolved.csv \
+  --route-min-top1-score none+l3+l4=0.40 \
+  --route-min-top1-score exact_plus_fuzzy+l4=0.20 \
+  --route-min-score-margin exact_plus_fuzzy+l4=0.02 \
+  --route-max-second-to-first-ratio none+l3+l4=0.98
+```
+
+The same route override flags are available in `run_end_to_end_l1_l2.py` and `eval_cv.py`
+with the `resolver-` prefix (for example `--resolver-route-min-top1-score ...`).
+
+Current default recommendation from 5-fold CV on this branch:
+
+- `--resolver-route-min-top1-score none+l3+l4=0.6`
 
 You can also run this inside the orchestration command:
 
@@ -234,3 +304,10 @@ Outputs:
 
 - `outputs/.../fold_metrics.csv`
 - `outputs/.../summary.json`
+
+For ablations, run `eval_cv.py` with:
+
+- `L2-only`: omit `--enable-l3 --enable-l4`
+- `L2+L3`: add `--enable-l3 --l3-index-npz ... --l3-model-path ...`
+- `L2+L3+L4`: add both `--enable-l3 ...` and `--enable-l4 --l4-model-path ...`
+  and `--resolver-route-min-top1-score none+l3+l4=0.6`

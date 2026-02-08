@@ -125,6 +125,71 @@ class TestRunEndToEndL1L2(unittest.TestCase):
             self.assertEqual(called["resolve"], 1)
             self.assertTrue(out_resolved.exists())
 
+    def test_passes_route_overrides_to_resolver(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            notes_csv = root / "notes.csv"
+            notes_csv.write_text("note_id,text\nn1,Patient has hypertension.\n", encoding="utf-8")
+            out_jsonl = root / "out.jsonl"
+            out_resolved = root / "resolved.csv"
+
+            def _fake_l1(argv):
+                out_idx = argv.index("--out-spans-csv") + 1
+                spans_path = Path(argv[out_idx])
+                spans_path.parent.mkdir(parents=True, exist_ok=True)
+                spans_path.write_text(
+                    "mention_id,note_id,start_char,end_char,mention,l1_type\n"
+                    "m1,n1,12,24,hypertension,finding\n",
+                    encoding="utf-8",
+                )
+                return 0
+
+            def _fake_l2(argv):
+                out_idx = argv.index("--out-jsonl") + 1
+                Path(argv[out_idx]).write_text(
+                    '{"mention_id":"m1","note_id":"n1","start_char":12,"end_char":24,'
+                    '"l1_type":"finding","route":"none+l3+l4",'
+                    '"final_candidates":[{"concept_id":"111","method":"l2_es_fuzzy","score":0.2}]}\n',
+                    encoding="utf-8",
+                )
+                return 0
+
+            captured: dict[str, list[str]] = {"argv": []}
+
+            def _fake_resolve(argv):
+                captured["argv"] = list(argv)
+                out_idx = argv.index("--out-resolved-csv") + 1
+                Path(argv[out_idx]).write_text(
+                    "note_id,start_char,end_char,concept_id\nn1,12,24,111\n",
+                    encoding="utf-8",
+                )
+                return 0
+
+            with patch("scripts.glinker.run_end_to_end_l1_l2.run_l1_inference.main", side_effect=_fake_l1), patch(
+                "scripts.glinker.run_end_to_end_l1_l2.run_l1_l2_pipeline.main", side_effect=_fake_l2
+            ), patch(
+                "scripts.glinker.run_end_to_end_l1_l2.resolve_l2_links.main", side_effect=_fake_resolve
+            ):
+                rc = main(
+                    [
+                        "--notes-csv",
+                        str(notes_csv),
+                        "--l1-model-path",
+                        "dummy-model",
+                        "--out-jsonl",
+                        str(out_jsonl),
+                        "--out-resolved-csv",
+                        str(out_resolved),
+                        "--no-es",
+                        "--resolver-route-min-top1-score",
+                        "none+l3+l4=0.1",
+                    ]
+                )
+            self.assertEqual(rc, 0)
+            self.assertIn("--route-min-top1-score", captured["argv"])
+            route_idx = captured["argv"].index("--route-min-top1-score") + 1
+            self.assertEqual(captured["argv"][route_idx], "none+l3+l4=0.1")
+
 
 if __name__ == "__main__":
     unittest.main()

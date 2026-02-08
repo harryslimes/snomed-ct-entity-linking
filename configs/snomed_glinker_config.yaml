@@ -35,17 +35,43 @@ pipeline:
       top_k: 50
 
   l3:
+    enabled: false
     type: "bi_encoder_retrieval"
     model: "knowledgator/gliner-linker-large-v1.0"
-    index_path: "data/interim/glinker/super_dict_faiss.index"
-    top_k: 10
+    index_path: "data/interim/glinker/l3_biencoder_index.npz"
+    backend: "auto"
+    search_backend: "auto"  # auto -> faiss_hnsw if faiss is installed, else bruteforce
+    ann_index_dir: "data/interim/glinker/l3_ann_faiss"
+    ann_candidate_pool: 256
+    ann_ivf_nlist: 4096
+    ann_ivf_nprobe: 16
+    ann_hnsw_m: 32
+    ann_hnsw_ef_search: 64
+    trigger: "no_exact"
+    top_k: 50
+    max_merge_k: 50
 
   l4:
+    enabled: false
     type: "cross_encoder_rerank"
     model: "knowledgator/gliner-linker-rerank-v1.0"
+    backend: "auto"
+    trigger: "ambiguous"
+    min_candidates: 2
+    max_pool_k: 50
     top_n: 1
 
 postprocess:
   trim_punctuation: true
   trim_history_of_prefix: true
   enforce_allowed_concepts: true
+
+resolver:
+  min_top1_score_exact: 0.0
+  min_top1_score_fuzzy: 0.0
+  min_top1_score_l3: 0.0
+  min_top1_score_l4: 0.0
+  min_score_margin: 0.0
+  max_second_to_first_ratio: 1.0
+  route_min_top1_score:
+    none+l3+l4: 0.6

@@ -59,14 +59,63 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--no-fallback-on-no-exact", action="store_true")
     ap.add_argument("--no-fallback-on-ambiguous", action="store_true")
     ap.add_argument("--fuzziness", default="AUTO")
+    ap.add_argument("--enable-l3", action="store_true")
+    ap.add_argument("--l3-index-npz", default="")
+    ap.add_argument("--l3-model-path", default="")
+    ap.add_argument("--l3-backend", default="auto")
+    ap.add_argument("--l3-device", default="auto")
+    ap.add_argument("--l3-batch-size", type=int, default=128)
+    ap.add_argument("--l3-max-length", type=int, default=64)
+    ap.add_argument("--l3-load-dtype", default="auto")
+    ap.add_argument("--l3-search-backend", default="auto")
+    ap.add_argument("--l3-ann-index-dir", default="")
+    ap.add_argument("--l3-ann-candidate-pool", type=int, default=256)
+    ap.add_argument("--l3-ann-ivf-nlist", type=int, default=4096)
+    ap.add_argument("--l3-ann-ivf-nprobe", type=int, default=16)
+    ap.add_argument("--l3-ann-hnsw-m", type=int, default=32)
+    ap.add_argument("--l3-ann-hnsw-ef-search", type=int, default=64)
+    ap.add_argument("--l3-trigger", default="no_exact")
+    ap.add_argument("--l3-top-k", type=int, default=50)
+    ap.add_argument("--l3-max-merge-k", type=int, default=50)
+    ap.add_argument("--enable-l4", action="store_true")
+    ap.add_argument("--l4-model-path", default="")
+    ap.add_argument("--l4-backend", default="auto")
+    ap.add_argument("--l4-device", default="auto")
+    ap.add_argument("--l4-batch-size", type=int, default=64)
+    ap.add_argument("--l4-max-length", type=int, default=128)
+    ap.add_argument("--l4-load-dtype", default="auto")
+    ap.add_argument("--l4-top-n", type=int, default=1)
+    ap.add_argument("--l4-max-pool-k", type=int, default=50)
+    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument("--l4-min-candidates", type=int, default=2)
 
     ap.add_argument("--resolver-allowed-concepts", default="")
     ap.add_argument("--resolver-no-fuzzy-top1", action="store_true")
     ap.add_argument("--resolver-require-l1-type-match", action="store_true")
     ap.add_argument("--resolver-min-top1-score-exact", type=float, default=0.2)
     ap.add_argument("--resolver-min-top1-score-fuzzy", type=float, default=6.0)
+    ap.add_argument("--resolver-min-top1-score-l3", type=float, default=0.0)
+    ap.add_argument("--resolver-min-top1-score-l4", type=float, default=0.0)
     ap.add_argument("--resolver-min-score-margin", type=float, default=0.0)
     ap.add_argument("--resolver-max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument(
+        "--resolver-route-min-top1-score",
+        action="append",
+        default=[],
+        help="Per-route score threshold override. Format: route=score",
+    )
+    ap.add_argument(
+        "--resolver-route-min-score-margin",
+        action="append",
+        default=[],
+        help="Per-route margin override. Format: route=margin",
+    )
+    ap.add_argument(
+        "--resolver-route-max-second-to-first-ratio",
+        action="append",
+        default=[],
+        help="Per-route ratio override. Format: route=ratio",
+    )
     ap.add_argument("--resolver-no-trim-non-alnum-edges", action="store_true")
     ap.add_argument("--resolver-no-trim-history-of-prefix", action="store_true")
     args = ap.parse_args(argv)
@@ -170,6 +219,68 @@ def main(argv: list[str]) -> int:
         l2_argv.append("--no-fallback-on-no-exact")
     if args.no_fallback_on_ambiguous:
         l2_argv.append("--no-fallback-on-ambiguous")
+    if args.enable_l3:
+        l2_argv += [
+            "--enable-l3",
+            "--l3-index-npz",
+            str(args.l3_index_npz),
+            "--l3-model-path",
+            str(args.l3_model_path),
+            "--l3-backend",
+            str(args.l3_backend),
+            "--l3-device",
+            str(args.l3_device),
+            "--l3-batch-size",
+            str(args.l3_batch_size),
+            "--l3-max-length",
+            str(args.l3_max_length),
+            "--l3-load-dtype",
+            str(args.l3_load_dtype),
+            "--l3-search-backend",
+            str(args.l3_search_backend),
+            "--l3-ann-index-dir",
+            str(args.l3_ann_index_dir),
+            "--l3-ann-candidate-pool",
+            str(args.l3_ann_candidate_pool),
+            "--l3-ann-ivf-nlist",
+            str(args.l3_ann_ivf_nlist),
+            "--l3-ann-ivf-nprobe",
+            str(args.l3_ann_ivf_nprobe),
+            "--l3-ann-hnsw-m",
+            str(args.l3_ann_hnsw_m),
+            "--l3-ann-hnsw-ef-search",
+            str(args.l3_ann_hnsw_ef_search),
+            "--l3-trigger",
+            str(args.l3_trigger),
+            "--l3-top-k",
+            str(args.l3_top_k),
+            "--l3-max-merge-k",
+            str(args.l3_max_merge_k),
+        ]
+    if args.enable_l4:
+        l2_argv += [
+            "--enable-l4",
+            "--l4-model-path",
+            str(args.l4_model_path),
+            "--l4-backend",
+            str(args.l4_backend),
+            "--l4-device",
+            str(args.l4_device),
+            "--l4-batch-size",
+            str(args.l4_batch_size),
+            "--l4-max-length",
+            str(args.l4_max_length),
+            "--l4-load-dtype",
+            str(args.l4_load_dtype),
+            "--l4-top-n",
+            str(args.l4_top_n),
+            "--l4-max-pool-k",
+            str(args.l4_max_pool_k),
+            "--l4-trigger",
+            str(args.l4_trigger),
+            "--l4-min-candidates",
+            str(args.l4_min_candidates),
+        ]
 
     rc_l2 = run_l1_l2_pipeline.main(l2_argv)
     if rc_l2 != 0:
@@ -185,6 +296,10 @@ def main(argv: list[str]) -> int:
             str(args.resolver_min_top1_score_exact),
             "--min-top1-score-fuzzy",
             str(args.resolver_min_top1_score_fuzzy),
+            "--min-top1-score-l3",
+            str(args.resolver_min_top1_score_l3),
+            "--min-top1-score-l4",
+            str(args.resolver_min_top1_score_l4),
             "--min-score-margin",
             str(args.resolver_min_score_margin),
             "--max-second-to-first-ratio",
@@ -198,6 +313,12 @@ def main(argv: list[str]) -> int:
             resolver_argv.append("--no-fuzzy-top1")
         if args.resolver_require_l1_type_match:
             resolver_argv.append("--require-l1-type-match")
+        for token in list(args.resolver_route_min_top1_score):
+            resolver_argv += ["--route-min-top1-score", str(token)]
+        for token in list(args.resolver_route_min_score_margin):
+            resolver_argv += ["--route-min-score-margin", str(token)]
+        for token in list(args.resolver_route_max_second_to_first_ratio):
+            resolver_argv += ["--route-max-second-to-first-ratio", str(token)]
         if args.resolver_no_trim_non_alnum_edges:
             resolver_argv.append("--no-trim-non-alnum-edges")
         if args.resolver_no_trim_history_of_prefix:

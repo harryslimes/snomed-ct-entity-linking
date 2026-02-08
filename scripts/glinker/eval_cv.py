@@ -211,13 +211,47 @@ def _run_fold(
     no_fallback_on_no_exact: bool,
     no_fallback_on_ambiguous: bool,
     fuzziness: str,
+    enable_l3: bool,
+    l3_index_npz: Path | None,
+    l3_model_path: str,
+    l3_backend: str,
+    l3_device: str,
+    l3_batch_size: int,
+    l3_max_length: int,
+    l3_load_dtype: str,
+    l3_search_backend: str,
+    l3_ann_index_dir: str,
+    l3_ann_candidate_pool: int,
+    l3_ann_ivf_nlist: int,
+    l3_ann_ivf_nprobe: int,
+    l3_ann_hnsw_m: int,
+    l3_ann_hnsw_ef_search: int,
+    l3_trigger: str,
+    l3_top_k: int,
+    l3_max_merge_k: int,
+    enable_l4: bool,
+    l4_model_path: str,
+    l4_backend: str,
+    l4_device: str,
+    l4_batch_size: int,
+    l4_max_length: int,
+    l4_load_dtype: str,
+    l4_top_n: int,
+    l4_max_pool_k: int,
+    l4_trigger: str,
+    l4_min_candidates: int,
     resolver_allowed_concepts: Path | None,
     resolver_no_fuzzy_top1: bool,
     resolver_require_l1_type_match: bool,
     resolver_min_top1_score_exact: float,
     resolver_min_top1_score_fuzzy: float,
+    resolver_min_top1_score_l3: float,
+    resolver_min_top1_score_l4: float,
     resolver_min_score_margin: float,
     resolver_max_second_to_first_ratio: float,
+    resolver_route_min_top1_score: list[str],
+    resolver_route_min_score_margin: list[str],
+    resolver_route_max_second_to_first_ratio: list[str],
     resolver_no_trim_non_alnum_edges: bool,
     resolver_no_trim_history_of_prefix: bool,
     l1_map: dict[str, str],
@@ -344,6 +378,70 @@ def _run_fold(
         l2_argv.append("--no-fallback-on-no-exact")
     if no_fallback_on_ambiguous:
         l2_argv.append("--no-fallback-on-ambiguous")
+    if enable_l3:
+        if l3_index_npz is None:
+            raise ValueError("L3 enabled but no l3 index path provided")
+        l2_argv += [
+            "--enable-l3",
+            "--l3-index-npz",
+            str(l3_index_npz),
+            "--l3-model-path",
+            str(l3_model_path),
+            "--l3-backend",
+            str(l3_backend),
+            "--l3-device",
+            str(l3_device),
+            "--l3-batch-size",
+            str(l3_batch_size),
+            "--l3-max-length",
+            str(l3_max_length),
+            "--l3-load-dtype",
+            str(l3_load_dtype),
+            "--l3-search-backend",
+            str(l3_search_backend),
+            "--l3-ann-index-dir",
+            str(l3_ann_index_dir),
+            "--l3-ann-candidate-pool",
+            str(l3_ann_candidate_pool),
+            "--l3-ann-ivf-nlist",
+            str(l3_ann_ivf_nlist),
+            "--l3-ann-ivf-nprobe",
+            str(l3_ann_ivf_nprobe),
+            "--l3-ann-hnsw-m",
+            str(l3_ann_hnsw_m),
+            "--l3-ann-hnsw-ef-search",
+            str(l3_ann_hnsw_ef_search),
+            "--l3-trigger",
+            str(l3_trigger),
+            "--l3-top-k",
+            str(l3_top_k),
+            "--l3-max-merge-k",
+            str(l3_max_merge_k),
+        ]
+    if enable_l4:
+        l2_argv += [
+            "--enable-l4",
+            "--l4-model-path",
+            str(l4_model_path),
+            "--l4-backend",
+            str(l4_backend),
+            "--l4-device",
+            str(l4_device),
+            "--l4-batch-size",
+            str(l4_batch_size),
+            "--l4-max-length",
+            str(l4_max_length),
+            "--l4-load-dtype",
+            str(l4_load_dtype),
+            "--l4-top-n",
+            str(l4_top_n),
+            "--l4-max-pool-k",
+            str(l4_max_pool_k),
+            "--l4-trigger",
+            str(l4_trigger),
+            "--l4-min-candidates",
+            str(l4_min_candidates),
+        ]
 
     rc_l2 = run_l1_l2_pipeline.main(l2_argv)
     if rc_l2 != 0:
@@ -360,6 +458,10 @@ def _run_fold(
         str(resolver_min_top1_score_exact),
         "--min-top1-score-fuzzy",
         str(resolver_min_top1_score_fuzzy),
+        "--min-top1-score-l3",
+        str(resolver_min_top1_score_l3),
+        "--min-top1-score-l4",
+        str(resolver_min_top1_score_l4),
         "--min-score-margin",
         str(resolver_min_score_margin),
         "--max-second-to-first-ratio",
@@ -371,6 +473,12 @@ def _run_fold(
         resolver_argv.append("--no-fuzzy-top1")
     if resolver_require_l1_type_match:
         resolver_argv.append("--require-l1-type-match")
+    for token in resolver_route_min_top1_score:
+        resolver_argv += ["--route-min-top1-score", str(token)]
+    for token in resolver_route_min_score_margin:
+        resolver_argv += ["--route-min-score-margin", str(token)]
+    for token in resolver_route_max_second_to_first_ratio:
+        resolver_argv += ["--route-max-second-to-first-ratio", str(token)]
     if resolver_no_trim_non_alnum_edges:
         resolver_argv.append("--no-trim-non-alnum-edges")
     if resolver_no_trim_history_of_prefix:
@@ -482,7 +590,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(
         description=(
             "Cross-validation evaluation harness for GLinker pipeline stages currently implemented "
-            "(L1 spans, L2 candidate generation, resolver)."
+            "(L1 spans, L2 hybrid retrieval, optional L3/L4 enrichment, resolver)."
         )
     )
     ap.add_argument("--folds-dir", default="data/interim/glinker/folds")
@@ -519,14 +627,63 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--no-fallback-on-no-exact", action="store_true")
     ap.add_argument("--no-fallback-on-ambiguous", action="store_true")
     ap.add_argument("--fuzziness", default="AUTO")
+    ap.add_argument("--enable-l3", action="store_true")
+    ap.add_argument("--l3-index-npz", default="")
+    ap.add_argument("--l3-model-path", default="")
+    ap.add_argument("--l3-backend", default="auto")
+    ap.add_argument("--l3-device", default="auto")
+    ap.add_argument("--l3-batch-size", type=int, default=128)
+    ap.add_argument("--l3-max-length", type=int, default=64)
+    ap.add_argument("--l3-load-dtype", default="auto")
+    ap.add_argument("--l3-search-backend", default="auto")
+    ap.add_argument("--l3-ann-index-dir", default="")
+    ap.add_argument("--l3-ann-candidate-pool", type=int, default=256)
+    ap.add_argument("--l3-ann-ivf-nlist", type=int, default=4096)
+    ap.add_argument("--l3-ann-ivf-nprobe", type=int, default=16)
+    ap.add_argument("--l3-ann-hnsw-m", type=int, default=32)
+    ap.add_argument("--l3-ann-hnsw-ef-search", type=int, default=64)
+    ap.add_argument("--l3-trigger", default="no_exact")
+    ap.add_argument("--l3-top-k", type=int, default=50)
+    ap.add_argument("--l3-max-merge-k", type=int, default=50)
+    ap.add_argument("--enable-l4", action="store_true")
+    ap.add_argument("--l4-model-path", default="")
+    ap.add_argument("--l4-backend", default="auto")
+    ap.add_argument("--l4-device", default="auto")
+    ap.add_argument("--l4-batch-size", type=int, default=64)
+    ap.add_argument("--l4-max-length", type=int, default=128)
+    ap.add_argument("--l4-load-dtype", default="auto")
+    ap.add_argument("--l4-top-n", type=int, default=1)
+    ap.add_argument("--l4-max-pool-k", type=int, default=50)
+    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument("--l4-min-candidates", type=int, default=2)
 
     ap.add_argument("--allowed-concepts", default="")
     ap.add_argument("--resolver-no-fuzzy-top1", action="store_true")
     ap.add_argument("--resolver-require-l1-type-match", action="store_true")
     ap.add_argument("--resolver-min-top1-score-exact", type=float, default=0.2)
     ap.add_argument("--resolver-min-top1-score-fuzzy", type=float, default=6.0)
+    ap.add_argument("--resolver-min-top1-score-l3", type=float, default=0.0)
+    ap.add_argument("--resolver-min-top1-score-l4", type=float, default=0.0)
     ap.add_argument("--resolver-min-score-margin", type=float, default=0.0)
     ap.add_argument("--resolver-max-second-to-first-ratio", type=float, default=1.0)
+    ap.add_argument(
+        "--resolver-route-min-top1-score",
+        action="append",
+        default=[],
+        help="Per-route score threshold override. Format: route=score",
+    )
+    ap.add_argument(
+        "--resolver-route-min-score-margin",
+        action="append",
+        default=[],
+        help="Per-route margin override. Format: route=margin",
+    )
+    ap.add_argument(
+        "--resolver-route-max-second-to-first-ratio",
+        action="append",
+        default=[],
+        help="Per-route 2nd/1st score ratio override. Format: route=ratio",
+    )
     ap.add_argument("--resolver-no-trim-non-alnum-edges", action="store_true")
     ap.add_argument("--resolver-no-trim-history-of-prefix", action="store_true")
     ap.add_argument("--emit-l1-error-report", action="store_true")
@@ -539,6 +696,13 @@ def main(argv: list[str]) -> int:
 
     if args.l1_source == "model" and not args.l1_model_path:
         raise ValueError("--l1-model-path is required when --l1-source=model")
+    if args.enable_l3:
+        if not args.l3_index_npz:
+            raise ValueError("--enable-l3 requires --l3-index-npz")
+        if not args.l3_model_path:
+            raise ValueError("--enable-l3 requires --l3-model-path")
+    if args.enable_l4 and not args.l4_model_path:
+        raise ValueError("--enable-l4 requires --l4-model-path")
 
     folds = _select_folds(folds_dir, args.fold_pattern, int(args.fold_limit))
     if not folds:
@@ -581,13 +745,49 @@ def main(argv: list[str]) -> int:
             no_fallback_on_no_exact=bool(args.no_fallback_on_no_exact),
             no_fallback_on_ambiguous=bool(args.no_fallback_on_ambiguous),
             fuzziness=str(args.fuzziness),
+            enable_l3=bool(args.enable_l3),
+            l3_index_npz=(Path(args.l3_index_npz) if args.l3_index_npz else None),
+            l3_model_path=str(args.l3_model_path),
+            l3_backend=str(args.l3_backend),
+            l3_device=str(args.l3_device),
+            l3_batch_size=int(args.l3_batch_size),
+            l3_max_length=int(args.l3_max_length),
+            l3_load_dtype=str(args.l3_load_dtype),
+            l3_search_backend=str(args.l3_search_backend),
+            l3_ann_index_dir=str(args.l3_ann_index_dir),
+            l3_ann_candidate_pool=int(args.l3_ann_candidate_pool),
+            l3_ann_ivf_nlist=int(args.l3_ann_ivf_nlist),
+            l3_ann_ivf_nprobe=int(args.l3_ann_ivf_nprobe),
+            l3_ann_hnsw_m=int(args.l3_ann_hnsw_m),
+            l3_ann_hnsw_ef_search=int(args.l3_ann_hnsw_ef_search),
+            l3_trigger=str(args.l3_trigger),
+            l3_top_k=int(args.l3_top_k),
+            l3_max_merge_k=int(args.l3_max_merge_k),
+            enable_l4=bool(args.enable_l4),
+            l4_model_path=str(args.l4_model_path),
+            l4_backend=str(args.l4_backend),
+            l4_device=str(args.l4_device),
+            l4_batch_size=int(args.l4_batch_size),
+            l4_max_length=int(args.l4_max_length),
+            l4_load_dtype=str(args.l4_load_dtype),
+            l4_top_n=int(args.l4_top_n),
+            l4_max_pool_k=int(args.l4_max_pool_k),
+            l4_trigger=str(args.l4_trigger),
+            l4_min_candidates=int(args.l4_min_candidates),
             resolver_allowed_concepts=allowed_concepts,
             resolver_no_fuzzy_top1=bool(args.resolver_no_fuzzy_top1),
             resolver_require_l1_type_match=bool(args.resolver_require_l1_type_match),
             resolver_min_top1_score_exact=float(args.resolver_min_top1_score_exact),
             resolver_min_top1_score_fuzzy=float(args.resolver_min_top1_score_fuzzy),
+            resolver_min_top1_score_l3=float(args.resolver_min_top1_score_l3),
+            resolver_min_top1_score_l4=float(args.resolver_min_top1_score_l4),
             resolver_min_score_margin=float(args.resolver_min_score_margin),
             resolver_max_second_to_first_ratio=float(args.resolver_max_second_to_first_ratio),
+            resolver_route_min_top1_score=list(args.resolver_route_min_top1_score),
+            resolver_route_min_score_margin=list(args.resolver_route_min_score_margin),
+            resolver_route_max_second_to_first_ratio=list(
+                args.resolver_route_max_second_to_first_ratio
+            ),
             resolver_no_trim_non_alnum_edges=bool(args.resolver_no_trim_non_alnum_edges),
             resolver_no_trim_history_of_prefix=bool(args.resolver_no_trim_history_of_prefix),
             l1_map=l1_map,
@@ -621,6 +821,13 @@ def main(argv: list[str]) -> int:
             "l1_section_header_lookback_chars": int(args.l1_section_header_lookback_chars),
             "no_es": bool(args.no_es),
             "emit_l1_error_report": bool(args.emit_l1_error_report),
+            "enable_l3": bool(args.enable_l3),
+            "enable_l4": bool(args.enable_l4),
+            "resolver_route_min_top1_score": list(args.resolver_route_min_top1_score),
+            "resolver_route_min_score_margin": list(args.resolver_route_min_score_margin),
+            "resolver_route_max_second_to_first_ratio": list(
+                args.resolver_route_max_second_to_first_ratio
+            ),
             "resolver_no_trim_non_alnum_edges": bool(args.resolver_no_trim_non_alnum_edges),
             "resolver_no_trim_history_of_prefix": bool(args.resolver_no_trim_history_of_prefix),
         },
