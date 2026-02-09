@@ -1,0 +1,18 @@
+# Secrets (GitIgnored)
+ANTHROPIC_AUTH_TOKEN={ANTHROPIC_AUTH_TOKEN}
+
+# Anthropic Config
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+API_TIMEOUT_MS=3000000
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+IS_SANDBOX=1
+CLAUDE_CONFIG_DIR=/root/.config/claude
+
+# Model Overrides (Optional - for using custom models)
+# ANTHROPIC_SMALL_FAST_MODEL=glm-4.5-air
+# ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
+# ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
+# ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
+
+HF_TOKEN={HF_TOKEN}
+HF_HOME=/huggingface_cache
