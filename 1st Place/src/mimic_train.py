@@ -5,17 +5,21 @@ Created on Fri Feb 23 09:19:31 2024
 @author: Yonatan
 """
 
+import os
 import pickle
 from collections import Counter
 from itertools import permutations
 from pathlib import Path
+from time import perf_counter
 
 import pandas as pd
 from mimic_common import (
+    IndexedDict,
     annotate_with_dict,
     common_headers,
     get_header_by_pos,
     get_sections,
+    get_pattern,
     internal_blacklist,
 )
 from tqdm import tqdm
@@ -63,9 +67,18 @@ def build_dict(text, text_annotations, headers, blacklist):
     return d
 
 
-def score_dict(text, ref, d, headers):
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return default
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def score_dict(text, ref, d, d_for_annot, headers):
     scores = {}
-    ann = annotate_with_dict(text, d, headers, None, keep_overlaps=True)
+    # `d` is used for lookup/membership. For faster matching, optionally wrap
+    # with `IndexedDict` (semantics-preserving prefilter) during annotation.
+    ann = annotate_with_dict(text, d_for_annot, headers, None, keep_overlaps=True)
     ann["start"] = ann["start"].astype(int)
     ann["end"] = ann["end"].astype(int)
     ann["concept_id"] = ann["concept_id"].astype(int)
@@ -84,6 +97,26 @@ def score_dict(text, ref, d, headers):
             print("key not in dict:", k)
 
     return scores, scores_counter
+
+
+_SCORE_TEXTS = None
+_SCORE_REFS = None
+_SCORE_D = None
+_SCORE_D_FOR_ANNOT = None
+_SCORE_HEADERS = None
+
+
+def _score_one(note_id: str):
+    return (
+        note_id,
+        score_dict(
+            _SCORE_TEXTS[note_id],
+            _SCORE_REFS[note_id],
+            _SCORE_D,
+            _SCORE_D_FOR_ANNOT,
+            _SCORE_HEADERS,
+        ),
+    )
 
 
 def compare_ref_pred(ref, ann):
@@ -153,9 +186,11 @@ def add_snomed_syn(d, c_id, c_name, min_len, max_len):
 
 
 def get_snomed_synonyms(min_len=snomed_min_len, max_len=snomed_max_len, fsn_only=False):
-    snomed_syns = pd.read_csv(
-        data_directory / "interim" / "flattened_terminology_syn_snomed+omop_v5.csv"
-    ).drop_duplicates("concept_name", keep="first")
+    synonyms_path = os.environ.get(
+        "KIRI_SYNONYMS_PATH",
+        str(data_directory / "interim" / "flattened_terminology_syn_snomed+omop_v5.csv"),
+    )
+    snomed_syns = pd.read_csv(synonyms_path).drop_duplicates("concept_name", keep="first")
 
     sno_fsn = (
         pd.read_csv(data_directory / "interim" / "flattened_terminology.csv")
@@ -347,16 +382,73 @@ def mock_train(texts, annotations, headers, run_name):
     scores_by_note = {}
     scores_by_mention = {}
     scores_counter = {}
-    print("scoring")
-    for i in tqdm(ids):
-        t, scores_counter[i] = score_dict(
-            texts[i], annotations.query(f'note_id == "{i}"'), d, headers
-        )
-        for k in t:
-            scores_by_mention.setdefault(k, []).extend(t[k])
-            for s in [1, -1]:
-                if s in t[k]:
-                    scores_by_note.setdefault(k, []).append(s)
+    print("scoring (training dict; used to remove bad keys)")
+    t0 = perf_counter()
+
+    refs = {
+        str(note_id): df[["start", "end", "concept_id", "source"]].copy()
+        for note_id, df in annotations[annotations["note_id"].isin(ids)].groupby("note_id", sort=False)
+    }
+
+    use_index = _env_bool("KIRI_TRAIN_INDEX", True)
+    d_for_annot = IndexedDict(d) if use_index else d
+
+    want_parallel = _env_bool("KIRI_TRAIN_PARALLEL", _env_bool("KIRI_PARALLEL", False))
+    workers = 1
+    if want_parallel and os.name == "posix":
+        raw = str(os.environ.get("KIRI_TRAIN_WORKERS", "")).strip()
+        try:
+            workers = int(raw) if raw else min(8, (os.cpu_count() or 1))
+        except Exception:
+            workers = min(8, (os.cpu_count() or 1))
+        if workers < 1:
+            workers = 1
+
+    if want_parallel and workers > 1 and os.name == "posix":
+        # Precompile regex patterns once in the parent so forked workers can
+        # share them via copy-on-write (avoids N workers recompiling the same patterns).
+        if _env_bool("KIRI_TRAIN_PRECOMPILE", True):
+            for mention in set(k[1] for k in d.keys()):
+                get_pattern(mention)
+
+        global _SCORE_TEXTS, _SCORE_REFS, _SCORE_D, _SCORE_D_FOR_ANNOT, _SCORE_HEADERS
+        _SCORE_TEXTS = texts
+        _SCORE_REFS = refs
+        _SCORE_D = d
+        _SCORE_D_FOR_ANNOT = d_for_annot
+        _SCORE_HEADERS = headers
+
+        chunksize_raw = str(os.environ.get("KIRI_TRAIN_CHUNKSIZE", "")).strip()
+        try:
+            chunksize = int(chunksize_raw) if chunksize_raw else 1
+        except Exception:
+            chunksize = 1
+        if chunksize < 1:
+            chunksize = 1
+
+        import multiprocessing as mp
+
+        ctx = mp.get_context("fork")
+        with ctx.Pool(processes=workers) as pool:
+            for note_id, (t, ctr) in tqdm(
+                pool.imap_unordered(_score_one, list(ids), chunksize=chunksize),
+                total=len(ids),
+            ):
+                scores_counter[note_id] = ctr
+                for k in t:
+                    scores_by_mention.setdefault(k, []).extend(t[k])
+                    for s in [1, -1]:
+                        if s in t[k]:
+                            scores_by_note.setdefault(k, []).append(s)
+    else:
+        for i in tqdm(ids):
+            t, scores_counter[i] = score_dict(texts[i], refs[str(i)], d, d_for_annot, headers)
+            for k in t:
+                scores_by_mention.setdefault(k, []).extend(t[k])
+                for s in [1, -1]:
+                    if s in t[k]:
+                        scores_by_note.setdefault(k, []).append(s)
+    print(f"scoring done in {perf_counter() - t0:0.1f}s")
 
     d_full = d.copy()
     bad_keys = remove_bad_keys(d, scores_by_note)

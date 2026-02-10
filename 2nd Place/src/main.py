@@ -120,12 +120,15 @@ class Learner:
             val_fold = folds.pop(self.cfg.split)
         train_fold = folds
 
+        prepend_headers = self.cfg.get('prepend_headers', False)
+
         self.tds = ChunkedDataset(
             tokenizer=self.tokenizer,
             fold=train_fold,
             df=tdf,
             max_len=self.cfg.max_len,
             repeat=self.cfg.chunked_repeat,
+            prepend_headers=prepend_headers,
         )
         self.vds = ChunkedDataset(
             tokenizer=self.tokenizer,
@@ -133,6 +136,7 @@ class Learner:
             df=tdf,
             max_len=self.cfg.max_len,
             repeat=self.cfg.chunked_repeat,
+            prepend_headers=prepend_headers,
         )
 
         collate = transformers.DataCollatorForTokenClassification(

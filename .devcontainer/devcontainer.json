@@ -5,19 +5,22 @@
   },
   "runArgs": [
     "--gpus", "all",
-    "--name", "snomed-ct-entity-linking-devcontainer"
+    "--name", "snomed-ct-entity-linking-devcontainer",
+    "--ipc=host",
+    "--ulimit", "memlock=-1",
+    "--ulimit", "stack=67108864"
   ],
-  
+  "remoteUser": "vscode",
   "containerEnv": {
     "NVIDIA_VISIBLE_DEVICES": "all",
     "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
     "SIDECAR_PROXY_USERNAME": "${localEnv:SIDECAR_PROXY_USERNAME}",
-    "SIDECAR_PROXY_PASSWORD": "${localEnv:SIDECAR_PROXY_PASSWORD}",
+    "SIDECAR_PROXY_PASSWORD": "${localEnv:SIDECAR_PROXY_PASSWORD}"
   },
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python"
+        "python.defaultInterpreterPath": "/usr/bin/python3"
       },
       "extensions": [
         "ms-python.python",
@@ -38,5 +41,6 @@
     "CLAUDE_CONFIG_DIR": "/home/vscode/.config/claude",
     "CODEX_HOME": "/home/vscode/.codex"
   },
-  "postCreateCommand": "bash .devcontainer/setup-cert.sh && bash .devcontainer/setup-proxy.sh"
+  "postCreateCommand": "bash .devcontainer/setup-cert.sh && bash .devcontainer/setup-proxy.sh",
+  "postStartCommand": "bash -lc 'mkdir -p \"${CLAUDE_CONFIG_DIR:-/home/vscode/.config/claude}/projects\"; ws=\"${containerWorkspaceFolder:-$PWD}\"; ws_slug=\"$(printf \"%s\" \"$ws\" | tr \"/\" \"-\")\"; mkdir -p \"${CLAUDE_CONFIG_DIR:-/home/vscode/.config/claude}/projects/$ws_slug\"'"
 }
