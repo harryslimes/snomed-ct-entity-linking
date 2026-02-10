@@ -29,8 +29,8 @@ data_directory = Path(__file__).parent.parent / "data"
 correct_frac_for_dict = 0.2
 correct_frac_for_any = 0.3
 yuvals_method_ratio = 1
-snomed_min_len = 2
-snomed_max_len = 5
+snomed_min_len = int(os.environ.get("KIRI_SNOMED_MIN_LEN", "2"))
+snomed_max_len = int(os.environ.get("KIRI_SNOMED_MAX_LEN", "5"))
 blacklist_thresh = 2000
 train_size = 150
 test_size = None
@@ -196,9 +196,13 @@ def get_snomed_synonyms(min_len=snomed_min_len, max_len=snomed_max_len, fsn_only
     )
     snomed_syns = pd.read_csv(synonyms_path).drop_duplicates("concept_name", keep="first")
 
+    flat_term_path = os.environ.get(
+        "KIRI_FLAT_TERMINOLOGY_PATH",
+        str(data_directory / "interim" / "flattened_terminology.csv"),
+    )
     sno_fsn = (
-        pd.read_csv(data_directory / "interim" / "flattened_terminology.csv")
-        .drop_duplicates("concept_name")
+        pd.read_csv(flat_term_path)
+        .drop_duplicates("concept_id", keep="first")
         .set_index("concept_id")["concept_name"]
     )
     replacements = {
@@ -587,8 +591,13 @@ def mock_train(texts, annotations, headers, run_name):
 
     d_full = d.copy()
     t1 = perf_counter()
-    bad_keys = remove_bad_keys(d, scores_by_note)
-    print(f"remove_bad_keys done in {perf_counter() - t1:0.1f}s")
+    skip_bad_key = _env_bool("KIRI_SKIP_BAD_KEY_REMOVAL", False)
+    if skip_bad_key:
+        bad_keys = []
+        print("SKIPPED remove_bad_keys (KIRI_SKIP_BAD_KEY_REMOVAL=1)")
+    else:
+        bad_keys = remove_bad_keys(d, scores_by_note)
+        print(f"remove_bad_keys done in {perf_counter() - t1:0.1f}s")
 
     # This debug pickle can get very large (especially `d_all`) and can dominate
     # wall time on slower disks/volumes while using little CPU.
@@ -622,6 +631,8 @@ def get_cid_type_sections_pairs(texts, annotations, headers, cid_to_type):
         df = annotations.query(f'note_id == "{nid}"')
         h_positions, pos_header = get_sections(texts[nid], headers)
         for i, cid in df[["start", "concept_id"]].values:
+            if cid not in cid_to_type.index:
+                continue
             h = get_header_by_pos(i, h_positions, pos_header, headers)
             pairs.add((h, cid_to_type[cid]))
     return pairs
