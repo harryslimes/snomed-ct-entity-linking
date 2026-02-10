@@ -71,10 +71,10 @@ def init_models(*checkpoints):
     return ensemble
 
 
-def fisrt_stage(checkpoints: list[Path], note_df: pd.DataFrame) -> pd.DataFrame:
+def fisrt_stage(checkpoints: list[Path], note_df: pd.DataFrame, prepend_headers: bool = False) -> pd.DataFrame:
     ensemble = init_models(*checkpoints)
     ensemble.eval()
-    ds = InferDataset(note_df, ensemble.tokenizer, 512)
+    ds = InferDataset(note_df, ensemble.tokenizer, 512, prepend_headers=prepend_headers)
     mentions, _ = predict_spans_ensemble(ensemble, ds, ensemble.id2label)
     res = []
     for k, note_mentions in mentions.items():

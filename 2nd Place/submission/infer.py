@@ -1,9 +1,62 @@
+import bisect
 import re
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 import torch
 import transformers
 from tqdm.auto import tqdm
+
+
+# Headers eligible for prepending (excludes medication headers that are
+# filtered out by clean_by_header postprocessing)
+_PREPEND_HEADERS_LIST = [
+    "past medical history:",
+    "allergies:",
+    "history of present illness:",
+    "physical exam:",
+    "admission date:  discharge date:",
+    "attending:",
+    "major surgical or invasive procedure:",
+    "family history:",
+    "discharge disposition:",
+    "discharge condition:",
+    "discharge instructions:",
+    "name:  unit no:",
+    "social history:",
+    "chief complaint:",
+    "pertinent results:",
+    "discharge diagnosis:",
+    "followup instructions:",
+    "brief hospital course:",
+    "facility:",
+    "impression:",
+]
+
+
+def _get_header_indices(text, headers_list):
+    """Find character positions of headers in text (lowercased, newlines replaced)."""
+    text = re.sub("\n", " ", text.lower())
+    header_indices = {}
+    for header in headers_list:
+        pos = text.find(header)
+        if pos != -1:
+            header_indices[header] = pos
+    return OrderedDict(sorted(header_indices.items(), key=lambda item: item[1]))
+
+
+def _find_header_token_boundaries(text, token_starts, input_ids, tokenizer):
+    """Find token-level boundaries for section headers in inference text."""
+    header_positions = _get_header_indices(text, _PREPEND_HEADERS_LIST)
+
+    boundaries = []
+    for header_text, char_pos in header_positions.items():
+        token_start = bisect.bisect_left(token_starts, char_pos)
+        header_end_char = char_pos + len(header_text)
+        token_end = bisect.bisect_left(token_starts, header_end_char)
+        header_token_ids = list(input_ids[token_start:token_end])
+        boundaries.append((token_start, header_token_ids))
+
+    return boundaries
 
 
 def preprocess_text(text):
@@ -12,9 +65,10 @@ def preprocess_text(text):
 
 
 class InferDataset:
-    def __init__(self, dfn, tokenizer, block_size):
+    def __init__(self, dfn, tokenizer, block_size, prepend_headers=False):
         self.tokenizer = tokenizer
         self.block_size = block_size - tokenizer.num_special_tokens_to_add(pair=False)
+        self.prepend_headers = prepend_headers
 
         self.split_notes = []
         for i, r in dfn.iterrows():
@@ -29,11 +83,42 @@ class InferDataset:
         offsets = encoded["offset_mapping"]
         tokenized_text = encoded["input_ids"]
 
+        # Compute header boundaries if prepending is enabled
+        header_bounds = []
+        if self.prepend_headers:
+            token_starts = [o[0] for o in offsets]
+            header_bounds = _find_header_token_boundaries(
+                text, token_starts, tokenized_text, self.tokenizer
+            )
+
         chunks = []
         for i in range(0, len(tokenized_text), self.block_size):
             chunk = tokenized_text[i : i + self.block_size]
-            chunk = self.tokenizer.build_inputs_with_special_tokens(chunk)
             offsets_chunk = offsets[i : i + self.block_size]
+
+            if self.prepend_headers and header_bounds:
+                # Find the last header that starts at or before this chunk
+                active_header_ids = None
+                active_header_pos = None
+                for token_pos, h_ids in header_bounds:
+                    if token_pos <= i:
+                        active_header_ids = h_ids
+                        active_header_pos = token_pos
+                    else:
+                        break
+
+                # Prepend only if the header started before this chunk
+                if active_header_ids is not None and active_header_pos < i:
+                    n_header = len(active_header_ids)
+                    chunk = active_header_ids + chunk
+                    # [0,0] offsets for header tokens - ignored during span extraction
+                    offsets_chunk = [[0, 0]] * n_header + offsets_chunk
+                    # Truncate from end if total exceeds block_size
+                    if len(chunk) > self.block_size:
+                        chunk = chunk[:self.block_size]
+                        offsets_chunk = offsets_chunk[:self.block_size]
+
+            chunk = self.tokenizer.build_inputs_with_special_tokens(chunk)
             start_offset = [0, 0]
             end_offset = [0, 0]
             offsets_chunk = [start_offset] + offsets_chunk + [end_offset]

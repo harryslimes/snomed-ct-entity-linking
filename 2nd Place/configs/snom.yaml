@@ -8,6 +8,7 @@ data:
 n_fold: 4
 split: 0
 chunked_repeat: 10
+prepend_headers: false
 
 IS_MASTER: False
 competition: 'snom'
