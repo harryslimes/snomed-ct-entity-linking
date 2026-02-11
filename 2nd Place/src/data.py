@@ -11,6 +11,29 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 
+def find_header_token_boundaries(text, token_starts, input_ids, tokenizer):
+    """Find token-level boundaries for section headers in the note text.
+
+    Returns sorted list of (token_position, header_token_ids) for headers
+    that are present in the text. Excludes medication headers that were
+    already removed from training text by cut_headers.
+    """
+    from cut_headers import true_headers_list, cut_headers_list, get_true_header_indices
+
+    prepend_headers = [h for h in true_headers_list if h not in cut_headers_list]
+    header_positions = get_true_header_indices(text, prepend_headers)
+
+    boundaries = []
+    for header_text, char_pos in header_positions.items():
+        token_start = bisect.bisect_left(token_starts, char_pos)
+        header_end_char = char_pos + len(header_text)
+        token_end = bisect.bisect_left(token_starts, header_end_char)
+        header_token_ids = list(input_ids[token_start:token_end])
+        boundaries.append((token_start, header_token_ids))
+
+    return boundaries
+
+
 def load_sctid_syn(sctid_syn_parh: Path):
     with open(sctid_syn_parh, "r") as f:
         data = json.load(f)
@@ -21,6 +44,7 @@ def add_concept_class(ann_df, sctid_syn_dir: Path):
     p_cids = load_sctid_syn(Path(sctid_syn_dir) / "proc_sctid_syn.json")
     p_cids.add(71388002)
     f_cids = load_sctid_syn(Path(sctid_syn_dir) / "find_sctid_syn.json")
+    f_cids.add(404684003)  # "Clinical finding" top-level concept
     b_cids = load_sctid_syn(Path(sctid_syn_dir) / "body_sctid_syn.json")
     snomed_class = []
     for i, r in ann_df.iterrows():
@@ -101,7 +125,8 @@ class Labeler:
         ends = off[:, 1]
 
         labels = get_labels(starts, ends, char_spans)
-        return text, input_ids, labels
+        header_boundaries = find_header_token_boundaries(text, starts, input_ids, self.tokenizer)
+        return text, input_ids, labels, header_boundaries
 
 
 def convert_labels_tokens(tokenizer, note_df, ann_df):
@@ -119,11 +144,12 @@ def convert_labels_tokens(tokenizer, note_df, ann_df):
         text = r.text
         ann_note_df = anns[note_id]
         try:
-            t, i, l = preproc.preprocess_text(ann_note_df, text)
+            t, i, l, hb = preproc.preprocess_text(ann_note_df, text)
             res["note_id"].append(note_id)
             res["text"].append(t)
             res["input_ids"].append(i)
             res["labels"].append(l)
+            res["header_boundaries"].append(hb)
             res["fold"].append(r.fold)
         except Exception as e:
             print(e)
@@ -234,7 +260,7 @@ class PreprocessedDataset(Dataset):
 
 
 class ChunkedDataset:
-    def __init__(self, tokenizer, fold, df, max_len, repeat=1):
+    def __init__(self, tokenizer, fold, df, max_len, repeat=1, prepend_headers=False):
         self.label2id = {
             "O": 0,
             "B-find": 1,
@@ -257,13 +283,38 @@ class ChunkedDataset:
         for i, row in df.iterrows():
             ids = row["input_ids"]
             labels = row["labels"]
+            header_bounds = row.get("header_boundaries", []) if prepend_headers else []
 
-            for i in range(0, len(ids), _max_len):
+            for chunk_start in range(0, len(ids), _max_len):
+                chunk_ids = list(ids[chunk_start : chunk_start + _max_len])
+                chunk_labels = list(labels[chunk_start : chunk_start + _max_len])
+
+                if prepend_headers and header_bounds:
+                    # Find the last header that starts at or before this chunk
+                    active_header_ids = None
+                    active_header_pos = None
+                    for token_pos, h_ids in header_bounds:
+                        if token_pos <= chunk_start:
+                            active_header_ids = h_ids
+                            active_header_pos = token_pos
+                        else:
+                            break
+
+                    # Prepend only if the header started before this chunk
+                    if active_header_ids is not None and active_header_pos < chunk_start:
+                        n_header = len(active_header_ids)
+                        chunk_ids = active_header_ids + chunk_ids
+                        chunk_labels = ["O"] * n_header + chunk_labels
+                        # Truncate from end if total exceeds _max_len
+                        if len(chunk_ids) > _max_len:
+                            chunk_ids = chunk_ids[:_max_len]
+                            chunk_labels = chunk_labels[:_max_len]
+
                 chunked_rows.append(
                     {
                         "fold": row["fold"],
-                        "ids": ids[i : i + _max_len],
-                        "labels": labels[i : i + _max_len],
+                        "ids": chunk_ids,
+                        "labels": chunk_labels,
                     }
                 )
         df = pd.DataFrame(chunked_rows)

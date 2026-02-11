@@ -25,6 +25,7 @@ def main(
     train_annotations_path: Path,
     static_dict_path: Path,
     submission_path: Path,
+    prepend_headers: bool = False,
 ):
     assert test_notes_path.exists(), f"test_notes_path: {test_notes_path} does not exist"
     assert all([i.exists() for i in first_stage_checkpoints]), [
@@ -43,7 +44,7 @@ def main(
     logger.debug(f"{note_df.shape=}")
 
     # First stage
-    mentions_df = fisrt_stage(first_stage_checkpoints, note_df)
+    mentions_df = fisrt_stage(first_stage_checkpoints, note_df, prepend_headers=prepend_headers)
     logger.debug(f"{mentions_df.shape=}")
 
     # First stage postprocess
@@ -76,6 +77,7 @@ def main(
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--val", action="store_true")
+    args.add_argument("--prepend-headers", action="store_true")
     args = args.parse_args()
     ASSETS = Path("data")
     if args.val:
@@ -106,6 +108,7 @@ if __name__ == "__main__":
         TRAIN_ANNOTAIONS_PATH,
         STATIC_DICT_PATH,
         SUBMISSION_PATH,
+        prepend_headers=args.prepend_headers,
     )
     if args.val:
         label = pd.read_csv(SUBMISSION_PATH)
