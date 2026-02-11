@@ -196,6 +196,8 @@ def _run_fold(
     l1_device: str,
     l1_attn_impl: str,
     l1_autocast_dtype: str,
+    l1_boundary_refine: bool,
+    l1_boundary_expand_mid_token: bool,
     no_es: bool,
     es_url: str,
     es_index_name: str,
@@ -281,36 +283,39 @@ def _run_fold(
             l1_map=l1_map,
         )
     elif l1_source == "model":
-        rc_l1 = run_l1_inference.main(
-            [
-                "--notes-csv",
-                str(val_notes),
-                "--model-path",
-                l1_model_path,
-                "--out-spans-csv",
-                str(l1_spans_csv),
-                "--note-id-col",
-                note_id_col,
-                "--text-col",
-                notes_text_col,
-                "--entity-types",
-                entity_types,
-                "--threshold",
-                str(l1_threshold),
-                "--window-chars",
-                str(l1_window_chars),
-                "--window-overlap-chars",
-                str(l1_window_overlap_chars),
-                "--section-header-lookback-chars",
-                str(l1_section_header_lookback_chars),
-                "--device",
-                str(l1_device),
-                "--attn-impl",
-                str(l1_attn_impl),
-                "--autocast-dtype",
-                str(l1_autocast_dtype),
-            ]
-        )
+        run_l1_argv = [
+            "--notes-csv",
+            str(val_notes),
+            "--model-path",
+            l1_model_path,
+            "--out-spans-csv",
+            str(l1_spans_csv),
+            "--note-id-col",
+            note_id_col,
+            "--text-col",
+            notes_text_col,
+            "--entity-types",
+            entity_types,
+            "--threshold",
+            str(l1_threshold),
+            "--window-chars",
+            str(l1_window_chars),
+            "--window-overlap-chars",
+            str(l1_window_overlap_chars),
+            "--section-header-lookback-chars",
+            str(l1_section_header_lookback_chars),
+            "--device",
+            str(l1_device),
+            "--attn-impl",
+            str(l1_attn_impl),
+            "--autocast-dtype",
+            str(l1_autocast_dtype),
+        ]
+        if not bool(l1_boundary_refine):
+            run_l1_argv.append("--no-boundary-refine")
+        if not bool(l1_boundary_expand_mid_token):
+            run_l1_argv.append("--no-boundary-mid-token-expand")
+        rc_l1 = run_l1_inference.main(run_l1_argv)
         if rc_l1 != 0:
             raise RuntimeError(f"L1 inference failed for {fold_dir.name}")
     else:
@@ -610,6 +615,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l1-device", default="auto")
     ap.add_argument("--l1-attn-impl", default="auto")
     ap.add_argument("--l1-autocast-dtype", default="auto")
+    ap.add_argument("--l1-no-boundary-refine", action="store_true")
+    ap.add_argument("--l1-no-boundary-mid-token-expand", action="store_true")
 
     ap.add_argument("--exact-dict-tsv", required=True)
     ap.add_argument("--no-es", action="store_true")
@@ -647,14 +654,18 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l3-max-merge-k", type=int, default=50)
     ap.add_argument("--enable-l4", action="store_true")
     ap.add_argument("--l4-model-path", default="")
-    ap.add_argument("--l4-backend", default="auto")
+    ap.add_argument("--l4-backend", default="auto", help="auto|hf|gliner|hash")
     ap.add_argument("--l4-device", default="auto")
     ap.add_argument("--l4-batch-size", type=int, default=64)
     ap.add_argument("--l4-max-length", type=int, default=128)
     ap.add_argument("--l4-load-dtype", default="auto")
     ap.add_argument("--l4-top-n", type=int, default=1)
     ap.add_argument("--l4-max-pool-k", type=int, default=50)
-    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument(
+        "--l4-trigger",
+        default="ambiguous",
+        help="ambiguous|ambiguous_exact|no_exact|ambiguous_or_no_exact|always",
+    )
     ap.add_argument("--l4-min-candidates", type=int, default=2)
 
     ap.add_argument("--allowed-concepts", default="")
@@ -730,6 +741,8 @@ def main(argv: list[str]) -> int:
             l1_device=str(args.l1_device),
             l1_attn_impl=str(args.l1_attn_impl),
             l1_autocast_dtype=str(args.l1_autocast_dtype),
+            l1_boundary_refine=not bool(args.l1_no_boundary_refine),
+            l1_boundary_expand_mid_token=not bool(args.l1_no_boundary_mid_token_expand),
             no_es=bool(args.no_es),
             es_url=str(args.es_url),
             es_index_name=str(args.es_index_name),
@@ -816,6 +829,8 @@ def main(argv: list[str]) -> int:
             "l1_device": str(args.l1_device),
             "l1_attn_impl": str(args.l1_attn_impl),
             "l1_autocast_dtype": str(args.l1_autocast_dtype),
+            "l1_boundary_refine": not bool(args.l1_no_boundary_refine),
+            "l1_boundary_expand_mid_token": not bool(args.l1_no_boundary_mid_token_expand),
             "l1_window_chars": int(args.l1_window_chars),
             "l1_window_overlap_chars": int(args.l1_window_overlap_chars),
             "l1_section_header_lookback_chars": int(args.l1_section_header_lookback_chars),

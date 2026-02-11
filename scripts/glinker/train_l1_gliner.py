@@ -5,6 +5,7 @@ import argparse
 import inspect
 import json
 import sys
+from bisect import bisect_right
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ class BuildStats:
     ann_rows_used: int = 0
     ann_rows_unknown_l1: int = 0
     ann_rows_unmapped_char_span: int = 0
+    ann_rows_excluded_section: int = 0
     examples_total: int = 0
     examples_with_entities: int = 0
 
@@ -142,6 +144,81 @@ def _load_l1_map(allowed_concepts_csv: Path) -> dict[str, str]:
     return out
 
 
+def _canonical_section(header: str) -> str:
+    h = str(header or "").strip().lower().rstrip(":")
+    if not h:
+        return "unknown"
+    if "history of present illness" in h or h == "hpi":
+        return "hpi"
+    if "past medical history" in h or h == "pmh":
+        return "pmh"
+    if "discharge medication" in h or "medications" in h:
+        return "medications"
+    if "hospital course" in h:
+        return "hospital_course"
+    if "physical exam" in h:
+        return "physical_exam"
+    if ("assessment" in h and "plan" in h) or h == "a/p":
+        return "assessment_plan"
+    if "diagnosis" in h:
+        return "diagnosis"
+    if "procedure" in h:
+        return "procedures"
+    if "allerg" in h:
+        return "allergies"
+    if "social history" in h:
+        return "social_history"
+    if "family history" in h:
+        return "family_history"
+    if "review of systems" in h or h == "ros":
+        return "review_of_systems"
+    if "lab" in h:
+        return "labs"
+    if "imaging" in h or "radiology" in h:
+        return "imaging"
+    return "other"
+
+
+def _iter_section_headers(text: str) -> tuple[list[int], list[str]]:
+    starts: list[int] = []
+    labels: list[str] = []
+    pos = 0
+    for line in text.splitlines(keepends=True):
+        raw = line.rstrip("\r\n")
+        stripped = raw.strip()
+        if stripped and len(stripped) <= 120:
+            is_header = False
+            if stripped.endswith(":"):
+                is_header = True
+            else:
+                alpha = [ch for ch in stripped if ch.isalpha()]
+                if alpha and all(ch.isupper() for ch in alpha):
+                    is_header = True
+            if is_header:
+                starts.append(pos)
+                labels.append(_canonical_section(stripped))
+        pos += len(line)
+    return starts, labels
+
+
+def _section_for_offset(section_starts: list[int], section_labels: list[str], char_pos: int) -> str:
+    if not section_starts:
+        return "unknown"
+    idx = bisect_right(section_starts, int(char_pos)) - 1
+    if idx < 0:
+        return "unknown"
+    return section_labels[idx]
+
+
+def _parse_excluded_sections(value: str) -> set[str]:
+    out: set[str] = set()
+    for part in str(value or "").split(","):
+        s = str(part).strip().lower().replace("-", "_").replace(" ", "_")
+        if s:
+            out.add(s)
+    return out
+
+
 def _tokenize_with_offsets(words_splitter, text: str) -> tuple[list[str], list[tuple[int, int]]]:
     tokens: list[str] = []
     offsets: list[tuple[int, int]] = []
@@ -194,6 +271,7 @@ def _build_examples(
     window_tokens: int,
     overlap_tokens: int,
     include_empty_windows: bool,
+    excluded_sections: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], BuildStats]:
     notes = pd.read_csv(notes_csv)
     ann = pd.read_csv(annotations_csv)
@@ -222,9 +300,18 @@ def _build_examples(
         stats.token_count_total += len(tokens)
         raw_spans = ann_by_note.get(note_id, [])
         stats.ann_rows_total += len(raw_spans)
+        section_starts: list[int] = []
+        section_labels: list[str] = []
+        if excluded_sections:
+            section_starts, section_labels = _iter_section_headers(text)
 
         mapped: list[tuple[int, int, str]] = []
         for start, end, concept_id in raw_spans:
+            if excluded_sections:
+                section_name = _section_for_offset(section_starts, section_labels, start)
+                if section_name in excluded_sections:
+                    stats.ann_rows_excluded_section += 1
+                    continue
             l1 = l1_map.get(concept_id)
             if l1 is None:
                 stats.ann_rows_unknown_l1 += 1
@@ -269,6 +356,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--window-tokens", type=int, default=1800)
     ap.add_argument("--overlap-tokens", type=int, default=256)
     ap.add_argument("--include-empty-windows", action="store_true")
+    ap.add_argument(
+        "--exclude-sections-canonical",
+        default="",
+        help=(
+            "Comma-separated canonical section names to exclude from TRAIN annotations only "
+            "(e.g. medications,hospital_course)."
+        ),
+    )
     ap.add_argument("--max-len", type=int, default=2048)
     ap.add_argument("--max-width", type=int, default=12)
 
@@ -288,6 +383,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--logging-steps", type=int, default=20)
     ap.add_argument("--eval-steps", type=int, default=100)
     ap.add_argument("--save-steps", type=int, default=100)
+    ap.add_argument("--early-stopping-patience", type=int, default=0)
+    ap.add_argument("--early-stopping-threshold", type=float, default=0.0)
+    ap.add_argument("--load-best-model-at-end", action="store_true")
     ap.add_argument("--seed", type=int, default=20260207)
     args = ap.parse_args(argv)
 
@@ -305,6 +403,7 @@ def main(argv: list[str]) -> int:
     model.config.max_width = int(args.max_width)
 
     l1_map = _load_l1_map(Path(args.allowed_concepts_csv))
+    excluded_sections = _parse_excluded_sections(str(args.exclude_sections_canonical))
 
     train_examples, train_stats = _build_examples(
         notes_csv=Path(args.train_notes_csv),
@@ -314,6 +413,7 @@ def main(argv: list[str]) -> int:
         window_tokens=int(args.window_tokens),
         overlap_tokens=int(args.overlap_tokens),
         include_empty_windows=bool(args.include_empty_windows),
+        excluded_sections=excluded_sections,
     )
     val_examples, val_stats = _build_examples(
         notes_csv=Path(args.val_notes_csv),
@@ -323,6 +423,7 @@ def main(argv: list[str]) -> int:
         window_tokens=int(args.window_tokens),
         overlap_tokens=int(args.overlap_tokens),
         include_empty_windows=bool(args.include_empty_windows),
+        excluded_sections=None,
     )
 
     if not train_examples:
@@ -330,7 +431,8 @@ def main(argv: list[str]) -> int:
     if not val_examples:
         raise RuntimeError("No validation examples were generated.")
 
-    training_args = model.create_training_args(
+    use_best_model = bool(args.load_best_model_at_end) or int(args.early_stopping_patience) > 0
+    create_training_kwargs = dict(
         output_dir=str(out_dir / "checkpoints"),
         learning_rate=float(args.learning_rate),
         weight_decay=float(args.weight_decay),
@@ -352,6 +454,19 @@ def main(argv: list[str]) -> int:
         seed=int(args.seed),
         dataloader_num_workers=0,
     )
+    if use_best_model:
+        create_training_kwargs.update(
+            load_best_model_at_end=True,
+            metric_for_best_model="eval_loss",
+            greater_is_better=False,
+        )
+    try:
+        training_args = model.create_training_args(**create_training_kwargs)
+    except TypeError:
+        for key in ("load_best_model_at_end", "metric_for_best_model", "greater_is_better"):
+            create_training_kwargs.pop(key, None)
+        training_args = model.create_training_args(**create_training_kwargs)
+        use_best_model = False
 
     data_collator = model._create_data_collator()  # noqa: SLF001
     trainer_kwargs: dict[str, Any] = {
@@ -366,6 +481,15 @@ def main(argv: list[str]) -> int:
         trainer_kwargs["processing_class"] = model.data_processor.transformer_tokenizer
     elif "tokenizer" in sig.parameters:
         trainer_kwargs["tokenizer"] = model.data_processor.transformer_tokenizer
+    if int(args.early_stopping_patience) > 0:
+        from transformers import EarlyStoppingCallback  # type: ignore
+
+        trainer_kwargs["callbacks"] = [
+            EarlyStoppingCallback(
+                early_stopping_patience=int(args.early_stopping_patience),
+                early_stopping_threshold=float(args.early_stopping_threshold),
+            )
+        ]
 
     trainer = StrictGLiNERTrainer(**trainer_kwargs)
     trainer.train()
@@ -377,6 +501,8 @@ def main(argv: list[str]) -> int:
     stats = {
         "config": vars(args),
         "device_resolved": map_location,
+        "use_best_model": bool(use_best_model),
+        "excluded_sections_canonical": sorted(excluded_sections),
         "train": asdict(train_stats),
         "val": asdict(val_stats),
         "train_examples": len(train_examples),

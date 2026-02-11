@@ -71,15 +71,24 @@ def main(argv: list[str]) -> int:
 
     ap.add_argument("--enable-l4", action="store_true")
     ap.add_argument("--l4-model-path", default="")
-    ap.add_argument("--l4-backend", default="auto", help="auto|hf|hash")
+    ap.add_argument("--l4-backend", default="auto", help="auto|hf|gliner|hash")
     ap.add_argument("--l4-device", default="auto")
     ap.add_argument("--l4-batch-size", type=int, default=64)
     ap.add_argument("--l4-max-length", type=int, default=128)
     ap.add_argument("--l4-load-dtype", default="auto")
     ap.add_argument("--l4-top-n", type=int, default=1)
     ap.add_argument("--l4-max-pool-k", type=int, default=50)
-    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument(
+        "--l4-trigger",
+        default="ambiguous",
+        help=(
+            "ambiguous|ambiguous_exact|no_exact|no_exact_high_risk|"
+            "ambiguous_or_no_exact|always"
+        ),
+    )
     ap.add_argument("--l4-min-candidates", type=int, default=2)
+    ap.add_argument("--l4-no-exact-high-risk-max-top1", type=float, default=-1.0)
+    ap.add_argument("--l4-no-exact-high-risk-max-margin", type=float, default=-1.0)
     args = ap.parse_args(argv)
 
     mentions_path = Path(args.mentions_csv)
@@ -158,6 +167,8 @@ def main(argv: list[str]) -> int:
             max_pool_k=int(args.l4_max_pool_k),
             trigger_mode=str(args.l4_trigger),
             min_candidates=int(args.l4_min_candidates),
+            no_exact_high_risk_max_top1=float(args.l4_no_exact_high_risk_max_top1),
+            no_exact_high_risk_max_margin=float(args.l4_no_exact_high_risk_max_margin),
         ),
     )
 
@@ -197,6 +208,9 @@ def main(argv: list[str]) -> int:
                 mention = str(row.get(args.mention_col) or "").strip()
                 mention_id = str(row.get(args.mention_id_col) or rows)
                 l1_type = str(row.get(args.l1_type_col) or "").strip() or None
+                note_id = str(row.get("note_id") or "").strip()
+                start_char_raw = str(row.get("start_char") or "").strip()
+                end_char_raw = str(row.get("end_char") or "").strip()
                 if not mention:
                     continue
 
@@ -222,6 +236,18 @@ def main(argv: list[str]) -> int:
                     "n_exact": len(result.exact_candidates),
                     "n_fuzzy": len(result.fuzzy_candidates),
                 }
+                if note_id:
+                    payload["note_id"] = note_id
+                if start_char_raw:
+                    try:
+                        payload["start_char"] = int(start_char_raw)
+                    except Exception:
+                        pass
+                if end_char_raw:
+                    try:
+                        payload["end_char"] = int(end_char_raw)
+                    except Exception:
+                        pass
                 payload = enrich_record(
                     payload,
                     cfg=l3_l4_cfg,

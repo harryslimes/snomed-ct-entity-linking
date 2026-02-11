@@ -86,7 +86,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--l4-load-dtype", default="auto")
     ap.add_argument("--l4-top-n", type=int, default=1)
     ap.add_argument("--l4-max-pool-k", type=int, default=50)
-    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument(
+        "--l4-trigger",
+        default="ambiguous",
+        help="ambiguous|ambiguous_exact|no_exact|ambiguous_or_no_exact|always",
+    )
     ap.add_argument("--l4-min-candidates", type=int, default=2)
 
     ap.add_argument("--resolver-allowed-concepts", default="")

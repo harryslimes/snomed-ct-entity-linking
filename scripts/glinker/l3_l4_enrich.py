@@ -32,6 +32,8 @@ class L4Config:
     max_pool_k: int = 50
     trigger_mode: str = "ambiguous"
     min_candidates: int = 2
+    no_exact_high_risk_max_top1: float = -1.0
+    no_exact_high_risk_max_margin: float = -1.0
 
 
 @dataclass(frozen=True)
@@ -69,11 +71,43 @@ def _trigger_l4(record: dict, candidates: list[dict], mode: str, *, min_candidat
         return False
     if m in {"ambiguous", "on_ambiguous"}:
         return ambiguous
+    if m in {"ambiguous_exact", "on_ambiguous_exact"}:
+        return ambiguous and not no_exact
+    if m in {"no_exact_high_risk", "on_no_exact_high_risk"}:
+        if not no_exact:
+            return False
+        return False
     if m in {"no_exact", "on_no_exact"}:
         return no_exact
     if m in {"ambiguous_or_no_exact", "ambiguous_no_exact"}:
         return ambiguous or no_exact
     raise ValueError(f"Unsupported l4 trigger mode: {mode}")
+
+
+def _top1_top2_scores(candidates: list[dict]) -> tuple[float, float]:
+    if not candidates:
+        return 0.0, 0.0
+    s = sorted((float(c.get("score") or 0.0) for c in candidates), reverse=True)
+    top1 = float(s[0]) if s else 0.0
+    top2 = float(s[1]) if len(s) > 1 else 0.0
+    return top1, top2
+
+
+def _is_no_exact_high_risk(record: dict, candidates: list[dict], cfg: L4Config) -> bool:
+    route = str(record.get("route") or "")
+    n_exact = int(record.get("n_exact") or 0)
+    no_exact = (n_exact == 0) or (route in {"none", "fuzzy_only", "none+l3"})
+    if not no_exact:
+        return False
+
+    top1, top2 = _top1_top2_scores(candidates)
+    margin = top1 - top2
+
+    max_top1 = float(cfg.no_exact_high_risk_max_top1)
+    max_margin = float(cfg.no_exact_high_risk_max_margin)
+    by_top1 = max_top1 >= 0.0 and top1 <= max_top1
+    by_margin = max_margin >= 0.0 and margin <= max_margin
+    return bool(by_top1 or by_margin)
 
 
 def _cand_dict(c: L2Candidate) -> dict:
@@ -119,12 +153,14 @@ def enrich_record(
         final = _merge_candidates(final, added_l3, top_k=int(cfg.l3.max_merge_k))
         out["route"] = f"{str(record.get('route') or 'none')}+l3"
 
-    if (
-        cfg.l4.enabled
-        and l4_reranker is not None
-        and final
-        and _trigger_l4(record, final, cfg.l4.trigger_mode, min_candidates=int(cfg.l4.min_candidates))
-    ):
+    should_l4 = False
+    l4_mode = str(cfg.l4.trigger_mode).strip().lower()
+    if l4_mode in {"no_exact_high_risk", "on_no_exact_high_risk"}:
+        should_l4 = _is_no_exact_high_risk(record, final, cfg.l4)
+    else:
+        should_l4 = _trigger_l4(record, final, cfg.l4.trigger_mode, min_candidates=int(cfg.l4.min_candidates))
+
+    if cfg.l4.enabled and l4_reranker is not None and final and should_l4:
         pool = final[: int(cfg.l4.max_pool_k)] if int(cfg.l4.max_pool_k) > 0 else final
         final = l4_reranker.rerank(mention, pool, top_n=int(cfg.l4.top_n))
         out["route"] = f"{str(out.get('route') or str(record.get('route') or 'none'))}+l4"
@@ -189,15 +225,24 @@ def main(argv: list[str]) -> int:
 
     ap.add_argument("--enable-l4", action="store_true")
     ap.add_argument("--l4-model-path", default="")
-    ap.add_argument("--l4-backend", default="auto", help="auto|hf|hash")
+    ap.add_argument("--l4-backend", default="auto", help="auto|hf|gliner|hash")
     ap.add_argument("--l4-device", default="auto")
     ap.add_argument("--l4-batch-size", type=int, default=64)
     ap.add_argument("--l4-max-length", type=int, default=128)
     ap.add_argument("--l4-load-dtype", default="auto")
     ap.add_argument("--l4-top-n", type=int, default=1)
     ap.add_argument("--l4-max-pool-k", type=int, default=50)
-    ap.add_argument("--l4-trigger", default="ambiguous", help="ambiguous|no_exact|ambiguous_or_no_exact|always")
+    ap.add_argument(
+        "--l4-trigger",
+        default="ambiguous",
+        help=(
+            "ambiguous|ambiguous_exact|no_exact|no_exact_high_risk|"
+            "ambiguous_or_no_exact|always"
+        ),
+    )
     ap.add_argument("--l4-min-candidates", type=int, default=2)
+    ap.add_argument("--l4-no-exact-high-risk-max-top1", type=float, default=-1.0)
+    ap.add_argument("--l4-no-exact-high-risk-max-margin", type=float, default=-1.0)
     args = ap.parse_args(argv)
 
     l3 = None
@@ -246,6 +291,8 @@ def main(argv: list[str]) -> int:
             max_pool_k=int(args.l4_max_pool_k),
             trigger_mode=str(args.l4_trigger),
             min_candidates=int(args.l4_min_candidates),
+            no_exact_high_risk_max_top1=float(args.l4_no_exact_high_risk_max_top1),
+            no_exact_high_risk_max_margin=float(args.l4_no_exact_high_risk_max_margin),
         ),
     )
     stats = enrich_jsonl(

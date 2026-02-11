@@ -132,14 +132,18 @@ def main(argv: list[str]) -> int:
 
     ap.add_argument("--enable-l4", action="store_true")
     ap.add_argument("--l4-model-path", default="")
-    ap.add_argument("--l4-backend", default="auto", help="auto|hf|hash")
+    ap.add_argument("--l4-backend", default="auto", help="auto|hf|gliner|hash")
     ap.add_argument("--l4-device", default="auto")
     ap.add_argument("--l4-batch-size", type=int, default=64)
     ap.add_argument("--l4-max-length", type=int, default=128)
     ap.add_argument("--l4-load-dtype", default="auto")
     ap.add_argument("--l4-top-n", type=int, default=1)
     ap.add_argument("--l4-max-pool-k", type=int, default=50)
-    ap.add_argument("--l4-trigger", default="ambiguous")
+    ap.add_argument(
+        "--l4-trigger",
+        default="ambiguous",
+        help="ambiguous|ambiguous_exact|no_exact|ambiguous_or_no_exact|always",
+    )
     ap.add_argument("--l4-min-candidates", type=int, default=2)
     args = ap.parse_args(argv)
 

@@ -258,6 +258,71 @@ def _nearest_section_header(text: str, *, pos: int, lookback_chars: int) -> str:
     return ""
 
 
+def _is_token_char(ch: str) -> bool:
+    return bool(ch) and ch.isalnum()
+
+
+def _trim_span_edges(text: str, start: int, end: int) -> tuple[int, int]:
+    s = int(start)
+    e = int(end)
+    n = len(text)
+    s = max(0, min(s, n))
+    e = max(0, min(e, n))
+    if e <= s:
+        return s, e
+
+    while s < e and text[s].isspace():
+        s += 1
+    while s < e and text[e - 1].isspace():
+        e -= 1
+
+    left_punct = set("([{\"'`“”‘’.,;:!?")
+    right_punct = set(")]}\"'`“”‘’.,;:!?")
+    while s < e and text[s] in left_punct:
+        s += 1
+    while s < e and text[e - 1] in right_punct:
+        e -= 1
+
+    while s < e and text[s].isspace():
+        s += 1
+    while s < e and text[e - 1].isspace():
+        e -= 1
+    return s, e
+
+
+def _expand_mid_token_boundaries(text: str, start: int, end: int) -> tuple[int, int]:
+    s = int(start)
+    e = int(end)
+    n = len(text)
+    if e <= s:
+        return s, e
+
+    # If a span starts/ends inside an alnum token, expand to token boundary.
+    if 0 < s < n and _is_token_char(text[s]) and _is_token_char(text[s - 1]):
+        while s > 0 and _is_token_char(text[s - 1]):
+            s -= 1
+    if 0 < e < n and _is_token_char(text[e - 1]) and _is_token_char(text[e]):
+        while e < n and _is_token_char(text[e]):
+            e += 1
+    return s, e
+
+
+def _refine_span_boundaries(
+    text: str,
+    start: int,
+    end: int,
+    *,
+    expand_mid_token: bool,
+) -> tuple[int, int]:
+    s, e = _trim_span_edges(text, start, end)
+    if e <= s:
+        return s, e
+    if expand_mid_token:
+        s, e = _expand_mid_token_boundaries(text, s, e)
+        s, e = _trim_span_edges(text, s, e)
+    return s, e
+
+
 def extract_l1_spans_for_note(
     *,
     model,
@@ -271,6 +336,8 @@ def extract_l1_spans_for_note(
     window_overlap_chars: int = 256,
     section_header_lookback_chars: int = 0,
     strict_label_filter: bool = True,
+    boundary_refine: bool = True,
+    boundary_expand_mid_token: bool = True,
 ) -> list[L1Span]:
     spans: list[L1Span] = []
     seen: set[tuple[int, int, str]] = set()
@@ -321,7 +388,18 @@ def extract_l1_spans_for_note(
             e = start + e_local
             if e <= s or s < 0 or e > len(text):
                 continue
+            if boundary_refine:
+                s, e = _refine_span_boundaries(
+                    text,
+                    s,
+                    e,
+                    expand_mid_token=boundary_expand_mid_token,
+                )
+                if e <= s:
+                    continue
             if not mention:
+                mention = text[s:e]
+            else:
                 mention = text[s:e]
 
             l1_type = normalize_l1_type(raw_label)
@@ -360,6 +438,8 @@ def run_inference(
     entity_types: list[str] | None = None,
     threshold: float = 0.4,
     strict_label_filter: bool = True,
+    boundary_refine: bool = True,
+    boundary_expand_mid_token: bool = True,
     window_chars: int = 0,
     window_overlap_chars: int = 256,
     section_header_lookback_chars: int = 0,
@@ -419,6 +499,8 @@ def run_inference(
                 window_overlap_chars=window_overlap_chars,
                 section_header_lookback_chars=section_header_lookback_chars,
                 strict_label_filter=strict_label_filter,
+                boundary_refine=boundary_refine,
+                boundary_expand_mid_token=boundary_expand_mid_token,
             )
             n_notes += 1
             for i, s in enumerate(note_spans):
@@ -451,6 +533,8 @@ def run_inference(
         "attn_impl": str(attn_impl),
         "autocast_dtype": str(resolved_autocast_dtype or "none"),
         "load_dtype": str(load_torch_dtype or "none"),
+        "boundary_refine": bool(boundary_refine),
+        "boundary_expand_mid_token": bool(boundary_expand_mid_token),
         "model_param_device": model_param_device,
         "model_param_dtype": model_param_dtype,
     }
@@ -470,6 +554,16 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--entity-types", default="finding,procedure,body_structure")
     ap.add_argument("--threshold", type=float, default=0.4)
     ap.add_argument("--no-strict-label-filter", action="store_true")
+    ap.add_argument(
+        "--no-boundary-refine",
+        action="store_true",
+        help="Disable conservative post-prediction boundary refinement.",
+    )
+    ap.add_argument(
+        "--no-boundary-mid-token-expand",
+        action="store_true",
+        help="When boundary refinement is enabled, disable mid-token expansion.",
+    )
     ap.add_argument("--window-chars", type=int, default=0)
     ap.add_argument("--window-overlap-chars", type=int, default=256)
     ap.add_argument(
@@ -514,6 +608,8 @@ def main(argv: list[str]) -> int:
         entity_types=entity_types,
         threshold=float(args.threshold),
         strict_label_filter=not bool(args.no_strict_label_filter),
+        boundary_refine=not bool(args.no_boundary_refine),
+        boundary_expand_mid_token=not bool(args.no_boundary_mid_token_expand),
         window_chars=max(0, int(args.window_chars)),
         window_overlap_chars=max(0, int(args.window_overlap_chars)),
         section_header_lookback_chars=max(0, int(args.section_header_lookback_chars)),
@@ -527,6 +623,8 @@ def main(argv: list[str]) -> int:
     print(f"attn_impl: {stats['attn_impl']}")
     print(f"autocast_dtype: {stats['autocast_dtype']}")
     print(f"load_dtype: {stats['load_dtype']}")
+    print(f"boundary_refine: {stats['boundary_refine']}")
+    print(f"boundary_expand_mid_token: {stats['boundary_expand_mid_token']}")
     print(f"model_param_device: {stats['model_param_device']}")
     print(f"model_param_dtype: {stats['model_param_dtype']}")
     print(f"processed notes: {stats['notes']:,}")

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from collections import defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass
 
 import numpy as np
@@ -113,6 +115,137 @@ class _HFPairScorer(_PairScorer):
         return np.concatenate(out, axis=0).astype(np.float32, copy=False)
 
 
+class _GLiNERPairScorer(_PairScorer):
+    def __init__(
+        self,
+        *,
+        model_path: str,
+        device: str,
+        batch_size: int,
+        max_length: int,
+        load_dtype: str = "auto",
+    ):
+        self.batch_size = max(1, int(batch_size))
+        self.max_length = max(8, int(max_length))
+        self.device = _resolve_device(device)
+
+        try:
+            import torch  # type: ignore
+            from gliner import GLiNER  # type: ignore
+        except Exception as e:
+            raise RuntimeError(
+                "GLiNER + torch are required for gliner L4 backend. "
+                "Install them or use backend=hash."
+            ) from e
+
+        self._torch = torch
+        raw_dtype = str(load_dtype).strip().lower()
+        if raw_dtype not in {"auto", "", "none", "float16", "fp16", "bfloat16", "bf16", "float32", "fp32"}:
+            raise ValueError(f"Unsupported load_dtype: {load_dtype}")
+
+        # Keep attention path conservative for ModernBERT + FA2 compatibility.
+        attn_impl = "eager" if str(self.device).startswith("cuda") else "sdpa"
+        self._model = GLiNER.from_pretrained(
+            model_path,
+            max_length=self.max_length,
+            _attn_implementation=attn_impl,
+        )
+        if hasattr(self._model, "model"):
+            self._model.model.eval()
+
+        self._autocast_dtype = None
+        if str(self.device).startswith("cuda"):
+            if raw_dtype in {"auto", "", "none", "float16", "fp16"}:
+                if hasattr(self._model, "model"):
+                    self._model.model.half()
+                self._autocast_dtype = torch.float16
+            elif raw_dtype in {"bfloat16", "bf16"}:
+                if hasattr(self._model, "model"):
+                    self._model.model.to(dtype=torch.bfloat16)
+                self._autocast_dtype = torch.bfloat16
+            elif raw_dtype in {"float32", "fp32"}:
+                self._autocast_dtype = None
+
+        self._model.to(self.device)
+
+    def _score_one_mention(self, mention: str, aliases: list[str]) -> np.ndarray:
+        if not aliases:
+            return np.zeros((0,), dtype=np.float32)
+
+        mention_text = str(mention or "")
+        if not mention_text:
+            return np.zeros((len(aliases),), dtype=np.float32)
+
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for raw in aliases:
+            a = str(raw or "").strip()
+            if not a or a in seen:
+                continue
+            seen.add(a)
+            deduped.append(a)
+
+        if not deduped:
+            return np.zeros((len(aliases),), dtype=np.float32)
+
+        input_spans = [[{"start": 0, "end": len(mention_text)}]]
+        label_to_score: dict[str, float] = {}
+        autocast_ctx = (
+            self._torch.autocast(device_type="cuda", dtype=self._autocast_dtype)
+            if str(self.device).startswith("cuda") and self._autocast_dtype is not None
+            else nullcontext()
+        )
+
+        with self._torch.no_grad():
+            with autocast_ctx:
+                for i in range(0, len(deduped), self.batch_size):
+                    chunk = deduped[i : i + self.batch_size]
+                    ents = self._model.predict_entities(
+                        mention_text,
+                        chunk,
+                        threshold=0.0,
+                        flat_ner=True,
+                        multi_label=True,
+                        return_class_probs=True,
+                        input_spans=input_spans,
+                    )
+                    for ent in ents:
+                        lbl = str(ent.get("label") or "").strip()
+                        if not lbl:
+                            continue
+                        sc = float(ent.get("score") or 0.0)
+                        prev = label_to_score.get(lbl)
+                        if prev is None or sc > prev:
+                            label_to_score[lbl] = sc
+
+        out = np.zeros((len(aliases),), dtype=np.float32)
+        for i, raw in enumerate(aliases):
+            a = str(raw or "").strip()
+            out[i] = float(label_to_score.get(a, 0.0))
+        return out
+
+    def score_pairs(self, mentions: list[str], aliases: list[str]) -> np.ndarray:
+        if not mentions:
+            return np.zeros((0,), dtype=np.float32)
+        if len(mentions) != len(aliases):
+            raise ValueError("mentions and aliases must be the same length")
+
+        if len(set(mentions)) == 1:
+            return self._score_one_mention(mentions[0], aliases).astype(np.float32, copy=False)
+
+        groups: dict[str, list[int]] = defaultdict(list)
+        for i, m in enumerate(mentions):
+            groups[str(m)].append(i)
+
+        out = np.zeros((len(mentions),), dtype=np.float32)
+        for mention, idxs in groups.items():
+            sub_aliases = [aliases[i] for i in idxs]
+            sub_scores = self._score_one_mention(mention, sub_aliases)
+            for j, src_idx in enumerate(idxs):
+                out[src_idx] = float(sub_scores[j])
+        return out.astype(np.float32, copy=False)
+
+
 def _make_pair_scorer(
     *,
     backend: str,
@@ -125,7 +258,7 @@ def _make_pair_scorer(
     b = str(backend).strip().lower()
     if b in {"hash", "hashed"}:
         return _HashPairScorer()
-    if b in {"hf", "transformers", "auto"}:
+    if b in {"hf", "transformers"}:
         return _HFPairScorer(
             model_path=model_path,
             device=device,
@@ -133,6 +266,39 @@ def _make_pair_scorer(
             max_length=max_length,
             load_dtype=load_dtype,
         )
+    if b in {"gliner", "gliner_rerank"}:
+        return _GLiNERPairScorer(
+            model_path=model_path,
+            device=device,
+            batch_size=batch_size,
+            max_length=max_length,
+            load_dtype=load_dtype,
+        )
+    if b in {"auto"}:
+        if "gliner-linker-rerank" in str(model_path).lower():
+            return _GLiNERPairScorer(
+                model_path=model_path,
+                device=device,
+                batch_size=batch_size,
+                max_length=max_length,
+                load_dtype=load_dtype,
+            )
+        try:
+            return _HFPairScorer(
+                model_path=model_path,
+                device=device,
+                batch_size=batch_size,
+                max_length=max_length,
+                load_dtype=load_dtype,
+            )
+        except Exception:
+            return _GLiNERPairScorer(
+                model_path=model_path,
+                device=device,
+                batch_size=batch_size,
+                max_length=max_length,
+                load_dtype=load_dtype,
+            )
     raise ValueError(f"Unsupported L4 backend: {backend}")
 
 
