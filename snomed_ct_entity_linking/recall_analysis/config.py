@@ -11,6 +11,10 @@ class Config:
     snomed_root: Path = Path(
         "data/SnomedCT_InternationalRF2_PRODUCTION_20260101T120000Z/Snapshot/Terminology"
     )
+    legacy_snomed_root: Path = Path(
+        "data/SnomedCT_InternationalRF2_PRODUCTION_20230531T120000Z/Snapshot/Terminology"
+    )
+    missing_concepts_csv: Path = Path("data/missing_100_concepts.csv")
     train_annotations: Path = Path("data/train_annotations.csv")
     train_notes: Path = Path("data/train_notes.csv")
     index_dir: Path = Path("snomed_index")
@@ -21,7 +25,10 @@ class Config:
     cross_encoder_model: str = "ncbi/MedCPT-Cross-Encoder"
 
     # --- SNOMED Filtering ---
-    semantic_tags: tuple = ("finding", "disorder")
+    semantic_tags: tuple = (
+        "finding", "disorder", "procedure", "body structure",
+        "morphologic abnormality", "regime/therapy", "cell structure",
+    )
 
     # --- Context Windowing ---
     context_window_tokens: int = 50  # ±N tokens around mention
@@ -44,7 +51,8 @@ class Config:
     def __post_init__(self):
         # Resolve relative paths against project root
         for attr in [
-            "snomed_root", "train_annotations", "train_notes",
+            "snomed_root", "legacy_snomed_root", "missing_concepts_csv",
+            "train_annotations", "train_notes",
             "index_dir", "output_dir",
         ]:
             val = getattr(self, attr)
@@ -69,4 +77,16 @@ class Config:
             self.snomed_root.parent
             / "Refset" / "Language"
             / "der2_cRefset_LanguageSnapshot-en_INT_20260101.txt"
+        )
+
+    @property
+    def legacy_description_file(self) -> Path:
+        return self.legacy_snomed_root / "sct2_Description_Snapshot-en_INT_20230531.txt"
+
+    @property
+    def legacy_language_refset_file(self) -> Path:
+        return (
+            self.legacy_snomed_root.parent
+            / "Refset" / "Language"
+            / "der2_cRefset_LanguageSnapshot-en_INT_20230531.txt"
         )

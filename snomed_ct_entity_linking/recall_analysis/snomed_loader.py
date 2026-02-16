@@ -2,6 +2,7 @@
 
 import re
 import time
+from pathlib import Path
 
 import pandas as pd
 from .config import Config
@@ -114,10 +115,99 @@ def load_snomed(
     print(f"  Unique concepts: {n_concepts:,} | Avg descriptions/concept: {len(result) / n_concepts:.1f}")
     print(f"  Preferred terms in index: {n_preferred:,} ({n_preferred / len(result) * 100:.1f}%)")
 
+    # --- Load legacy (retired) concepts from older SNOMED release ---
+    legacy = _load_legacy_concepts(cfg)
+    if legacy is not None:
+        legacy_df, legacy_fsn, legacy_tag = legacy
+        result = pd.concat([result, legacy_df], ignore_index=True)
+        sctid_to_fsn.update(legacy_fsn)
+        sctid_to_tag.update(legacy_tag)
+
     # --- Load IS-A hierarchy ---
     parent_map = _load_hierarchy(cfg)
 
     return result, sctid_to_fsn, sctid_to_tag, parent_map
+
+
+def _load_legacy_concepts(
+    cfg: Config,
+) -> tuple[pd.DataFrame, dict[int, str], dict[int, str]] | None:
+    """
+    Load descriptions for missing/retired concepts from an older SNOMED release.
+
+    Reads concept IDs from missing_concepts_csv, loads their descriptions from
+    the legacy SNOMED release, and returns them in the same format as the main
+    descriptions DataFrame.
+
+    Returns None if missing_concepts_csv does not exist.
+    """
+    if not cfg.missing_concepts_csv.exists():
+        return None
+    if not cfg.legacy_description_file.exists():
+        print(f"  WARNING: Legacy SNOMED not found at {cfg.legacy_description_file}, skipping")
+        return None
+
+    missing_df = pd.read_csv(cfg.missing_concepts_csv)
+    target_sctids = set(missing_df["concept_id"].tolist())
+    print(f"\nLoading {len(target_sctids)} legacy concepts from {cfg.legacy_description_file} ...")
+
+    # Load descriptions from legacy release (these concepts were active there)
+    desc = pd.read_csv(
+        cfg.legacy_description_file, sep="\t",
+        dtype={"id": int, "active": int, "conceptId": int, "typeId": int},
+        usecols=["id", "active", "conceptId", "typeId", "term"],
+    )
+    # Keep active descriptions for our target concepts only
+    desc = desc[(desc["active"] == 1) & (desc["conceptId"].isin(target_sctids))]
+    print(f"  Active legacy descriptions: {len(desc):,} for {desc['conceptId'].nunique()} concepts")
+
+    # Parse FSNs and semantic tags
+    fsn_mask = desc["typeId"] == FSN_TYPE_ID
+    fsn_df = desc[fsn_mask].copy()
+    fsn_df["semantic_tag"] = fsn_df["term"].apply(parse_semantic_tag)
+
+    # Build lookups
+    legacy_sctid_to_fsn: dict[int, str] = {}
+    legacy_sctid_to_tag: dict[int, str] = {}
+    for _, row in fsn_df.iterrows():
+        legacy_sctid_to_fsn[row["conceptId"]] = strip_semantic_tag(row["term"])
+        if row["semantic_tag"]:
+            legacy_sctid_to_tag[row["conceptId"]] = row["semantic_tag"]
+
+    # Process all descriptions (same logic as main loader)
+    filtered = desc.copy()
+    filtered["semantic_tag"] = filtered["term"].apply(parse_semantic_tag)
+    filtered["term_type"] = filtered["typeId"].map({
+        FSN_TYPE_ID: "fsn", SYNONYM_TYPE_ID: "synonym",
+    }).fillna("other")
+    filtered["index_term"] = filtered.apply(
+        lambda r: strip_semantic_tag(r["term"]) if r["term_type"] == "fsn" else r["term"],
+        axis=1,
+    )
+    filtered = filtered.drop_duplicates(subset=["conceptId", "index_term"])
+
+    # Load preferred terms from legacy language refset
+    if cfg.legacy_language_refset_file.exists():
+        lang = pd.read_csv(
+            cfg.legacy_language_refset_file, sep="\t",
+            dtype={"referencedComponentId": int, "acceptabilityId": int, "active": int},
+            usecols=["active", "referencedComponentId", "acceptabilityId"],
+        )
+        preferred_ids = set(lang[
+            (lang["active"] == 1) &
+            (lang["acceptabilityId"] == PREFERRED_ACCEPTABILITY)
+        ]["referencedComponentId"])
+        filtered["is_preferred"] = filtered["id"].isin(preferred_ids)
+    else:
+        # Fall back: mark FSNs as preferred
+        filtered["is_preferred"] = filtered["typeId"] == FSN_TYPE_ID
+
+    result = filtered.rename(columns={
+        "id": "description_id", "conceptId": "sctid",
+    })[["description_id", "sctid", "index_term", "term_type", "semantic_tag", "is_preferred"]].reset_index(drop=True)
+
+    print(f"  Legacy descriptions ready: {len(result):,} terms for {result['sctid'].nunique()} concepts")
+    return result, legacy_sctid_to_fsn, legacy_sctid_to_tag
 
 
 def _load_preferred_descriptions(cfg: Config) -> set[int]:

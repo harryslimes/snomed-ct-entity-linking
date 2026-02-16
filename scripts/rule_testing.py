@@ -118,7 +118,7 @@ def snomed_search_batch(queries: list[str], top_k: int = 10) -> list[list[dict]]
     )
 
     _init_retrieval()
-    top_k = min(max(top_k, 1), 20)
+    top_k = min(max(top_k, 1), 100)
     cfg = Config()
 
     query_embs = _encoder.encode(queries, batch_size=max(len(queries), 1))
@@ -146,6 +146,54 @@ def snomed_search_batch(queries: list[str], top_k: int = 10) -> list[list[dict]]
             })
         all_results.append(results)
     return all_results
+
+
+def check_gold_in_wider_retrieval(per_ann_results: list[dict]) -> None:
+    """For retrieval misses, check if gold concept is in wider top-100 retrieval.
+
+    Mutates per_ann_results in place, adding gold_in_top100 / gold_rank_top100
+    fields to retrieval miss entries.
+    """
+    misses = [r for r in per_ann_results if r.get("failure_reason") == "retrieval_miss"]
+    if not misses:
+        return
+
+    print(f"\n  Checking {len(misses)} retrieval misses against wider top-100 pool ...")
+    _init_retrieval()
+
+    # Batch all search terms from all misses
+    all_queries: list[str] = []
+    miss_query_ranges: list[tuple[int, int]] = []
+    for miss in misses:
+        start = len(all_queries)
+        all_queries.extend(miss["search_terms"])
+        miss_query_ranges.append((start, len(all_queries)))
+
+    batch_results = snomed_search_batch(all_queries, top_k=100)
+
+    for miss, (qstart, qend) in zip(misses, miss_query_ranges):
+        gold_cid = miss["gold_concept"]
+
+        # Merge candidates across search terms
+        merged: dict[int, dict] = {}
+        for results in batch_results[qstart:qend]:
+            for c in results:
+                cid = c["concept_id"]
+                if cid not in merged or c["score"] > merged[cid]["score"]:
+                    merged[cid] = c
+
+        candidates = sorted(merged.values(), key=lambda x: x["score"], reverse=True)
+        candidate_ids = [c["concept_id"] for c in candidates]
+
+        found = gold_cid in candidate_ids
+        rank = candidate_ids.index(gold_cid) + 1 if found else None
+
+        miss["gold_in_top100"] = found
+        miss["gold_rank_top100"] = rank
+        miss["n_candidates_top100"] = len(candidates)
+
+        status = f"rank={rank}" if found else "NOT FOUND"
+        print(f"    '{miss['gold_span']}' (gold={gold_cid}): {status} in {len(candidates)} candidates")
 
 
 # ---------------------------------------------------------------------------
@@ -587,6 +635,126 @@ def single_annotation_iou(
 
 
 # ---------------------------------------------------------------------------
+# Report printing
+# ---------------------------------------------------------------------------
+
+def print_summary_report(
+    per_ann_results: list[dict],
+    *,
+    backend: str,
+    model: str,
+    temperature: float,
+    reasoning_effort: str | None,
+    macro_char_iou: float,
+    total_time_s: float | None = None,
+    replay: bool = False,
+) -> None:
+    """Print the results summary report."""
+    n_total = len(per_ann_results)
+    n_matches = sum(1 for r in per_ann_results if r["concept_match"])
+    avg_iou = sum(r["iou"] for r in per_ann_results) / max(n_total, 1)
+
+    n_gold_in_candidates = sum(1 for r in per_ann_results if r["gold_in_candidates"])
+    n_retrieval_miss = sum(1 for r in per_ann_results if r.get("failure_reason") == "retrieval_miss")
+    n_selection_miss = sum(1 for r in per_ann_results if r.get("failure_reason") == "selection_miss")
+    n_parse_fail = sum(1 for r in per_ann_results if r.get("failure_reason") == "parse_fail")
+    avg_candidates = sum(r["n_candidates"] for r in per_ann_results) / max(n_total, 1)
+    gold_ranks = [r["gold_rank"] for r in per_ann_results if r["gold_rank"] is not None]
+    avg_gold_rank = sum(gold_ranks) / len(gold_ranks) if gold_ranks else 0
+
+    label = "RESULTS SUMMARY (replay)" if replay else "RESULTS SUMMARY"
+    print("\n" + "=" * 80)
+    print(label)
+    print("=" * 80)
+    print(f"Backend:            {backend}")
+    print(f"Model:              {model}")
+    print(f"Temperature:        {temperature}")
+    if reasoning_effort:
+        print(f"Reasoning effort:   {reasoning_effort}")
+    print(f"Total annotations:  {n_total}")
+    print(f"Concept matches:    {n_matches}/{n_total} ({100 * n_matches / max(n_total, 1):.1f}%)")
+    print(f"Avg per-ann IoU:    {avg_iou:.4f}")
+    print(f"Macro char IoU:     {macro_char_iou:.4f}")
+    if total_time_s is not None:
+        print(f"Total time:         {total_time_s:.1f}s")
+
+    print(f"\nRetrieval:")
+    print(f"  Avg candidates:   {avg_candidates:.1f}")
+    print(f"  Gold in top-k:    {n_gold_in_candidates}/{n_total} ({100 * n_gold_in_candidates / max(n_total, 1):.1f}%)")
+    if gold_ranks:
+        print(f"  Avg gold rank:    {avg_gold_rank:.1f} (when found)")
+
+    print(f"\nFailure breakdown:")
+    print(f"  Correct:          {n_matches}")
+    print(f"  Retrieval miss:   {n_retrieval_miss}  (gold concept not in candidates)")
+    print(f"  Selection miss:   {n_selection_miss}  (gold in candidates, LLM picked wrong)")
+    if n_parse_fail:
+        print(f"  Parse fail:       {n_parse_fail}  (LLM response unparseable)")
+
+    # Wider retrieval analysis
+    top100_checked = [r for r in per_ann_results if "gold_in_top100" in r]
+    if top100_checked:
+        n_found = sum(1 for r in top100_checked if r["gold_in_top100"])
+        n_not_found = len(top100_checked) - n_found
+        print(f"\nRetrieval miss analysis (top-100 check):")
+        print(f"  Found in top-100:     {n_found}/{len(top100_checked)}  (recoverable with wider retrieval)")
+        print(f"  Not in top-100:       {n_not_found}/{len(top100_checked)}  (true retrieval gap)")
+        top100_ranks = [r["gold_rank_top100"] for r in top100_checked if r.get("gold_rank_top100") is not None]
+        if top100_ranks:
+            print(f"  Avg rank when found:  {sum(top100_ranks) / len(top100_ranks):.1f}")
+
+    # Per-section breakdown
+    section_groups: dict[str, list[dict]] = {}
+    for r in per_ann_results:
+        section_groups.setdefault(r["section"], []).append(r)
+
+    print(f"\nPer-section accuracy:")
+    for sec in sorted(section_groups):
+        group = section_groups[sec]
+        n = len(group)
+        matches = sum(1 for r in group if r["concept_match"])
+        retr = sum(1 for r in group if r["gold_in_candidates"])
+        sel_miss = sum(1 for r in group if r.get("failure_reason") == "selection_miss")
+        sec_iou = sum(r["iou"] for r in group) / n
+        print(f"  {sec:40s} n={n:3d}  acc={100 * matches / n:5.1f}%  retrieval={100 * retr / n:5.1f}%  sel_miss={sel_miss}  iou={sec_iou:.3f}")
+
+
+# ---------------------------------------------------------------------------
+# Replay
+# ---------------------------------------------------------------------------
+
+def replay(results_path: str) -> None:
+    """Replay results from a saved JSON file without re-running inference."""
+    path = Path(results_path)
+    print(f"Loading saved results from {path} ...")
+
+    with open(path) as f:
+        saved = json.load(f)
+
+    per_ann_results = saved["per_annotation"]
+
+    # Run wider retrieval check for misses
+    check_gold_in_wider_retrieval(per_ann_results)
+
+    print_summary_report(
+        per_ann_results,
+        backend=saved.get("backend", "unknown"),
+        model=saved.get("model", "unknown"),
+        temperature=saved.get("temperature", 0.0),
+        reasoning_effort=saved.get("reasoning_effort"),
+        macro_char_iou=saved.get("macro_char_iou", 0.0),
+        total_time_s=saved.get("total_time_s"),
+        replay=True,
+    )
+
+    # Save updated results (with top-100 check data)
+    saved["per_annotation"] = per_ann_results
+    with open(path, "w") as f:
+        json.dump(saved, f, indent=2)
+    print(f"\nUpdated results saved to {path}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -812,84 +980,43 @@ def run(args: argparse.Namespace) -> None:
     else:
         agg_iou = 0.0
 
-    n_matches = sum(1 for r in per_ann_results if r["concept_match"])
-    n_total = len(per_ann_results)
-    avg_iou = sum(r["iou"] for r in per_ann_results) / max(n_total, 1)
     total_elapsed = time.time() - t0
 
-    # Retrieval & failure stats
-    n_gold_in_candidates = sum(1 for r in per_ann_results if r["gold_in_candidates"])
-    n_retrieval_miss = sum(1 for r in per_ann_results if r["failure_reason"] == "retrieval_miss")
-    n_selection_miss = sum(1 for r in per_ann_results if r["failure_reason"] == "selection_miss")
-    n_parse_fail = sum(1 for r in per_ann_results if r["failure_reason"] == "parse_fail")
-    avg_candidates = sum(r["n_candidates"] for r in per_ann_results) / max(n_total, 1)
-    gold_ranks = [r["gold_rank"] for r in per_ann_results if r["gold_rank"] is not None]
-    avg_gold_rank = sum(gold_ranks) / len(gold_ranks) if gold_ranks else 0
+    # Check wider retrieval for misses
+    check_gold_in_wider_retrieval(per_ann_results)
 
     # --- Model info ---
     if args.backend == "vllm":
         model_name = args.vllm_model
-        temperature = 0.0
         reasoning = args.reasoning_effort
     else:
         model_name = "claude-sonnet-4-20250514"
-        temperature = 0.0
         reasoning = None
 
-    # --- Report ---
-    print("\n" + "=" * 80)
-    print("RESULTS SUMMARY")
-    print("=" * 80)
-    print(f"Backend:            {args.backend}")
-    print(f"Model:              {model_name}")
-    print(f"Temperature:        {temperature}")
-    if reasoning:
-        print(f"Reasoning effort:   {reasoning}")
-    print(f"Total annotations:  {n_total}")
-    print(f"Concept matches:    {n_matches}/{n_total} ({100 * n_matches / max(n_total, 1):.1f}%)")
-    print(f"Avg per-ann IoU:    {avg_iou:.4f}")
-    print(f"Macro char IoU:     {agg_iou:.4f}")
-    print(f"Total time:         {total_elapsed:.1f}s")
-
-    print(f"\nRetrieval:")
-    print(f"  Avg candidates:   {avg_candidates:.1f}")
-    print(f"  Gold in top-k:    {n_gold_in_candidates}/{n_total} ({100 * n_gold_in_candidates / max(n_total, 1):.1f}%)")
-    if gold_ranks:
-        print(f"  Avg gold rank:    {avg_gold_rank:.1f} (when found)")
-
-    print(f"\nFailure breakdown:")
-    print(f"  Correct:          {n_matches}")
-    print(f"  Retrieval miss:   {n_retrieval_miss}  (gold concept not in candidates)")
-    print(f"  Selection miss:   {n_selection_miss}  (gold in candidates, LLM picked wrong)")
-    if n_parse_fail:
-        print(f"  Parse fail:       {n_parse_fail}  (LLM response unparseable)")
-
-    # Per-section breakdown
-    section_groups: dict[str, list[dict]] = {}
-    for r in per_ann_results:
-        section_groups.setdefault(r["section"], []).append(r)
-
-    print(f"\nPer-section accuracy:")
-    for sec in sorted(section_groups):
-        group = section_groups[sec]
-        n = len(group)
-        matches = sum(1 for r in group if r["concept_match"])
-        retr = sum(1 for r in group if r["gold_in_candidates"])
-        sel_miss = sum(1 for r in group if r["failure_reason"] == "selection_miss")
-        sec_iou = sum(r["iou"] for r in group) / n
-        print(f"  {sec:40s} n={n:3d}  acc={100 * matches / n:5.1f}%  retrieval={100 * retr / n:5.1f}%  sel_miss={sel_miss}  iou={sec_iou:.3f}")
+    print_summary_report(
+        per_ann_results,
+        backend=args.backend,
+        model=model_name,
+        temperature=0.0,
+        reasoning_effort=reasoning,
+        macro_char_iou=agg_iou,
+        total_time_s=total_elapsed,
+    )
 
     # --- Save results ---
     from datetime import datetime, timezone
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    n_total = len(per_ann_results)
+    n_matches = sum(1 for r in per_ann_results if r["concept_match"])
+    avg_iou = sum(r["iou"] for r in per_ann_results) / max(n_total, 1)
 
     output = {
         "timestamp": timestamp,
         "note_id": note_id,
         "backend": args.backend,
         "model": model_name,
-        "temperature": temperature,
+        "temperature": 0.0,
         "reasoning_effort": reasoning,
         "n_annotations": n_total,
         "n_concept_matches": n_matches,
@@ -897,18 +1024,6 @@ def run(args: argparse.Namespace) -> None:
         "avg_per_annotation_iou": avg_iou,
         "macro_char_iou": agg_iou,
         "total_time_s": round(total_elapsed, 1),
-        "retrieval": {
-            "avg_candidates": round(avg_candidates, 1),
-            "gold_in_topk": n_gold_in_candidates,
-            "gold_in_topk_pct": round(100 * n_gold_in_candidates / max(n_total, 1), 1),
-            "avg_gold_rank": round(avg_gold_rank, 1) if gold_ranks else None,
-        },
-        "failure_breakdown": {
-            "correct": n_matches,
-            "retrieval_miss": n_retrieval_miss,
-            "selection_miss": n_selection_miss,
-            "parse_fail": n_parse_fail,
-        },
         "per_annotation": per_ann_results,
     }
 
@@ -944,8 +1059,15 @@ def main() -> None:
         "--reasoning-effort", choices=["low", "medium", "high"], default="low",
         help="Reasoning effort for gpt-oss-20b (default: low)",
     )
+    parser.add_argument(
+        "--replay", type=str, default=None, metavar="PATH",
+        help="Replay results from a saved JSON file (no inference, just report + top-100 check)",
+    )
     args = parser.parse_args()
-    run(args)
+    if args.replay:
+        replay(args.replay)
+    else:
+        run(args)
 
 
 if __name__ == "__main__":
