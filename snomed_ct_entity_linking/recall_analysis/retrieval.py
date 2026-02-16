@@ -32,6 +32,7 @@ def dense_search(
     faiss_index: faiss.Index,
     faiss_sctids: list[int],
     top_k: int,
+    verbose: bool = True,
 ) -> list[list[tuple[int, float, int]]]:
     """
     Batch FAISS nearest-neighbor search.
@@ -39,10 +40,12 @@ def dense_search(
     Returns:
         List of per-query results, each a list of (sctid, score, rank).
     """
-    print(f"FAISS search: {len(query_embeddings):,} queries x top-{top_k} ...")
+    if verbose:
+        print(f"FAISS search: {len(query_embeddings):,} queries x top-{top_k} ...")
     t0 = time.time()
     scores, indices = faiss_index.search(query_embeddings, top_k)
-    print(f"  FAISS search done in {time.time() - t0:.1f}s")
+    if verbose:
+        print(f"  FAISS search done in {time.time() - t0:.1f}s")
 
     results = []
     for i in range(len(query_embeddings)):
@@ -61,6 +64,7 @@ def sparse_search(
     bm25_sctids: list[int],
     top_k: int,
     n_threads: int = 16,
+    verbose: bool = True,
 ) -> list[list[tuple[int, float, int]]]:
     """
     BM25S batch search using mention spans (keyword matching).
@@ -69,13 +73,14 @@ def sparse_search(
     Returns:
         List of per-query results, each a list of (sctid, score, rank).
     """
-    print(f"BM25S search: {len(mention_spans):,} queries x top-{top_k} (n_threads={n_threads}) ...")
+    if verbose:
+        print(f"BM25S search: {len(mention_spans):,} queries x top-{top_k} (n_threads={n_threads}) ...")
     t0 = time.time()
 
     query_tokens = bm25s.tokenize(mention_spans, show_progress=False)
     # Pass corpus=None to get integer indices instead of corpus strings
     doc_indices, doc_scores = bm25_index.retrieve(
-        query_tokens, k=top_k, n_threads=n_threads, show_progress=True,
+        query_tokens, k=top_k, n_threads=n_threads, show_progress=False,
         corpus=None,
     )
 
@@ -91,7 +96,8 @@ def sparse_search(
         results.append(query_results)
 
     elapsed = time.time() - t0
-    print(f"  BM25S search done in {elapsed:.1f}s ({len(mention_spans) / elapsed:.0f} queries/s)")
+    if verbose:
+        print(f"  BM25S search done in {elapsed:.1f}s ({len(mention_spans) / elapsed:.0f} queries/s)")
     return results
 
 
