@@ -1,11 +1,12 @@
 {
-  "name": "Claude Code Dev Container",
+  "name": "Claude Code Dev Container (amd64)",
   "build": {
-    "dockerfile": "../Dockerfile"
+    "context": "../..",
+    "dockerfile": "../Dockerfile.amd64"
   },
   "runArgs": [
     "--gpus", "all",
-    "--name", "snomed-ct-entity-linking-devcontainer",
+    "--name", "snomed-ct-entity-linking-devcontainer-amd64",
     "--ipc=host",
     "--ulimit", "memlock=-1",
     "--ulimit", "stack=67108864"

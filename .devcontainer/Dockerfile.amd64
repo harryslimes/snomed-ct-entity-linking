@@ -1,0 +1,57 @@
+# =============================================================================
+# AMD64 RTX Workstation Devcontainer Image
+# =============================================================================
+# This is intended for x86_64 NVIDIA hosts (for example RTX 5090 systems).
+# =============================================================================
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+    python3 python3-pip python3-venv python3-dev \
+    build-essential jq iproute2 sudo unzip git kmod rsync curl ca-certificates \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && mkdir -p /etc/sudoers.d \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN if getent passwd $USER_UID >/dev/null; then \
+        EXISTING_USER=$(getent passwd $USER_UID | cut -d: -f1); \
+        usermod -l $USERNAME $EXISTING_USER; \
+        groupmod -n $USERNAME $(getent group $USER_GID | cut -d: -f1) || true; \
+        usermod -d /home/$USERNAME -m $USERNAME; \
+    else \
+        if ! getent group $USER_GID >/dev/null; then \
+            groupadd --gid $USER_GID $USERNAME; \
+        fi; \
+        useradd --uid $USER_UID --gid $USER_GID -m $USERNAME; \
+    fi \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Optional perf helper for safetensors-based model loading.
+RUN python3 -m pip install --no-deps "fastsafetensors>=0.1.10" 2>/dev/null || \
+    echo "fastsafetensors install skipped (may need manual install)"
+
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+ENV BUN_INSTALL=/usr/local
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/usr/local/bin:${PATH}"
+
+RUN bun install -g @anthropic-ai/claude-code
+
+USER vscode
+RUN mkdir -p /home/vscode/.config/claude \
+    && mkdir -p /home/vscode/.codex \
+    && mkdir -p /home/vscode/.cache/huggingface \
+    && mkdir -p /home/vscode/commandhistory \
+    && touch /home/vscode/commandhistory/.bash_history

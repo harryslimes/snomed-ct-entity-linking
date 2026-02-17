@@ -34,8 +34,7 @@ from runtime_scoring import macro_char_iou  # noqa: E402
 
 SPLIT_DIR = REPO_ROOT / "data" / "old-challenge-split"
 TERMINOLOGY_CSV = REPO_ROOT / "3rd Place" / "assets" / "dataflattened_terminology.csv"
-RULES_PATH = Path(__file__).parent / "rules_output.json"
-RESULTS_PATH = Path(__file__).parent / "test_results.json"
+DEFAULT_RULES_PATH = Path(__file__).parent / "rules_output.json"
 
 CONTEXT_BEFORE = 300
 CONTEXT_AFTER = 100
@@ -45,22 +44,28 @@ CONTEXT_AFTER = 100
 # Data loading
 # ---------------------------------------------------------------------------
 
-def load_first_note() -> tuple[str, str, pd.DataFrame]:
+def load_note(note_id: str | None = None) -> tuple[str, str, pd.DataFrame]:
     notes_df = pd.read_csv(SPLIT_DIR / "train_notes.csv")
     ann_df = pd.read_csv(SPLIT_DIR / "train_annotations.csv")
 
-    first_note_id = notes_df.iloc[0]["note_id"]
-    note_text = notes_df.iloc[0]["text"]
+    if note_id is None:
+        note_id = notes_df.iloc[0]["note_id"]
+        note_text = notes_df.iloc[0]["text"]
+    else:
+        match = notes_df[notes_df["note_id"] == note_id]
+        if match.empty:
+            raise ValueError(f"Note {note_id!r} not found in train_notes.csv")
+        note_text = match.iloc[0]["text"]
 
     note_anns = (
-        ann_df[ann_df["note_id"] == first_note_id]
+        ann_df[ann_df["note_id"] == note_id]
         .copy()
         .sort_values("start")
     )
     for col in ["start", "end", "concept_id", "annotation_id"]:
         note_anns[col] = note_anns[col].astype(int)
 
-    return first_note_id, note_text, note_anns
+    return note_id, note_text, note_anns
 
 
 def load_concept_names() -> dict[int, tuple[str, str]]:
@@ -210,7 +215,67 @@ def get_context(note_text: str, start: int, end: int) -> tuple[str, str, str]:
 # Format rules
 # ---------------------------------------------------------------------------
 
+def _is_grule_for_stage(g_rule: dict, stage: str) -> bool:
+    """Check if a G-rule applies to a given stage."""
+    stages = g_rule.get("stages")
+    if stages is None:
+        return True  # no stages field = universal
+    return stage in stages
+
+
+def format_rules_for_search(
+    g_rules: list[dict],
+    structured_rules: list[dict],
+) -> str:
+    """Format rules for Stage 2: Search Term Generation."""
+    text = "=== UNIVERSAL RULES (Search) ===\n"
+    for rule in g_rules:
+        if _is_grule_for_stage(rule, "stage_2_search"):
+            text += f"\n{rule['id']}: {rule['rule']}\n"
+
+    applicable = [r for r in structured_rules if "stage_2_search" in r]
+    if applicable:
+        text += "\n=== SEARCH RULES ===\n"
+        for rule in applicable:
+            s2 = rule["stage_2_search"]
+            text += f"\n{rule['rule_id']} [{rule['concept_type']}]:"
+            if s2.get("filtering_logic"):
+                text += f"\n  Filter: {s2['filtering_logic']}"
+            text += f"\n  Translation: {s2['intent_translation']}\n"
+            for ex in rule.get("examples", []):
+                text += f"  Example: {ex}\n"
+    return text
+
+
+def format_rules_for_select(
+    g_rules: list[dict],
+    structured_rules: list[dict],
+) -> str:
+    """Format rules for Stage 3: Concept Disambiguation."""
+    text = "=== UNIVERSAL RULES (Selection) ===\n"
+    for rule in g_rules:
+        if _is_grule_for_stage(rule, "stage_3_select"):
+            text += f"\n{rule['id']}: {rule['rule']}\n"
+
+    applicable = [r for r in structured_rules if "stage_3_select" in r]
+    if applicable:
+        text += "\n=== DISAMBIGUATION RULES ===\n"
+        for rule in applicable:
+            s3 = rule["stage_3_select"]
+            text += f"\n{rule['rule_id']} [{rule['concept_type']}]:"
+            text += f"\n  Logic: {s3['disambiguation_logic']}"
+            if s3.get("preferred_hierarchy"):
+                text += f"\n  Prefer: {s3['preferred_hierarchy']}"
+            if s3.get("reject_hierarchies"):
+                text += f"\n  Reject: {', '.join(s3['reject_hierarchies'])}"
+            text += "\n"
+            for ex in rule.get("examples", []):
+                text += f"  Example: {ex}\n"
+    return text
+
+
 def format_rules(g_rules: list[dict], numbered_rules: list[dict]) -> str:
+    """Legacy format_rules for backward compatibility with v1.0 rules."""
     text = "=== UNIVERSAL RULES ===\n"
     for rule in g_rules:
         text += f"\n{rule['id']}: {rule['rule']}\n"
@@ -230,8 +295,11 @@ def format_rules(g_rules: list[dict], numbered_rules: list[dict]) -> str:
 
 SEARCH_SYSTEM = """\
 You are a clinical NLP agent. Given a text excerpt from a clinical note with a \
-highlighted region and annotation rules, generate search terms for querying a \
-SNOMED CT terminology index.
+highlighted region and SEARCH-SPECIFIC annotation rules, generate search terms \
+for querying a SNOMED CT terminology index.
+
+The rules below are specifically curated for search term generation. Follow \
+the filtering and intent translation instructions carefully.
 
 Respond with ONLY a JSON object:
 {"search_terms": ["term1", "term2", "term3"]}
@@ -241,8 +309,12 @@ Include the exact span text as one term, plus expanded/alternative forms.\
 """
 
 SELECT_SYSTEM = """\
-You are a clinical NLP agent. Given annotation rules, a text excerpt with a \
-highlighted region, and SNOMED CT search results, select the best matching concept.
+You are a clinical NLP agent. Given DISAMBIGUATION-SPECIFIC annotation rules, \
+a text excerpt with a highlighted region, and SNOMED CT search results, select \
+the best matching concept.
+
+The rules below are specifically curated for concept disambiguation. Follow \
+the hierarchy preferences and disambiguation logic carefully.
 
 Respond with ONLY a JSON object:
 {"concept_id": <integer>, "span_start": <int>, "span_end": <int>}
@@ -514,7 +586,7 @@ def vllm_pipeline(
     # Pre-build search prompts
     search_prompts = [
         build_search_prompt(a["before"], a["span"], a["after"],
-                            a["section_header"], a["rules_text"])
+                            a["section_header"], a["search_rules_text"])
         for a in annotations
     ]
 
@@ -524,6 +596,9 @@ def vllm_pipeline(
     out_search_terms: list[list[str]] = [[] for _ in range(n)]
     out_candidates: list[list[dict]] = [[] for _ in range(n)]
     out_selections: list[tuple[int, int, int] | None] = [None] * n
+
+    # Per-annotation timing arrays
+    ann_timings: list[dict] = [{"search_s": 0.0, "retrieval_s": 0.0, "select_s": 0.0, "total_s": 0.0, "mapping_bypass": False} for _ in range(n)]
 
     async def _run():
         async_client = AsyncOpenAI(
@@ -567,13 +642,22 @@ def vllm_pipeline(
 
         async def _process_annotation(idx: int):
             a = annotations[idx]
+            t_ann_start = time.monotonic()
 
             # --- Pass 1: search terms ---
-            raw_search = await _llm_call(SEARCH_SYSTEM, search_prompts[idx], max_tokens=max_tokens)
-            search_terms = parse_search_terms(raw_search, a["span"])
+            t_search = time.monotonic()
+            if a.get("mapping_hit"):
+                # Mapping bypass: use mapped expansion + original span directly
+                search_terms = [a["mapping_hit"], a["span"]]
+                ann_timings[idx]["mapping_bypass"] = True
+            else:
+                raw_search = await _llm_call(SEARCH_SYSTEM, search_prompts[idx], max_tokens=max_tokens)
+                search_terms = parse_search_terms(raw_search, a["span"])
+            ann_timings[idx]["search_s"] = time.monotonic() - t_search
             out_search_terms[idx] = search_terms
 
             # --- Retrieval (batched across annotations) ---
+            t_retr = time.monotonic()
             per_term_results = await batcher.search_multi(search_terms, top_k=10)
             merged: dict[int, dict] = {}
             for results in per_term_results:
@@ -582,17 +666,21 @@ def vllm_pipeline(
                     if cid not in merged or c["score"] > merged[cid]["score"]:
                         merged[cid] = c
             candidates = sorted(merged.values(), key=lambda x: x["score"], reverse=True)[:15]
+            ann_timings[idx]["retrieval_s"] = time.monotonic() - t_retr
             out_candidates[idx] = candidates
 
             # --- Pass 2: select concept ---
+            t_sel = time.monotonic()
             select_prompt = build_select_prompt(
                 a["before"], a["span"], a["after"],
                 a["section_header"], a["gold_start"], a["gold_end"],
-                a["rules_text"], candidates,
+                a["select_rules_text"], candidates,
             )
             raw_select = await _llm_call(SELECT_SYSTEM, select_prompt, max_tokens=max_tokens)
             out_selections[idx] = parse_concept_response(raw_select)
+            ann_timings[idx]["select_s"] = time.monotonic() - t_sel
 
+            ann_timings[idx]["total_s"] = time.monotonic() - t_ann_start
             pbar.update(1)
 
         tasks = [_process_annotation(i) for i in range(n)]
@@ -612,7 +700,7 @@ def vllm_pipeline(
 
     elapsed = time.time() - t0
     print(f"  Pipeline done in {elapsed:.1f}s ({n / elapsed:.1f} ann/s)")
-    return out_search_terms, out_candidates, out_selections
+    return out_search_terms, out_candidates, out_selections, ann_timings
 
 
 # ---------------------------------------------------------------------------
@@ -684,12 +772,13 @@ def print_summary_report(
     if gold_ranks:
         print(f"  Avg gold rank:    {avg_gold_rank:.1f} (when found)")
 
-    print(f"\nFailure breakdown:")
+    print(f"\nFailure breakdown (stage-targeted):")
     print(f"  Correct:          {n_matches}")
-    print(f"  Retrieval miss:   {n_retrieval_miss}  (gold concept not in candidates)")
-    print(f"  Selection miss:   {n_selection_miss}  (gold in candidates, LLM picked wrong)")
+    print(f"  Stage 2 miss:     {n_retrieval_miss}  (search rules -> gold concept not in candidates)")
+    print(f"  Stage 3 miss:     {n_selection_miss}  (select rules -> gold in candidates, LLM picked wrong)")
     if n_parse_fail:
         print(f"  Parse fail:       {n_parse_fail}  (LLM response unparseable)")
+    print(f"  Stage 1 (span):   not tested (NER model not yet integrated)")
 
     # Wider retrieval analysis
     top100_checked = [r for r in per_ann_results if "gold_in_top100" in r]
@@ -755,33 +844,153 @@ def replay(results_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Stage-targeted error diagnostics
+# ---------------------------------------------------------------------------
+
+def _suggest_rule_improvements(
+    per_ann_results: list[dict],
+    structured_by_id: dict[str, dict],
+    ann_rule_map: dict,
+) -> dict:
+    """Analyze failures and suggest which rule stages need improvement."""
+    stage_2_misses: list[dict] = []
+    stage_3_misses: list[dict] = []
+
+    for r in per_ann_results:
+        ann_id = r["annotation_id"]
+        rule_ids = ann_rule_map.get(ann_id, [])
+        applicable_rules = [structured_by_id[rid] for rid in rule_ids if rid in structured_by_id]
+
+        if r.get("failure_reason") == "retrieval_miss":
+            stage_2_misses.append({
+                "annotation_id": ann_id,
+                "gold_span": r["gold_span"],
+                "gold_concept": r["gold_concept"],
+                "search_terms": r["search_terms"],
+                "rules_applied": [
+                    {
+                        "rule_id": sr["rule_id"],
+                        "concept_type": sr["concept_type"],
+                        "intent_translation": sr.get("stage_2_search", {}).get("intent_translation", "N/A"),
+                    }
+                    for sr in applicable_rules if "stage_2_search" in sr
+                ],
+            })
+        elif r.get("failure_reason") == "selection_miss":
+            stage_3_misses.append({
+                "annotation_id": ann_id,
+                "gold_span": r["gold_span"],
+                "gold_concept": r["gold_concept"],
+                "pred_concept": r["pred_concept"],
+                "gold_rank": r["gold_rank"],
+                "rules_applied": [
+                    {
+                        "rule_id": sr["rule_id"],
+                        "concept_type": sr["concept_type"],
+                        "disambiguation_logic": sr.get("stage_3_select", {}).get("disambiguation_logic", "N/A"),
+                    }
+                    for sr in applicable_rules if "stage_3_select" in sr
+                ],
+            })
+
+    return {
+        "stage_2_search_failures": stage_2_misses,
+        "stage_3_select_failures": stage_3_misses,
+        "stage_2_failure_count": len(stage_2_misses),
+        "stage_3_failure_count": len(stage_3_misses),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-def run(args: argparse.Namespace) -> None:
-    # Load rules
-    print(f"Loading rules from {RULES_PATH} ...")
-    with open(RULES_PATH) as f:
-        rules = json.load(f)
+def _load_rules_v2(rules: dict) -> tuple[list[dict], dict[str, dict], dict | None, dict]:
+    """Load v2.0/v3.0 structured rules."""
     g_rules = rules["g_rules"]
-    numbered_rules_by_id = {r["id"]: r for r in rules["numbered_rules"]}
+    structured_by_id = {r["rule_id"]: r for r in rules["structured_rules"]}
+    ann_rule_map = rules.get("annotation_rule_map")
+    mappings = rules.get("mappings", {})
+    return g_rules, structured_by_id, ann_rule_map, mappings
+
+
+def _load_rules_v1(rules: dict) -> tuple[list[dict], dict[str, dict], dict, dict]:
+    """Load v1.0 flat rules, converting to v2.0 structure for compatibility."""
+    g_rules = rules["g_rules"]
+    structured_by_id = {}
+    for r in rules["numbered_rules"]:
+        structured_by_id[r["id"]] = {
+            "rule_id": r["id"],
+            "concept_type": "legacy",
+            "stage_2_search": {
+                "filtering_logic": None,
+                "intent_translation": r["rule"],
+            },
+            "stage_3_select": {
+                "disambiguation_logic": r["rule"],
+            },
+            "examples": r.get("examples", []),
+        }
     ann_rule_map = rules["annotation_rule_map"]
+    mappings: dict = {}
+    return g_rules, structured_by_id, ann_rule_map, mappings
+
+
+def run(args: argparse.Namespace) -> None:
+    bench: dict[str, object] = {}
+    bench_wall_start = time.monotonic()
+
+    # Load rules
+    t = time.monotonic()
+    rules_path = Path(args.rules) if args.rules else DEFAULT_RULES_PATH
+    print(f"Loading rules from {rules_path} ...")
+    with open(rules_path) as f:
+        rules = json.load(f)
+
+    version = rules.get("version", "1.0")
+    print(f"Rules version: {version}")
+
+    if version in ("2.0", "3.0", "4.0"):
+        g_rules, structured_by_id, ann_rule_map, mappings = _load_rules_v2(rules)
+    else:
+        g_rules, structured_by_id, ann_rule_map, mappings = _load_rules_v1(rules)
+    bench["load_rules_s"] = time.monotonic() - t
+
+    # For v4.0, load subsumption index for applies_to matching
+    subsumption_idx = None
+    use_subsumption = version == "4.0"
+    if use_subsumption:
+        from snomed_subsumption import SubsumptionIndex
+        t = time.monotonic()
+        print("Loading SNOMED subsumption index for v4.0 rule matching ...")
+        subsumption_idx = SubsumptionIndex.load()
+        bench["load_subsumption_index_s"] = time.monotonic() - t
+
+    # Build case-insensitive mapping lookup
+    mappings_lower = {k.lower(): v for k, v in mappings.items()}
 
     # Load data
+    t = time.monotonic()
     print("Loading note and annotations ...")
-    note_id, note_text, note_anns = load_first_note()
+    note_id, note_text, note_anns = load_note(args.note)
     sections = segment_sections(note_text)
+    bench["load_note_s"] = time.monotonic() - t
 
     print(f"Note: {note_id}  |  {len(note_anns)} annotations")
-    print(f"Rules: {len(g_rules)} global, {len(numbered_rules_by_id)} numbered")
+    print(f"Rules: {len(g_rules)} global, {len(structured_by_id)} structured, {len(mappings)} mappings")
     print(f"Backend: {args.backend}")
 
     # Initialize retrieval
+    t = time.monotonic()
     print("Initializing SNOMED retrieval system ...")
     _init_retrieval()
+    bench["init_retrieval_s"] = time.monotonic() - t
 
     # --- Prepare all annotation data up front ---
+    t = time.monotonic()
     annotations = []
+    n_subsumption_matched = 0
+    n_map_matched = 0
     for _, row in note_anns.iterrows():
         ann_id = str(int(row["annotation_id"]))
         gold_start = int(row["start"])
@@ -792,15 +1001,35 @@ def run(args: argparse.Namespace) -> None:
         sec = get_section_for_pos(gold_start, sections)
         section_header = sec.header if sec else "unknown"
 
-        mapped_rule_ids = ann_rule_map.get(ann_id, [])
-        applicable_numbered = [
-            numbered_rules_by_id[rid]
-            for rid in mapped_rule_ids
-            if rid in numbered_rules_by_id
-        ]
-        rules_text = format_rules(g_rules, applicable_numbered)
+        if use_subsumption and subsumption_idx is not None:
+            # v4.0: compute applicable rules via subsumption
+            applicable_structured = []
+            for rule in structured_by_id.values():
+                applies_to = rule.get("applies_to")
+                if applies_to and subsumption_idx.match_rule_applies_to(
+                    gold_cid, section_header, applies_to
+                ):
+                    applicable_structured.append(rule)
+            if applicable_structured:
+                n_subsumption_matched += 1
+        else:
+            # v2.0/v3.0: use annotation_rule_map
+            mapped_rule_ids = (ann_rule_map or {}).get(ann_id, [])
+            applicable_structured = [
+                structured_by_id[rid]
+                for rid in mapped_rule_ids
+                if rid in structured_by_id
+            ]
+            if mapped_rule_ids:
+                n_map_matched += 1
+
+        search_rules_text = format_rules_for_search(g_rules, applicable_structured)
+        select_rules_text = format_rules_for_select(g_rules, applicable_structured)
 
         before, span, after = get_context(note_text, gold_start, gold_end)
+
+        # Check if span matches a mapping (bypass LLM search)
+        mapping_hit = mappings_lower.get(gold_span.strip().lower())
 
         annotations.append({
             "ann_id": ann_id,
@@ -809,11 +1038,20 @@ def run(args: argparse.Namespace) -> None:
             "gold_cid": gold_cid,
             "gold_span": gold_span,
             "section_header": section_header,
-            "rules_text": rules_text,
+            "search_rules_text": search_rules_text,
+            "select_rules_text": select_rules_text,
             "before": before,
             "span": span,
             "after": after,
+            "mapping_hit": mapping_hit,
         })
+
+    bench["prepare_annotations_s"] = time.monotonic() - t
+
+    if use_subsumption:
+        print(f"Subsumption matching: {n_subsumption_matched}/{len(annotations)} annotations matched at least one rule")
+    else:
+        print(f"Rule map matching: {n_map_matched}/{len(annotations)} annotations matched at least one rule")
 
     t0 = time.time()
 
@@ -821,24 +1059,43 @@ def run(args: argparse.Namespace) -> None:
         # Pipelined: each annotation flows search→retrieve→select independently
         # so vLLM's continuous batching keeps the GPU saturated throughout.
         print(f"\n=== PIPELINED: search → retrieve → select ({len(annotations)} annotations) ===")
-        all_search_terms, all_candidates, all_selections = vllm_pipeline(
+        all_search_terms, all_candidates, all_selections, pipeline_ann_timings = vllm_pipeline(
             annotations,
             base_url=args.vllm_url, model=args.vllm_model,
             max_concurrent=args.concurrency,
             reasoning_effort=args.reasoning_effort,
         )
+        bench["pipeline_ann_timings"] = pipeline_ann_timings
     else:
+        pipeline_ann_timings = None
         # Sonnet: sequential three-phase approach
-        print(f"\n=== PASS 1: Generating search terms ({len(annotations)} annotations) ===")
-        search_prompts = [
-            build_search_prompt(a["before"], a["span"], a["after"],
-                                a["section_header"], a["rules_text"])
-            for a in annotations
-        ]
-        spans = [a["span"] for a in annotations]
-        all_search_terms = asyncio.run(
-            sonnet_search_terms_batch(search_prompts, spans)
-        )
+        # Pre-resolve mappings, only send unmapped annotations to LLM
+        n_mapped = sum(1 for a in annotations if a.get("mapping_hit"))
+        print(f"\n=== PASS 1: Generating search terms ({len(annotations)} annotations, {n_mapped} pre-mapped) ===")
+
+        all_search_terms: list[list[str]] = []
+        unmapped_indices = []
+        unmapped_prompts = []
+        unmapped_spans = []
+
+        for i, a in enumerate(annotations):
+            if a.get("mapping_hit"):
+                all_search_terms.append([a["mapping_hit"], a["span"]])
+            else:
+                all_search_terms.append([])  # placeholder
+                unmapped_indices.append(i)
+                unmapped_prompts.append(
+                    build_search_prompt(a["before"], a["span"], a["after"],
+                                        a["section_header"], a["search_rules_text"])
+                )
+                unmapped_spans.append(a["span"])
+
+        if unmapped_prompts:
+            llm_search_terms = asyncio.run(
+                sonnet_search_terms_batch(unmapped_prompts, unmapped_spans)
+            )
+            for idx, terms in zip(unmapped_indices, llm_search_terms):
+                all_search_terms[idx] = terms
 
         print(f"\n=== RETRIEVAL: Running SNOMED searches (batched) ===")
         # Collect all search terms and batch-retrieve at once
@@ -873,7 +1130,7 @@ def run(args: argparse.Namespace) -> None:
             build_select_prompt(
                 a["before"], a["span"], a["after"],
                 a["section_header"], a["gold_start"], a["gold_end"],
-                a["rules_text"], candidates,
+                a["select_rules_text"], candidates,
             )
             for a, candidates in zip(annotations, all_candidates)
         ]
@@ -881,7 +1138,10 @@ def run(args: argparse.Namespace) -> None:
             sonnet_select_batch(select_prompts)
         )
 
+    bench["pipeline_total_s"] = time.time() - t0
+
     # --- Score results ---
+    t = time.monotonic()
     predictions: list[dict] = []
     per_ann_results: list[dict] = []
 
@@ -981,9 +1241,12 @@ def run(args: argparse.Namespace) -> None:
         agg_iou = 0.0
 
     total_elapsed = time.time() - t0
+    bench["scoring_s"] = time.monotonic() - t
 
     # Check wider retrieval for misses
+    t = time.monotonic()
     check_gold_in_wider_retrieval(per_ann_results)
+    bench["wider_retrieval_check_s"] = time.monotonic() - t
 
     # --- Model info ---
     if args.backend == "vllm":
@@ -1011,14 +1274,18 @@ def run(args: argparse.Namespace) -> None:
     n_matches = sum(1 for r in per_ann_results if r["concept_match"])
     avg_iou = sum(r["iou"] for r in per_ann_results) / max(n_total, 1)
 
+    n_mapping_resolved = sum(1 for a in annotations if a.get("mapping_hit"))
+
     output = {
         "timestamp": timestamp,
         "note_id": note_id,
+        "rules_version": version,
         "backend": args.backend,
         "model": model_name,
         "temperature": 0.0,
         "reasoning_effort": reasoning,
         "n_annotations": n_total,
+        "n_mapping_resolved": n_mapping_resolved,
         "n_concept_matches": n_matches,
         "concept_accuracy": n_matches / max(n_total, 1),
         "avg_per_annotation_iou": avg_iou,
@@ -1027,14 +1294,93 @@ def run(args: argparse.Namespace) -> None:
         "per_annotation": per_ann_results,
     }
 
+    # Add stage-targeted diagnostics for v2.0+ rules
+    if version in ("2.0", "3.0"):
+        output["rule_improvement_suggestions"] = _suggest_rule_improvements(
+            per_ann_results, structured_by_id, ann_rule_map,
+        )
+
+    # Save results alongside the rules file when --rules is specified
+    results_dir = rules_path.parent
     if args.backend == "vllm":
-        results_path = RESULTS_PATH.with_name(f"test_results_vllm_{timestamp}.json")
+        results_path = results_dir / f"test_results_vllm_{timestamp}.json"
     else:
-        results_path = RESULTS_PATH
+        results_path = results_dir / f"test_results_sonnet_{timestamp}.json"
 
     with open(results_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"\nDetailed results saved to {results_path}")
+
+    # --- Save benchmarks ---
+    bench["total_wall_s"] = time.monotonic() - bench_wall_start
+    bench["n_annotations"] = len(annotations)
+    bench["n_mapping_resolved"] = n_mapping_resolved
+    bench["rules_version"] = version
+    bench["backend"] = args.backend
+    bench["note_id"] = note_id
+
+    # Aggregate per-annotation pipeline timings (vllm only)
+    if pipeline_ann_timings:
+        search_times = [t["search_s"] for t in pipeline_ann_timings]
+        retrieval_times = [t["retrieval_s"] for t in pipeline_ann_timings]
+        select_times = [t["select_s"] for t in pipeline_ann_timings]
+        total_times = [t["total_s"] for t in pipeline_ann_timings]
+        n_bypassed = sum(1 for t in pipeline_ann_timings if t["mapping_bypass"])
+
+        bench["per_annotation_stats"] = {
+            "search_llm": {
+                "mean_s": sum(search_times) / len(search_times),
+                "min_s": min(search_times),
+                "max_s": max(search_times),
+                "p50_s": sorted(search_times)[len(search_times) // 2],
+                "p95_s": sorted(search_times)[int(len(search_times) * 0.95)],
+                "total_s": sum(search_times),
+            },
+            "retrieval": {
+                "mean_s": sum(retrieval_times) / len(retrieval_times),
+                "min_s": min(retrieval_times),
+                "max_s": max(retrieval_times),
+                "p50_s": sorted(retrieval_times)[len(retrieval_times) // 2],
+                "p95_s": sorted(retrieval_times)[int(len(retrieval_times) * 0.95)],
+                "total_s": sum(retrieval_times),
+            },
+            "select_llm": {
+                "mean_s": sum(select_times) / len(select_times),
+                "min_s": min(select_times),
+                "max_s": max(select_times),
+                "p50_s": sorted(select_times)[len(select_times) // 2],
+                "p95_s": sorted(select_times)[int(len(select_times) * 0.95)],
+                "total_s": sum(select_times),
+            },
+            "per_annotation_total": {
+                "mean_s": sum(total_times) / len(total_times),
+                "min_s": min(total_times),
+                "max_s": max(total_times),
+                "p50_s": sorted(total_times)[len(total_times) // 2],
+                "p95_s": sorted(total_times)[int(len(total_times) * 0.95)],
+            },
+            "n_mapping_bypassed": n_bypassed,
+        }
+
+    # Remove raw per-annotation timings from bench (too verbose)
+    bench.pop("pipeline_ann_timings", None)
+
+    # Round all floats
+    def _round_floats(obj):
+        if isinstance(obj, float):
+            return round(obj, 3)
+        if isinstance(obj, dict):
+            return {k: _round_floats(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_round_floats(v) for v in obj]
+        return obj
+
+    bench = _round_floats(bench)
+
+    bench_path = results_dir / f"benchmark_testing_{timestamp}.json"
+    with open(bench_path, "w") as f:
+        json.dump(bench, f, indent=2)
+    print(f"Saved benchmarks to {bench_path}")
 
 
 def main() -> None:
@@ -1058,6 +1404,14 @@ def main() -> None:
     parser.add_argument(
         "--reasoning-effort", choices=["low", "medium", "high"], default="low",
         help="Reasoning effort for gpt-oss-20b (default: low)",
+    )
+    parser.add_argument(
+        "--rules", type=str, default=None, metavar="PATH",
+        help="Path to rules JSON file (default: scripts/rules_output.json)",
+    )
+    parser.add_argument(
+        "--note", type=str, default=None, metavar="NOTE_ID",
+        help="Note ID to test (default: first note in train_notes.csv)",
     )
     parser.add_argument(
         "--replay", type=str, default=None, metavar="PATH",

@@ -1,0 +1,47 @@
+{
+  "name": "Claude Code Dev Container (arm64)",
+  "build": {
+    "context": "../..",
+    "dockerfile": "../Dockerfile.arm64"
+  },
+  "runArgs": [
+    "--gpus", "all",
+    "--name", "snomed-ct-entity-linking-devcontainer-arm64",
+    "--ipc=host",
+    "--ulimit", "memlock=-1",
+    "--ulimit", "stack=67108864"
+  ],
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "NVIDIA_VISIBLE_DEVICES": "all",
+    "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
+    "SIDECAR_PROXY_USERNAME": "${localEnv:SIDECAR_PROXY_USERNAME}",
+    "SIDECAR_PROXY_PASSWORD": "${localEnv:SIDECAR_PROXY_PASSWORD}"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "Anthropic.claude-code",
+        "openai.chatgpt"
+      ]
+    }
+  },
+  "mounts": [
+    "source=claude-config,target=/home/vscode/.config/claude,type=volume",
+    "source=codex-home,target=/home/vscode/.codex,type=volume",
+    "source=hf-cache,target=/home/vscode/.cache/huggingface,type=volume",
+    "source=project-bashhistory,target=/home/vscode/commandhistory,type=volume"
+  ],
+  "remoteEnv": {
+    "HISTFILE": "/home/vscode/commandhistory/.bash_history",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.config/claude",
+    "CODEX_HOME": "/home/vscode/.codex"
+  },
+  "postCreateCommand": "bash .devcontainer/setup-cert.sh && bash .devcontainer/setup-proxy.sh",
+  "postStartCommand": "bash -lc 'mkdir -p \"${CLAUDE_CONFIG_DIR:-/home/vscode/.config/claude}/projects\"; ws=\"${containerWorkspaceFolder:-$PWD}\"; ws_slug=\"$(printf \"%s\" \"$ws\" | tr \"/\" \"-\")\"; mkdir -p \"${CLAUDE_CONFIG_DIR:-/home/vscode/.config/claude}/projects/$ws_slug\"'"
+}

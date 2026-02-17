@@ -1,0 +1,1051 @@
+{
+  "version": "4.0",
+  "mappings": {
+    "TB": "tuberculosis",
+    "LH": "labile essential hypertension",
+    "CVA": "cerebrovascular accident",
+    "TIA": "transient ischemic attack",
+    "HTN": "hypertension",
+    "HL": "hyperlipidemia",
+    "OSA": "obstructive sleep apnea",
+    "PFO": "patent foramen ovale",
+    "TEE": "transesophageal echocardiography",
+    "SCM": "sternocleidomastoid muscle",
+    "RUE": "right upper extremity",
+    "DTRs": "deep tendon reflexes",
+    "FNF": "finger to nose test",
+    "HKS": "heel to knee test",
+    "VFF": "visual fields full",
+    "eAG": "estimated average glucose",
+    "CHOL/HD": "cholesterol HDL ratio",
+    "LDLcalc": "calculated LDL cholesterol",
+    "IGG": "immunoglobulin G measurement"
+  },
+  "g_rules": [
+    {
+      "id": "G1",
+      "rule": "For abbreviations and acronyms not in mappings, expand the abbreviation to its full medical meaning before searching SNOMED. Consider clinical context and section location when expanding ambiguous abbreviations.",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G2",
+      "rule": "When multiple SNOMED concepts match a clinical term, prefer concepts from the most clinically specific hierarchy. For diagnostic contexts prefer 'disorder', for examination findings prefer 'finding', for interventions prefer 'procedure'.",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G3",
+      "rule": "For negated clinical expressions (marked by 'no', 'without', 'denies', 'absent'), search for the positive form of the concept rather than 'absence of' or 'no evidence of' variants.",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G4",
+      "rule": "When examining anatomical references, include relevant qualifiers from context such as laterality (right/left), size descriptors, or structural relationships.",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    }
+  ],
+  "structured_rules": [
+    {
+      "rule_id": "R1",
+      "concept_type": "Allergy_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          91936005
+        ],
+        "sections": [
+          "allergies",
+          "adverse drug"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For medication names in allergy sections, transform to 'allergy to [medication name]' format for SNOMED search to find allergy concepts rather than drug substance concepts."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer concepts from the 'finding' hierarchy that explicitly represent allergic reactions or hypersensitivity rather than drug substance concepts.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      }
+    },
+    {
+      "rule_id": "R2",
+      "concept_type": "Anatomical_Structure",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          91723000
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For anatomical terms, include laterality qualifiers (right/left) and structural context from surrounding text. Add 'structure' to anatomical terms if not already present."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific anatomical structure concepts over general regions. Include laterality when specified in the clinical text.",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "finding",
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R3",
+      "concept_type": "Clinical_Procedure",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          71388002
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For test names, examination methods, and therapeutic interventions, search using the full procedural description including method and target anatomy when specified."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific procedural concepts over general categories. Choose concepts that include the method, target anatomy, and clinical purpose when available.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R4",
+      "concept_type": "Neurological_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          102957003
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For neurological symptoms and signs, include qualifiers about laterality, severity, and functional impact. Transform descriptive language to clinical terminology."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific neurological findings over general symptoms. Include anatomical location and functional context when selecting among candidates.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "disorder",
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R5",
+      "concept_type": "Cardiovascular_Disorder",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          49601007
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For cardiovascular conditions, include pathophysiological descriptors (ischemic, embolic, stenotic) and anatomical location (coronary, cerebral, peripheral)."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific cardiovascular disorder concepts that include etiology and anatomical location over general cardiovascular findings.",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": [
+          "finding",
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R6",
+      "concept_type": "Laboratory_Test",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          108252007
+        ],
+        "sections": [
+          "pertinent results",
+          "lab"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For laboratory test names, search using the full test name including measured analyte and specimen type when relevant."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific laboratory procedure concepts over general categories. Choose concepts that specify the analyte being measured.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance",
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R7",
+      "concept_type": "Medication_Therapy",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          416608005
+        ],
+        "sections": [
+          "medications",
+          "discharge medications"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For medication names in therapeutic contexts, search for the drug therapy or administration procedure rather than just the substance name."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer therapeutic procedure concepts that represent the administration or therapy with the medication over substance concepts.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      }
+    },
+    {
+      "rule_id": "R8",
+      "concept_type": "Physical_Examination",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          5880005
+        ],
+        "sections": [
+          "physical exam",
+          "physical examination"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For examination findings and methods, transform observational language to clinical terminology and include anatomical targets of examination."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "In examination contexts, prefer finding concepts for observations and procedure concepts for examination methods.",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": [
+          "disorder",
+          "substance"
+        ]
+      }
+    },
+    {
+      "rule_id": "R9",
+      "concept_type": "Diagnostic_Imaging",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          363679005
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For imaging study names, include the imaging modality, contrast usage, and anatomical target in the search terms."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific imaging procedure concepts that include modality and anatomical target over general imaging categories.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R10",
+      "concept_type": "Morphological_Abnormality",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          49755003
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For structural abnormalities and pathological changes, include descriptors of size, shape, location, and pathological process."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer specific morphological abnormality concepts that describe the structural change over general findings or disorders.",
+        "preferred_hierarchy": "morphologic abnormality",
+        "reject_hierarchies": [
+          "finding",
+          "procedure"
+        ]
+      }
+    }
+  ],
+  "annotation_rule_map": {
+    "66713": [
+      "G3",
+      "R4"
+    ],
+    "66714": [
+      "R2"
+    ],
+    "66716": [
+      "R3"
+    ],
+    "66719": [
+      "R5"
+    ],
+    "66720": [
+      "R5"
+    ],
+    "66722": [
+      "G3",
+      "R4"
+    ],
+    "66724": [
+      "R4"
+    ],
+    "66729": [
+      "R4"
+    ],
+    "66730": [
+      "R4"
+    ],
+    "66732": [
+      "R2"
+    ],
+    "66733": [
+      "R4"
+    ],
+    "66738": [
+      "R4"
+    ],
+    "66740": [
+      "R2"
+    ],
+    "66748": [
+      "R4"
+    ],
+    "66749": [
+      "R2"
+    ],
+    "66751": [
+      "G1"
+    ],
+    "66752": [
+      "R4"
+    ],
+    "66753": [
+      "R5"
+    ],
+    "66754": [
+      "R4"
+    ],
+    "66757": [
+      "R5"
+    ],
+    "66761": [
+      "R8"
+    ],
+    "66762": [
+      "G1",
+      "R5"
+    ],
+    "66763": [
+      "R4"
+    ],
+    "66764": [
+      "R4"
+    ],
+    "66771": [
+      "R8"
+    ],
+    "66772": [
+      "R8"
+    ],
+    "66773": [
+      "R8"
+    ],
+    "66779": [
+      "R8"
+    ],
+    "66780": [
+      "R2"
+    ],
+    "66781": [
+      "R8"
+    ],
+    "66784": [
+      "R4"
+    ],
+    "66785": [
+      "R2"
+    ],
+    "66786": [
+      "R4"
+    ],
+    "66787": [
+      "R3"
+    ],
+    "66788": [
+      "R5"
+    ],
+    "66789": [
+      "R10"
+    ],
+    "66790": [
+      "R8"
+    ],
+    "66791": [
+      "R8"
+    ],
+    "66793": [
+      "G1",
+      "R7"
+    ],
+    "66795": [
+      "G1",
+      "R5"
+    ],
+    "66797": [
+      "G1",
+      "R9"
+    ],
+    "66798": [
+      "R3"
+    ],
+    "66801": [
+      "R2"
+    ],
+    "66802": [
+      "R4"
+    ],
+    "66804": [
+      "R10"
+    ],
+    "66806": [
+      "R3"
+    ],
+    "66808": [
+      "R2"
+    ],
+    "66814": [
+      "R10"
+    ],
+    "66815": [
+      "R4"
+    ],
+    "66816": [
+      "R5"
+    ],
+    "66824": [
+      "R8"
+    ],
+    "66825": [
+      "R8"
+    ],
+    "66841": [
+      "R8"
+    ],
+    "66842": [
+      "R8"
+    ],
+    "66859": [
+      "R8"
+    ],
+    "66869": [
+      "R4"
+    ],
+    "66870": [
+      "R4"
+    ],
+    "66871": [
+      "R4"
+    ],
+    "66873": [
+      "R4"
+    ],
+    "66874": [
+      "R4"
+    ],
+    "66875": [
+      "R4"
+    ],
+    "66876": [
+      "R4"
+    ],
+    "66877": [
+      "R4"
+    ],
+    "66880": [
+      "R4"
+    ],
+    "66881": [
+      "R4"
+    ],
+    "66883": [
+      "R2"
+    ],
+    "66884": [
+      "R2"
+    ],
+    "66885": [
+      "R2"
+    ],
+    "66889": [
+      "G1",
+      "R8"
+    ],
+    "66890": [
+      "R8"
+    ],
+    "66891": [
+      "R3"
+    ],
+    "66892": [
+      "R5"
+    ],
+    "66894": [
+      "R10"
+    ],
+    "66895": [
+      "R2"
+    ],
+    "66898": [
+      "R2"
+    ],
+    "66899": [
+      "R4"
+    ],
+    "66903": [
+      "R2"
+    ],
+    "66904": [
+      "R8"
+    ],
+    "66905": [
+      "R2"
+    ],
+    "66906": [
+      "R2"
+    ],
+    "66907": [
+      "R8"
+    ],
+    "66908": [
+      "R2"
+    ],
+    "66909": [
+      "G1",
+      "R2"
+    ],
+    "66911": [
+      "R8"
+    ],
+    "66914": [
+      "G1",
+      "R2"
+    ],
+    "66915": [
+      "R4"
+    ],
+    "66917": [
+      "R4"
+    ],
+    "66920": [
+      "R8"
+    ],
+    "66921": [
+      "R8"
+    ],
+    "66922": [
+      "G1",
+      "R2"
+    ],
+    "66925": [
+      "R8"
+    ],
+    "66926": [
+      "R8"
+    ],
+    "66927": [
+      "R2"
+    ],
+    "66928": [
+      "R2"
+    ],
+    "66929": [
+      "R4"
+    ],
+    "66930": [
+      "R4"
+    ],
+    "66931": [
+      "R4"
+    ],
+    "66932": [
+      "G1",
+      "R3"
+    ],
+    "66933": [
+      "G1",
+      "R3"
+    ],
+    "66934": [
+      "R3"
+    ],
+    "66935": [
+      "R8"
+    ],
+    "66936": [
+      "R8"
+    ],
+    "66938": [
+      "R8"
+    ],
+    "66939": [
+      "R8"
+    ],
+    "66943": [
+      "R5"
+    ],
+    "66949": [
+      "R5"
+    ],
+    "66951": [
+      "R2"
+    ],
+    "66972": [
+      "R2"
+    ],
+    "66973": [
+      "R2"
+    ],
+    "66977": [
+      "R8"
+    ],
+    "67015": [
+      "G1",
+      "R6"
+    ],
+    "67018": [
+      "G1",
+      "R6"
+    ],
+    "67019": [
+      "G1",
+      "R6"
+    ],
+    "67021": [
+      "R8"
+    ],
+    "67028": [
+      "G1",
+      "R6"
+    ],
+    "67029": [
+      "G1",
+      "R6"
+    ],
+    "67053": [
+      "R3"
+    ],
+    "67058": [
+      "R2"
+    ],
+    "67059": [
+      "R2"
+    ],
+    "67060": [
+      "R2"
+    ],
+    "67063": [
+      "R10"
+    ],
+    "67064": [
+      "R2"
+    ],
+    "67065": [
+      "R8"
+    ],
+    "67068": [
+      "R2"
+    ],
+    "67069": [
+      "R2"
+    ],
+    "67070": [
+      "R2"
+    ],
+    "67071": [
+      "R2"
+    ],
+    "67073": [
+      "R5"
+    ],
+    "67074": [
+      "R2"
+    ],
+    "67075": [
+      "R10"
+    ],
+    "67076": [
+      "R2"
+    ],
+    "67078": [
+      "R2"
+    ],
+    "67079": [
+      "R10"
+    ],
+    "67081": [
+      "R2"
+    ],
+    "67082": [
+      "R2"
+    ],
+    "67083": [
+      "R5"
+    ],
+    "67085": [
+      "R2"
+    ],
+    "67086": [
+      "R2"
+    ],
+    "67091": [
+      "R2"
+    ],
+    "67092": [
+      "R2"
+    ],
+    "67093": [
+      "R2"
+    ],
+    "67094": [
+      "R2"
+    ],
+    "67095": [
+      "R2"
+    ],
+    "67096": [
+      "R2"
+    ],
+    "67100": [
+      "R2"
+    ],
+    "67101": [
+      "R2"
+    ],
+    "67102": [
+      "R2"
+    ],
+    "67105": [
+      "R2"
+    ],
+    "67106": [
+      "R5"
+    ],
+    "67107": [
+      "R2"
+    ],
+    "67108": [
+      "R2"
+    ],
+    "67111": [
+      "R5"
+    ],
+    "67112": [
+      "R2"
+    ],
+    "67118": [
+      "R2"
+    ],
+    "67119": [
+      "R2"
+    ],
+    "67122": [
+      "R2"
+    ],
+    "67138": [
+      "R2"
+    ],
+    "67141": [
+      "R5"
+    ],
+    "67142": [
+      "R5"
+    ],
+    "67143": [
+      "R5"
+    ],
+    "67147": [
+      "R2"
+    ],
+    "67149": [
+      "R2"
+    ],
+    "67150": [
+      "R3"
+    ],
+    "67151": [
+      "R3"
+    ],
+    "67152": [
+      "R3"
+    ],
+    "67153": [
+      "R10"
+    ],
+    "67154": [
+      "R10"
+    ],
+    "67155": [
+      "R3"
+    ],
+    "67156": [
+      "R3"
+    ],
+    "67157": [
+      "R2"
+    ],
+    "67159": [
+      "R3"
+    ],
+    "67160": [
+      "R2"
+    ],
+    "67165": [
+      "R5"
+    ],
+    "67167": [
+      "G3",
+      "R4"
+    ],
+    "67170": [
+      "R4"
+    ],
+    "67173": [
+      "R9"
+    ],
+    "67177": [
+      "R2"
+    ],
+    "67178": [
+      "R2"
+    ],
+    "67179": [
+      "R2"
+    ],
+    "67182": [
+      "R3"
+    ],
+    "67187": [
+      "R5"
+    ],
+    "67188": [
+      "R8"
+    ],
+    "67190": [
+      "R8"
+    ],
+    "67191": [
+      "R5"
+    ],
+    "67194": [
+      "R6"
+    ],
+    "67196": [
+      "R3"
+    ],
+    "67200": [
+      "R2"
+    ],
+    "67201": [
+      "R5"
+    ],
+    "67202": [
+      "R5"
+    ],
+    "67203": [
+      "G1",
+      "R5"
+    ],
+    "67204": [
+      "R3"
+    ],
+    "67205": [
+      "R3"
+    ],
+    "67207": [
+      "G1",
+      "R6"
+    ],
+    "67208": [
+      "G1",
+      "R6"
+    ],
+    "67209": [
+      "R7"
+    ],
+    "67210": [
+      "G1",
+      "R6"
+    ],
+    "67211": [
+      "G1",
+      "R6"
+    ],
+    "67212": [
+      "R3"
+    ],
+    "67213": [
+      "R8"
+    ],
+    "67214": [
+      "R3"
+    ],
+    "67217": [
+      "R3"
+    ],
+    "67218": [
+      "R7"
+    ],
+    "67219": [
+      "R3"
+    ],
+    "67220": [
+      "R7"
+    ],
+    "67221": [
+      "G1",
+      "R6"
+    ],
+    "67227": [
+      "R5"
+    ],
+    "67229": [
+      "R5"
+    ],
+    "67231": [
+      "R8"
+    ],
+    "67233": [
+      "R9"
+    ],
+    "67234": [
+      "R2"
+    ],
+    "67240": [
+      "R3"
+    ],
+    "67241": [
+      "R7"
+    ],
+    "67242": [
+      "R5"
+    ],
+    "67247": [
+      "R3"
+    ],
+    "67248": [
+      "R5"
+    ],
+    "67249": [
+      "R6"
+    ],
+    "67251": [
+      "R5"
+    ],
+    "67253": [
+      "R3"
+    ],
+    "67254": [
+      "R3"
+    ],
+    "67257": [
+      "R6"
+    ],
+    "67258": [
+      "R3"
+    ],
+    "67259": [
+      "G1",
+      "R6"
+    ],
+    "67261": [
+      "R2"
+    ],
+    "67264": [
+      "G1",
+      "R7"
+    ],
+    "67266": [
+      "G1",
+      "R5"
+    ],
+    "67268": [
+      "R5"
+    ],
+    "67269": [
+      "R5"
+    ],
+    "67271": [
+      "R5"
+    ],
+    "67273": [
+      "R5"
+    ],
+    "67281": [
+      "R3"
+    ],
+    "67291": [
+      "R9"
+    ],
+    "67293": [
+      "R5"
+    ],
+    "67294": [
+      "R8"
+    ],
+    "67296": [
+      "R3"
+    ],
+    "67297": [
+      "R2"
+    ],
+    "67301": [
+      "R8"
+    ],
+    "67305": [
+      "R7"
+    ],
+    "67306": [
+      "R7"
+    ]
+  },
+  "_iteration_meta": {
+    "note_index": 0,
+    "note_id": "18568215-DS-21",
+    "n_annotations": 238,
+    "extend_mode": false,
+    "existing_rules_path": null,
+    "sample_path": "scripts/sampled_annotations.json",
+    "model": "claude-sonnet-4-20250514"
+  }
+}

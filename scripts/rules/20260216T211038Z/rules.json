@@ -1,0 +1,634 @@
+{
+  "version": "2.0",
+  "g_rules": [
+    {
+      "id": "G1",
+      "rule": "When generating search terms, expand all medical abbreviations to their full clinical terms using standard medical nomenclature, then include both the abbreviation and expansion in the search query to maximize recall",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G2",
+      "rule": "For findings and disorders, prefer concepts that match the clinical polarity (positive/negative) of the original text - if text indicates absence or negation, still link to the positive concept unless a specific negative concept exists",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G3",
+      "rule": "When multiple hierarchy types are available for the same clinical concept, prioritize based on context: procedures for actions/interventions, findings for observations/states, disorders for pathological conditions",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G4",
+      "rule": "Consider section context when interpreting ambiguous terms - abbreviations and terms may have different meanings in Physical Exam vs other sections",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    }
+  ],
+  "structured_rules": [
+    {
+      "rule_id": "R1",
+      "concept_type": "Physical_Exam_Abbreviation",
+      "stage_1_span": {
+        "label": "Physical_Exam_Abbreviation",
+        "description": "Single capital letters or short uppercase abbreviations in Physical Exam sections that represent examination systems or clinical findings (e.g., VS, CV, PULM, ABD, NAD, RRR, CTAB)"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand abbreviations to their medical examination equivalents: VS to vital signs, CV to cardiovascular examination, PULM to pulmonary/respiratory examination, ABD to abdominal examination, then search for both abbreviation and expanded terms"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "In Physical Exam context, prioritize examination procedures for system abbreviations (CV, PULM, ABD) and finding concepts for result abbreviations (NAD, RRR, CTAB)",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": []
+      },
+      "examples": [
+        "VS -> Vital signs finding (finding)",
+        "CV -> Cardiovascular physical examination (procedure)",
+        "NAD -> No abnormality detected (finding)"
+      ]
+    },
+    {
+      "rule_id": "R2",
+      "concept_type": "Clinical_Condition",
+      "stage_1_span": {
+        "label": "Clinical_Condition",
+        "description": "Disease names, medical conditions, and pathological states including compound terms like 'biliary pancreatitis' or 'pancreatic necrosis'"
+      },
+      "stage_2_search": {
+        "filtering_logic": "Drop if preceded by 'No history of' or similar strong negation phrases indicating absence",
+        "intent_translation": "Search for the exact condition name, but also include common clinical synonyms (e.g., biliary pancreatitis should also search for gallstone pancreatitis)"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer disorder concepts over finding concepts for pathological conditions; for compound conditions, select the most specific matching concept",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": [
+          "situation",
+          "qualifier value"
+        ]
+      },
+      "examples": [
+        "biliary pancreatitis -> Gallstone pancreatitis (disorder)",
+        "pancreatic necrosis -> Necrosis of pancreas (disorder)"
+      ]
+    },
+    {
+      "rule_id": "R3",
+      "concept_type": "Medical_Procedure",
+      "stage_1_span": {
+        "label": "Medical_Procedure",
+        "description": "Surgical procedures, medical interventions, therapeutic actions, and clinical management activities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For descriptive phrases, extract the core procedure (e.g., 'surgical resection of your gallbladder' becomes 'cholecystectomy'); for action verbs, expand to full procedure names"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prioritize procedure concepts; when multiple specificity levels exist, choose based on available clinical detail (laparoscopic cholecystectomy over general cholecystectomy if laparoscopic is specified)",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      },
+      "examples": [
+        "Laparoscopic cholecystectomy -> Laparoscopic cholecystectomy (procedure)",
+        "drained -> Incision AND drainage (procedure)"
+      ]
+    },
+    {
+      "rule_id": "R4",
+      "concept_type": "Clinical_Finding",
+      "stage_1_span": {
+        "label": "Clinical_Finding",
+        "description": "Observable patient states, clinical signs, symptoms, and examination results including both normal and abnormal findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For negative prefixes (afebrile), search for the positive concept (fever); for descriptive phrases, extract the clinical finding essence"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that match the clinical observation; for negative prefixes, choose the positive concept unless a specific negative finding exists",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure"
+        ]
+      },
+      "examples": [
+        "afebrile -> Fever (finding)",
+        "hemodynamically stable -> Hemodynamically stable (finding)",
+        "improved -> Patient's condition improved (finding)"
+      ]
+    },
+    {
+      "rule_id": "R5",
+      "concept_type": "Anatomical_Structure",
+      "stage_1_span": {
+        "label": "Anatomical_Structure",
+        "description": "Body parts, organs, anatomical regions, and structural references"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Use standard anatomical terminology; for abbreviations like 'GI tract', expand to full anatomical name"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select body structure concepts; prefer structure concepts over finding or procedure concepts",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "procedure",
+          "finding"
+        ]
+      },
+      "examples": [
+        "GI tract -> Gastrointestinal tract structure (body structure)",
+        "esophagus -> Esophageal structure (body structure)"
+      ]
+    },
+    {
+      "rule_id": "R6",
+      "concept_type": "Medication_Allergy",
+      "stage_1_span": {
+        "label": "Medication_Allergy",
+        "description": "Drug names or drug classes mentioned in allergy sections"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Transform drug name to allergy finding by searching for 'allergy to [drug name]' pattern"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select allergy finding concepts that include the specific drug or drug class",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      },
+      "examples": [
+        "Penicillins -> Allergy to penicillin (finding)"
+      ]
+    },
+    {
+      "rule_id": "R7",
+      "concept_type": "Contextual_Abbreviation",
+      "stage_1_span": {
+        "label": "Contextual_Abbreviation",
+        "description": "Abbreviations whose meaning depends on clinical context (e.g., RA can mean room air or rheumatoid arthritis)"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand based on section and surrounding context: RA in vital signs context means 'room air breathing', in rheumatology means 'rheumatoid arthritis'"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Use section header and surrounding clinical context to select appropriate concept expansion",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      },
+      "examples": [
+        "RA -> Breathing room air (finding)",
+        "PCA -> Patient controlled analgesia (procedure)"
+      ]
+    },
+    {
+      "rule_id": "R8",
+      "concept_type": "Implicit_Concept_Mapping",
+      "stage_1_span": {
+        "label": "Implicit_Concept_Mapping",
+        "description": "Clinical phrases that map to semantically related but not literally matching SNOMED concepts"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Identify the clinical intent and search for the standard medical concept (e.g., 'pancreatic rest' refers to resting the pancreas, search for pancreatic-related concepts)"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts based on clinical semantic similarity rather than literal text matching; consider the medical intent",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      },
+      "examples": [
+        "pancreatic rest -> Ectopic pancreas (disorder)",
+        "clinic -> Outpatient care management (procedure)"
+      ]
+    },
+    {
+      "rule_id": "R9",
+      "concept_type": "Activity_Status",
+      "stage_1_span": {
+        "label": "Activity_Status",
+        "description": "Descriptions of patient mobility, functional status, and activity levels"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Convert activity descriptions to standard functional status terms (ambulatory, independent, mobile)"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that describe functional or activity status",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure"
+        ]
+      },
+      "examples": [
+        "Ambulatory - Independent -> Independent walking (finding)",
+        "ambulating -> Fully mobile (finding)"
+      ]
+    },
+    {
+      "rule_id": "R10",
+      "concept_type": "Educational_Instruction",
+      "stage_1_span": {
+        "label": "Educational_Instruction",
+        "description": "Patient education activities, discharge instructions, and therapeutic guidance"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Transform instructional phrases into education or training procedure concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer education or training procedures over general procedure concepts",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      },
+      "examples": [
+        "medications -> Patient medication education (procedure)",
+        "ambulate -> Ambulation training (procedure)"
+      ]
+    }
+  ],
+  "annotation_rule_map": {
+    "23235": [
+      "G2",
+      "R6"
+    ],
+    "23236": [
+      "G3",
+      "R2"
+    ],
+    "23237": [
+      "G3",
+      "R3"
+    ],
+    "23238": [
+      "G3",
+      "R2"
+    ],
+    "23239": [
+      "G3",
+      "R2"
+    ],
+    "23240": [
+      "G3",
+      "R3"
+    ],
+    "23241": [
+      "G3",
+      "R8"
+    ],
+    "23242": [
+      "G3",
+      "R2"
+    ],
+    "23243": [
+      "G2",
+      "R4"
+    ],
+    "23244": [
+      "G3",
+      "R2"
+    ],
+    "23245": [
+      "G3",
+      "R3",
+      "R8"
+    ],
+    "23246": [
+      "G1",
+      "R5"
+    ],
+    "23247": [
+      "G3",
+      "R8"
+    ],
+    "23248": [
+      "G3",
+      "R3"
+    ],
+    "23249": [
+      "G3",
+      "R3"
+    ],
+    "23250": [
+      "G3",
+      "R3"
+    ],
+    "23251": [
+      "G3",
+      "R2"
+    ],
+    "23252": [
+      "G3",
+      "R5"
+    ],
+    "23253": [
+      "G3",
+      "R2"
+    ],
+    "23254": [
+      "G2",
+      "R4"
+    ],
+    "23255": [
+      "G3",
+      "R2"
+    ],
+    "23256": [
+      "G3",
+      "R2"
+    ],
+    "23257": [
+      "G2",
+      "R4"
+    ],
+    "23258": [
+      "G1",
+      "R7"
+    ],
+    "23259": [
+      "G2",
+      "G3",
+      "R2"
+    ],
+    "23260": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23261": [
+      "G1",
+      "G4",
+      "R7"
+    ],
+    "23262": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23263": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23264": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23265": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23266": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23267": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23268": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23269": [
+      "G3",
+      "R3"
+    ],
+    "23270": [
+      "G3",
+      "R4"
+    ],
+    "23271": [
+      "G1",
+      "G4",
+      "R1"
+    ],
+    "23272": [
+      "G2",
+      "R4"
+    ],
+    "23273": [
+      "G1",
+      "G2",
+      "R4"
+    ],
+    "23274": [
+      "G1",
+      "G2",
+      "R4"
+    ],
+    "23275": [
+      "G3",
+      "R2"
+    ],
+    "23276": [
+      "G3",
+      "R3"
+    ],
+    "23277": [
+      "G1",
+      "R7"
+    ],
+    "23278": [
+      "G2",
+      "R4"
+    ],
+    "23279": [
+      "G3",
+      "R3"
+    ],
+    "23280": [
+      "G1",
+      "R7"
+    ],
+    "23281": [
+      "G3",
+      "R3"
+    ],
+    "23282": [
+      "G2",
+      "R4"
+    ],
+    "23283": [
+      "G2",
+      "R4"
+    ],
+    "23284": [
+      "G2",
+      "R4"
+    ],
+    "23285": [
+      "G2",
+      "R4",
+      "R8"
+    ],
+    "23286": [
+      "G3",
+      "R3"
+    ],
+    "23287": [
+      "G2",
+      "R4"
+    ],
+    "23288": [
+      "G2",
+      "R4"
+    ],
+    "23289": [
+      "G2",
+      "R4"
+    ],
+    "23290": [
+      "G2",
+      "R4",
+      "R9"
+    ],
+    "23291": [
+      "G2",
+      "R4",
+      "R8"
+    ],
+    "23292": [
+      "G2",
+      "R4"
+    ],
+    "23293": [
+      "G3",
+      "R10"
+    ],
+    "23294": [
+      "G3",
+      "R3"
+    ],
+    "23295": [
+      "G3",
+      "R3"
+    ],
+    "23296": [
+      "G3",
+      "R2"
+    ],
+    "23297": [
+      "G3",
+      "R3"
+    ],
+    "23298": [
+      "G3",
+      "R3"
+    ],
+    "23299": [
+      "G2",
+      "R4"
+    ],
+    "23300": [
+      "G2",
+      "R4"
+    ],
+    "23301": [
+      "G2",
+      "R4",
+      "R9"
+    ],
+    "23302": [
+      "G3",
+      "R3",
+      "R8"
+    ],
+    "23303": [
+      "G2",
+      "R4"
+    ],
+    "23304": [
+      "G3",
+      "R10"
+    ],
+    "23305": [
+      "G3",
+      "R10"
+    ],
+    "23306": [
+      "G3",
+      "R10"
+    ],
+    "23307": [
+      "G3",
+      "R10"
+    ],
+    "23308": [
+      "G3",
+      "R10"
+    ],
+    "23309": [
+      "G3",
+      "R10"
+    ],
+    "23310": [
+      "G3",
+      "R3"
+    ],
+    "23311": [
+      "G3",
+      "R10"
+    ],
+    "23312": [
+      "G3",
+      "R10"
+    ],
+    "23313": [
+      "G3",
+      "R3"
+    ],
+    "23314": [
+      "G1",
+      "R7"
+    ],
+    "23315": [
+      "G2",
+      "R4"
+    ],
+    "23316": [
+      "G2",
+      "R4"
+    ],
+    "23317": [
+      "G2",
+      "R4"
+    ],
+    "23318": [
+      "G2",
+      "R4"
+    ],
+    "23319": [
+      "G3",
+      "R4"
+    ],
+    "23320": [
+      "G3",
+      "R10"
+    ],
+    "23321": [
+      "G3",
+      "R4"
+    ]
+  }
+}

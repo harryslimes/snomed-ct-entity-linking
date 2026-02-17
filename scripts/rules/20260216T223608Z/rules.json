@@ -1,0 +1,649 @@
+{
+  "version": "2.0",
+  "g_rules": [
+    {
+      "id": "G1",
+      "rule": "When generating search terms, expand medical abbreviations to their full clinical terms and include both the abbreviated and expanded forms in the search query to maximize recall",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G2",
+      "rule": "For anatomical structures and body parts, prefer 'body structure' hierarchy over other types when multiple candidates are available",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G3",
+      "rule": "For clinical actions and interventions, prefer 'procedure' hierarchy over 'finding' hierarchy when both are present",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G4",
+      "rule": "When the span represents a clinical state or observation, prefer 'finding' hierarchy over other types unless the context clearly indicates a disorder or procedure",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G5",
+      "rule": "Consider section context when interpreting ambiguous terms - the same abbreviation may map to different concepts in different sections",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    }
+  ],
+  "structured_rules": [
+    {
+      "rule_id": "R1",
+      "concept_type": "Physical_Exam_Abbreviation",
+      "stage_1_span": {
+        "label": "Physical_Exam_Abbreviation",
+        "description": "Single or double capital letter abbreviations in Physical Exam sections representing examination systems or vital signs"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that represent examination procedures or vital sign findings based on the specific abbreviation context",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance",
+          "organism"
+        ]
+      }
+    },
+    {
+      "rule_id": "R2",
+      "concept_type": "Medication_Allergy",
+      "stage_1_span": {
+        "label": "Medication_Allergy",
+        "description": "Medication names listed in the Allergies section"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for allergy concepts related to the medication class, not just the medication itself"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select allergy or hypersensitivity findings rather than the substance itself",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      }
+    },
+    {
+      "rule_id": "R3",
+      "concept_type": "Clinical_Condition",
+      "stage_1_span": {
+        "label": "Clinical_Condition",
+        "description": "Disease names, disorders, and pathological conditions mentioned throughout the note"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search using the exact clinical term and common medical synonyms for the condition"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer disorder hierarchy for pathological conditions, finding hierarchy for symptoms or observations",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": [
+          "procedure",
+          "situation"
+        ]
+      }
+    },
+    {
+      "rule_id": "R4",
+      "concept_type": "Surgical_Procedure",
+      "stage_1_span": {
+        "label": "Surgical_Procedure",
+        "description": "Surgical intervention names, operative procedures, and surgical techniques"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the specific surgical procedure name including approach modifiers when present"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts that match both the intervention type and approach",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R5",
+      "concept_type": "Anatomical_Structure",
+      "stage_1_span": {
+        "label": "Anatomical_Structure",
+        "description": "Body parts, organs, and anatomical locations"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for anatomical structure terms using standard anatomical nomenclature"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select body structure concepts over procedural or finding concepts",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "procedure",
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R6",
+      "concept_type": "Clinical_Finding",
+      "stage_1_span": {
+        "label": "Clinical_Finding",
+        "description": "Observable clinical states, symptoms, and examination findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for clinical observation and finding terms, including normal and abnormal states"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts for observable clinical states and patient conditions",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure",
+          "substance"
+        ]
+      }
+    },
+    {
+      "rule_id": "R7",
+      "concept_type": "Therapy_Regime",
+      "stage_1_span": {
+        "label": "Therapy_Regime",
+        "description": "Treatment modalities, therapeutic interventions, and care management activities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for therapy and regime concepts including specific treatment approaches"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select regime/therapy concepts for ongoing treatments, procedure concepts for discrete interventions",
+        "preferred_hierarchy": "regime/therapy",
+        "reject_hierarchies": [
+          "finding",
+          "substance"
+        ]
+      }
+    },
+    {
+      "rule_id": "R8",
+      "concept_type": "Negated_Finding",
+      "stage_1_span": {
+        "label": "Negated_Finding",
+        "description": "Clinical findings that are explicitly absent or negated"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the positive form of the finding when the text indicates absence"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select the positive finding concept even when the clinical context indicates absence",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R9",
+      "concept_type": "Activity_Status",
+      "stage_1_span": {
+        "label": "Activity_Status",
+        "description": "Descriptions of patient functional status, mobility, and activity levels"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for functional assessment and activity-related finding concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that describe functional or activity status",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R10",
+      "concept_type": "Education_Instruction",
+      "stage_1_span": {
+        "label": "Education_Instruction",
+        "description": "Patient education topics, discharge instructions, and clinical recommendations"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts related to patient education or clinical guidance",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "substance"
+        ]
+      }
+    },
+    {
+      "rule_id": "R11",
+      "concept_type": "Morphologic_Abnormality",
+      "stage_1_span": {
+        "label": "Morphologic_Abnormality",
+        "description": "Structural abnormalities, lesions, and pathological morphology"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for morphological and structural abnormality concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select morphologic abnormality concepts for structural pathology",
+        "preferred_hierarchy": "morphologic abnormality",
+        "reject_hierarchies": [
+          "finding",
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R12",
+      "concept_type": "Implicit_Concept_Mapping",
+      "stage_1_span": {
+        "label": "Implicit_Concept",
+        "description": "Terms that map to conceptually related but not literally matching SNOMED concepts"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for clinically equivalent concepts rather than literal term matches when the exact term has no SNOMED equivalent"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that represent the clinical intent even if not literally matching the text",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R13",
+      "concept_type": "Multi_Word_Clinical_Phrase",
+      "stage_1_span": {
+        "label": "Multi_Word_Clinical_Phrase",
+        "description": "Complex clinical phrases spanning multiple words that represent a single clinical concept"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that capture the full semantic meaning of the multi-word phrase",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R14",
+      "concept_type": "Unknown_Mapping",
+      "stage_1_span": {
+        "label": "Clinical_Term_Unknown",
+        "description": "Clinical terms that should be annotated but have no clear SNOMED mapping"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the term but be prepared for no suitable matches"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select 'Unknown' when no appropriate SNOMED concept exists for the clinical term",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    }
+  ],
+  "annotation_rule_map": {
+    "23235": [
+      "G1",
+      "R2"
+    ],
+    "23236": [
+      "G1",
+      "R3"
+    ],
+    "23237": [
+      "G3",
+      "R4"
+    ],
+    "23238": [
+      "G1",
+      "R3"
+    ],
+    "23239": [
+      "R3"
+    ],
+    "23240": [
+      "R7"
+    ],
+    "23241": [
+      "R12"
+    ],
+    "23242": [
+      "R3"
+    ],
+    "23243": [
+      "R6"
+    ],
+    "23244": [
+      "R11"
+    ],
+    "23245": [
+      "G3",
+      "R4"
+    ],
+    "23246": [
+      "G2",
+      "R5"
+    ],
+    "23247": [
+      "G3",
+      "R4"
+    ],
+    "23248": [
+      "G3",
+      "R4"
+    ],
+    "23249": [
+      "G3",
+      "R4"
+    ],
+    "23250": [
+      "G3",
+      "R4"
+    ],
+    "23251": [
+      "R3"
+    ],
+    "23252": [
+      "G2",
+      "R5"
+    ],
+    "23253": [
+      "R3"
+    ],
+    "23254": [
+      "R6"
+    ],
+    "23255": [
+      "R6"
+    ],
+    "23256": [
+      "R3"
+    ],
+    "23257": [
+      "R6"
+    ],
+    "23258": [
+      "G1",
+      "R1",
+      "R3"
+    ],
+    "23259": [
+      "R3"
+    ],
+    "23260": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23261": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23262": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23263": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23264": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23265": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23266": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23267": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23268": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23269": [
+      "R14"
+    ],
+    "23270": [
+      "R11"
+    ],
+    "23271": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23272": [
+      "R6"
+    ],
+    "23273": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23274": [
+      "G1",
+      "G5",
+      "R1"
+    ],
+    "23275": [
+      "G1",
+      "R3"
+    ],
+    "23276": [
+      "G3",
+      "R4"
+    ],
+    "23277": [
+      "G1",
+      "R7"
+    ],
+    "23278": [
+      "R6"
+    ],
+    "23279": [
+      "G3",
+      "R4"
+    ],
+    "23280": [
+      "G1",
+      "G3",
+      "R4"
+    ],
+    "23281": [
+      "G3",
+      "R4"
+    ],
+    "23282": [
+      "R6"
+    ],
+    "23283": [
+      "R6",
+      "R13"
+    ],
+    "23284": [
+      "R6",
+      "R13"
+    ],
+    "23285": [
+      "R6",
+      "R13"
+    ],
+    "23286": [
+      "R7"
+    ],
+    "23287": [
+      "R8"
+    ],
+    "23288": [
+      "R6",
+      "R13"
+    ],
+    "23289": [
+      "R6"
+    ],
+    "23290": [
+      "R9"
+    ],
+    "23291": [
+      "R9",
+      "R13"
+    ],
+    "23292": [
+      "R6",
+      "R13"
+    ],
+    "23293": [
+      "G3",
+      "R10"
+    ],
+    "23294": [
+      "G3",
+      "R10"
+    ],
+    "23295": [
+      "G3",
+      "R4"
+    ],
+    "23296": [
+      "G1",
+      "R3"
+    ],
+    "23297": [
+      "G3",
+      "R4"
+    ],
+    "23298": [
+      "G3",
+      "R4"
+    ],
+    "23299": [
+      "R6"
+    ],
+    "23300": [
+      "R6"
+    ],
+    "23301": [
+      "R9",
+      "R13"
+    ],
+    "23302": [
+      "G3",
+      "R4",
+      "R13"
+    ],
+    "23303": [
+      "R6"
+    ],
+    "23304": [
+      "G3",
+      "R10"
+    ],
+    "23305": [
+      "G3",
+      "R10"
+    ],
+    "23306": [
+      "G3",
+      "R10"
+    ],
+    "23307": [
+      "G3",
+      "R10"
+    ],
+    "23308": [
+      "G3",
+      "R10",
+      "R13"
+    ],
+    "23309": [
+      "G3",
+      "R10",
+      "R13"
+    ],
+    "23310": [
+      "R6"
+    ],
+    "23311": [
+      "G3",
+      "R10"
+    ],
+    "23312": [
+      "G3",
+      "R10",
+      "R13"
+    ],
+    "23313": [
+      "G3",
+      "R4"
+    ],
+    "23314": [
+      "G1",
+      "G3",
+      "R4"
+    ],
+    "23315": [
+      "R6"
+    ],
+    "23316": [
+      "R11"
+    ],
+    "23317": [
+      "R6",
+      "R13"
+    ],
+    "23318": [
+      "R11"
+    ],
+    "23319": [
+      "R11"
+    ],
+    "23320": [
+      "G3",
+      "R10"
+    ],
+    "23321": [
+      "R11"
+    ]
+  }
+}

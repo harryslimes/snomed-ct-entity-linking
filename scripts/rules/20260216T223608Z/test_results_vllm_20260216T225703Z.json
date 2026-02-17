@@ -1,0 +1,2386 @@
+{
+  "timestamp": "20260216T225703Z",
+  "note_id": "10060142-DS-9",
+  "rules_version": "2.0",
+  "backend": "vllm",
+  "model": "openai/gpt-oss-20b",
+  "temperature": 0.0,
+  "reasoning_effort": "medium",
+  "n_annotations": 87,
+  "n_concept_matches": 50,
+  "concept_accuracy": 0.5747126436781609,
+  "avg_per_annotation_iou": 0.5747126436781609,
+  "macro_char_iou": 0.42464096056979317,
+  "total_time_s": 471.6,
+  "per_annotation": [
+    {
+      "annotation_id": "23235",
+      "gold_span": "Penicillins",
+      "gold_concept": 91936005,
+      "pred_concept": 91936005,
+      "pred_start": 179,
+      "pred_end": 190,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "allergies",
+      "search_terms": [
+        "Penicillins",
+        "penicillin allergy",
+        "allergy to penicillins"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23236",
+      "gold_span": "Biliary pancreatitis",
+      "gold_concept": 95563007,
+      "pred_concept": 95563007,
+      "pred_start": 228,
+      "pred_end": 248,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "chief complaint",
+      "search_terms": [
+        "Biliary pancreatitis",
+        "pancreatitis due to biliary disease",
+        "pancreatitis secondary to gallstones"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23237",
+      "gold_span": "Laparoscopic cholecystectomy",
+      "gold_concept": 45595009,
+      "pred_concept": 45595009,
+      "pred_start": 294,
+      "pred_end": 322,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "major surgical or invasive procedure",
+      "search_terms": [
+        "Laparoscopic cholecystectomy",
+        "laparoscopic gallbladder removal",
+        "lap cholecystectomy"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23238",
+      "gold_span": "biliary \npancreatitis",
+      "gold_concept": 95563007,
+      "pred_concept": 235941008,
+      "pred_start": 390,
+      "pred_end": 411,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "biliary pancreatitis",
+        "acute biliary pancreatitis",
+        "pancreatitis due to gallstones"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 3,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23239",
+      "gold_span": "pancreatic necrosis",
+      "gold_concept": 1835003,
+      "pred_concept": 1835003,
+      "pred_start": 425,
+      "pred_end": 444,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "pancreatic necrosis",
+        "necrosis of pancreas",
+        "pancreatic tissue necrosis"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23240",
+      "gold_span": "nasojejunal feedings",
+      "gold_concept": 310244003,
+      "pred_concept": 310244003,
+      "pred_start": 476,
+      "pred_end": 496,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "nasojejunal feedings",
+        "nasal jejunal tube feeding",
+        "enteral nutrition via nasojejunal tube"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23241",
+      "gold_span": "pancreatic rest",
+      "gold_concept": 19387007,
+      "pred_concept": 225993003,
+      "pred_start": 501,
+      "pred_end": 516,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "pancreatic rest",
+        "pancreatic rest therapy",
+        "pancreas rest"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 35,
+      "n_candidates_top100": 152
+    },
+    {
+      "annotation_id": "23242",
+      "gold_span": "multisystem organ failure",
+      "gold_concept": 57653000,
+      "pred_concept": 57653000,
+      "pred_start": 541,
+      "pred_end": 566,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "multisystem organ failure",
+        "multiple organ dysfunction syndrome",
+        "multiorgan failure"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23243",
+      "gold_span": "improved",
+      "gold_concept": 268910001,
+      "pred_concept": 268910001,
+      "pred_start": 574,
+      "pred_end": 582,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "improved",
+        "improvement",
+        "clinical improvement"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 3,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23244",
+      "gold_span": "pseudocyst",
+      "gold_concept": 13467000,
+      "pred_concept": 13467000,
+      "pred_start": 618,
+      "pred_end": 628,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "pseudocyst",
+        "pancreatic pseudocyst",
+        "postnecrotic pancreatic pseudocyst"
+      ],
+      "n_candidates": 14,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23245",
+      "gold_span": "drained",
+      "gold_concept": 56783008,
+      "pred_concept": 16156002,
+      "pred_start": 646,
+      "pred_end": 653,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "drained",
+        "pancreatic pseudocyst drainage",
+        "minimally invasive drainage of pancreatic pseudocyst"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 47,
+      "n_candidates_top100": 235
+    },
+    {
+      "annotation_id": "23246",
+      "gold_span": "GI tract",
+      "gold_concept": 122865005,
+      "pred_concept": 122865005,
+      "pred_start": 701,
+      "pred_end": 709,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "GI tract",
+        "gastrointestinal tract",
+        "gastrointestinal system"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23247",
+      "gold_span": "clinic",
+      "gold_concept": 737492002,
+      "pred_concept": null,
+      "pred_start": null,
+      "pred_end": null,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "clinic",
+        "medical clinic",
+        "outpatient clinic"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 6,
+      "failure_reason": "parse_fail"
+    },
+    {
+      "annotation_id": "23248",
+      "gold_span": "cholecystectomy",
+      "gold_concept": 38102005,
+      "pred_concept": null,
+      "pred_start": null,
+      "pred_end": null,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "cholecystectomy",
+        "surgical removal of the gallbladder",
+        "gallbladder removal"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": "parse_fail"
+    },
+    {
+      "annotation_id": "23249",
+      "gold_span": "discussion",
+      "gold_concept": 223482009,
+      "pred_concept": 223483004,
+      "pred_start": 859,
+      "pred_end": 869,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "elective cholecystectomy",
+        "minimally invasive cholecystectomy",
+        "discussion"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23250",
+      "gold_span": "cholecystectomy",
+      "gold_concept": 38102005,
+      "pred_concept": 38102005,
+      "pred_start": 953,
+      "pred_end": 968,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "history of present illness",
+      "search_terms": [
+        "cholecystectomy",
+        "laparoscopic cholecystectomy",
+        "surgical removal of the gallbladder"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23251",
+      "gold_span": "Hiatal Hernia",
+      "gold_concept": 84089009,
+      "pred_concept": 84089009,
+      "pred_start": 1001,
+      "pred_end": 1014,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "past medical history",
+      "search_terms": [
+        "Hiatal Hernia",
+        "Hiatal Herniation",
+        "Hiatus Hernia"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23252",
+      "gold_span": "esophagus",
+      "gold_concept": 32849002,
+      "pred_concept": 32849002,
+      "pred_start": 1021,
+      "pred_end": 1030,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "past medical history",
+      "search_terms": [
+        "esophagus",
+        "oesophagus",
+        "esophageal tube"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23253",
+      "gold_span": "Esophageal ulcer",
+      "gold_concept": 30811009,
+      "pred_concept": 30811009,
+      "pred_start": 1033,
+      "pred_end": 1049,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "past medical history",
+      "search_terms": [
+        "Esophageal ulcer",
+        "esophageal ulcer disease",
+        "ulcer of esophagus"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23254",
+      "gold_span": "anxiety",
+      "gold_concept": 48694002,
+      "pred_concept": 48694002,
+      "pred_start": 1052,
+      "pred_end": 1059,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "past medical history",
+      "search_terms": [
+        "anxiety",
+        "anxiety disorder",
+        "generalized anxiety disorder"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23255",
+      "gold_span": "Back pain",
+      "gold_concept": 161891005,
+      "pred_concept": 161891005,
+      "pred_start": 1062,
+      "pred_end": 1071,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "past medical history",
+      "search_terms": [
+        "Back pain",
+        "low back pain",
+        "backache"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23256",
+      "gold_span": "metastatic lung cancer",
+      "gold_concept": 94391008,
+      "pred_concept": 94391008,
+      "pred_start": 1128,
+      "pred_end": 1150,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "family history",
+      "search_terms": [
+        "metastatic lung cancer",
+        "lung cancer metastasis",
+        "metastatic carcinoma of lung"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23257",
+      "gold_span": "alive",
+      "gold_concept": 438949009,
+      "pred_concept": 438949009,
+      "pred_start": 1159,
+      "pred_end": 1164,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "family history",
+      "search_terms": [
+        "alive",
+        "living",
+        "survival status"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23258",
+      "gold_span": "CVA",
+      "gold_concept": 230690007,
+      "pred_concept": 230690007,
+      "pred_start": 1170,
+      "pred_end": 1173,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "family history",
+      "search_terms": [
+        "CVA",
+        "cerebrovascular accident",
+        "stroke"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23259",
+      "gold_span": "pancreatic malignancy",
+      "gold_concept": 363418001,
+      "pred_concept": 363418001,
+      "pred_start": 1199,
+      "pred_end": 1220,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "family history",
+      "search_terms": [
+        "pancreatic malignancy",
+        "pancreatic cancer",
+        "pancreatic carcinoma"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23260",
+      "gold_span": "VS",
+      "gold_concept": 118227000,
+      "pred_concept": 410188000,
+      "pred_start": 1258,
+      "pred_end": 1260,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "98.3, 83, 137/69, 16, 98% RA",
+        "vital signs assessment",
+        "temperature\u00a098.3\u00b0F\u00a0pulse\u00a083\u202fbpm\u00a0blood pressure\u00a0137/69\u202fmmHg\u00a0respiratory rate\u00a016\u202fbreaths/min\u00a0oxygen saturation\u00a098% on room air"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 3,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23261",
+      "gold_span": "RA",
+      "gold_concept": 722742002,
+      "pred_concept": null,
+      "pred_start": null,
+      "pred_end": null,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "RA",
+        "Right Arm",
+        "right upper limb"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 251
+    },
+    {
+      "annotation_id": "23262",
+      "gold_span": "GEN",
+      "gold_concept": 162673000,
+      "pred_concept": 162673000,
+      "pred_start": 1291,
+      "pred_end": 1294,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "GEN",
+        "General appearance",
+        "General physical examination"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 15,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23263",
+      "gold_span": "NAD",
+      "gold_concept": 281900007,
+      "pred_concept": 69328002,
+      "pred_start": 1296,
+      "pred_end": 1299,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "NAD",
+        "No acute distress",
+        "No acute disease"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 15,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23264",
+      "gold_span": "CV",
+      "gold_concept": 363003006,
+      "pred_concept": 363003006,
+      "pred_start": 1309,
+      "pred_end": 1311,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "CV",
+        "cardiovascular system",
+        "cardiovascular examination"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 4,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23265",
+      "gold_span": "RRR",
+      "gold_concept": 76863003,
+      "pred_concept": 301112006,
+      "pred_start": 1313,
+      "pred_end": 1316,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "RRR",
+        "regular rate and rhythm",
+        "regular heart rate and rhythm"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 8,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23266",
+      "gold_span": "PULM",
+      "gold_concept": 268925001,
+      "pred_concept": 37931006,
+      "pred_start": 1317,
+      "pred_end": 1321,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "PULM: CTAB",
+        "Pulmonary system: clear to auscultation bilaterally",
+        "Clear to auscultation bilaterally"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 235
+    },
+    {
+      "annotation_id": "23267",
+      "gold_span": "CTAB",
+      "gold_concept": 48348007,
+      "pred_concept": 48348007,
+      "pred_start": 1323,
+      "pred_end": 1327,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "CTAB",
+        "Clear to auscultation bilaterally",
+        "lungs clear to auscultation bilaterally"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23268",
+      "gold_span": "ABD",
+      "gold_concept": 225162003,
+      "pred_concept": null,
+      "pred_start": null,
+      "pred_end": null,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "ABD: Laparoscopic incisions open to air with dermabond and c/d/i",
+        "Abdomen laparoscopic incision open to air dermabond",
+        "Abdominal examination laparoscopic incision open to air dermabond"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 170
+    },
+    {
+      "annotation_id": "23269",
+      "gold_span": "Laparoscopic",
+      "gold_concept": 51316009,
+      "pred_concept": 51316009,
+      "pred_start": 1333,
+      "pred_end": 1345,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "Laparoscopic",
+        "laparoscopic surgery",
+        "laparoscopic procedure"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23270",
+      "gold_span": "incisions",
+      "gold_concept": 609343002,
+      "pred_concept": 460621000124104,
+      "pred_start": 1346,
+      "pred_end": 1355,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "incisions",
+        "incision",
+        "surgical incision"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23271",
+      "gold_span": "EXTR",
+      "gold_concept": 302773001,
+      "pred_concept": 248420006,
+      "pred_start": 1393,
+      "pred_end": 1397,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "Warm, +pp, no c/c/e",
+        "warm skin positive peripheral pulses no cyanosis no clubbing no edema",
+        "Extremities"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 60,
+      "n_candidates_top100": 281
+    },
+    {
+      "annotation_id": "23272",
+      "gold_span": "Warm",
+      "gold_concept": 102599008,
+      "pred_concept": 102599008,
+      "pred_start": 1399,
+      "pred_end": 1403,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "Warm",
+        "skin warm",
+        "normal skin temperature"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23273",
+      "gold_span": "c",
+      "gold_concept": 3415004,
+      "pred_concept": 3415004,
+      "pred_start": 1413,
+      "pred_end": 1414,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "physical exam",
+      "search_terms": [
+        "c",
+        "cyanosis",
+        "no cyanosis"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23274",
+      "gold_span": "e",
+      "gold_concept": 424372002,
+      "pred_concept": 247441003,
+      "pred_start": 1417,
+      "pred_end": 1418,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "physical exam",
+      "search_terms": [
+        "e",
+        "erythema",
+        "redness"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 264
+    },
+    {
+      "annotation_id": "23275",
+      "gold_span": "gallstone pancreatitis",
+      "gold_concept": 95563007,
+      "pred_concept": 95563007,
+      "pred_start": 1512,
+      "pred_end": 1534,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "gallstone pancreatitis",
+        "pancreatitis due to gallstones",
+        "cholelithiasis-induced pancreatitis"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23276",
+      "gold_span": "laparoscopic cholecystectomy",
+      "gold_concept": 45595009,
+      "pred_concept": 45595009,
+      "pred_start": 1604,
+      "pred_end": 1632,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "laparoscopic cholecystectomy",
+        "lap cholecystectomy",
+        "laparoscopic removal of gallbladder"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23277",
+      "gold_span": "PACU",
+      "gold_concept": 386390005,
+      "pred_concept": 433586002,
+      "pred_start": 1673,
+      "pred_end": 1677,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "PACU",
+        "Post Anesthesia Care Unit",
+        "Post-Anesthesia Care Unit"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 16,
+      "n_candidates_top100": 192
+    },
+    {
+      "annotation_id": "23278",
+      "gold_span": "regular \ndiet",
+      "gold_concept": 36823005,
+      "pred_concept": 449894006,
+      "pred_start": 1723,
+      "pred_end": 1736,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "regular diet",
+        "tolerating regular diet",
+        "normal diet"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23279",
+      "gold_span": "IV fluids",
+      "gold_concept": 103744005,
+      "pred_concept": 103744005,
+      "pred_start": 1742,
+      "pred_end": 1751,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "IV fluids",
+        "intravenous fluids",
+        "intravenous fluid therapy"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23280",
+      "gold_span": "PCA",
+      "gold_concept": 241716000,
+      "pred_concept": 241716000,
+      "pred_start": 1766,
+      "pred_end": 1769,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "PCA",
+        "Patient-Controlled Analgesia",
+        "patient-controlled analgesia"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23281",
+      "gold_span": "pain control",
+      "gold_concept": 225782006,
+      "pred_concept": 225782006,
+      "pred_start": 1774,
+      "pred_end": 1786,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "pain control",
+        "patient controlled analgesia",
+        "PCA"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23282",
+      "gold_span": "hemodynamically stable",
+      "gold_concept": 301459008,
+      "pred_concept": 301459008,
+      "pred_start": 1806,
+      "pred_end": 1828,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "hemodynamically stable",
+        "hemodynamic stability",
+        "stable hemodynamics"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23283",
+      "gold_span": "Pain was well controlled",
+      "gold_concept": 1156446004,
+      "pred_concept": 1156446004,
+      "pred_start": 1830,
+      "pred_end": 1854,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "Pain was well controlled",
+        "Pain control",
+        "Pain under control"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 8,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23284",
+      "gold_span": "Diet was tolerated well",
+      "gold_concept": 310500000,
+      "pred_concept": 41829006,
+      "pred_start": 1856,
+      "pred_end": 1879,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "Diet was tolerated well",
+        "diet tolerated",
+        "dietary tolerance"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 24,
+      "n_candidates_top100": 244
+    },
+    {
+      "annotation_id": "23285",
+      "gold_span": "voided without problem",
+      "gold_concept": 102834005,
+      "pred_concept": 102834005,
+      "pred_start": 1894,
+      "pred_end": 1916,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "voided without problem",
+        "normal voiding",
+        "urination without difficulty"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23286",
+      "gold_span": "heparin",
+      "gold_concept": 103746007,
+      "pred_concept": 103746007,
+      "pred_start": 1953,
+      "pred_end": 1960,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "heparin",
+        "subcutaneous heparin",
+        "heparin injection"
+      ],
+      "n_candidates": 13,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23287",
+      "gold_span": "afebrile",
+      "gold_concept": 386661006,
+      "pred_concept": 386661006,
+      "pred_start": 2062,
+      "pred_end": 2070,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "afebrile",
+        "fever",
+        "febrile"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23288",
+      "gold_span": "stable vital signs",
+      "gold_concept": 72970002,
+      "pred_concept": 72970002,
+      "pred_start": 2077,
+      "pred_end": 2095,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "stable vital signs",
+        "vital signs stable",
+        "normal vital signs"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23289",
+      "gold_span": "regular \ndiet",
+      "gold_concept": 36823005,
+      "pred_concept": 36823005,
+      "pred_start": 2126,
+      "pred_end": 2139,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "regular diet",
+        "standard diet",
+        "normal diet"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23290",
+      "gold_span": "ambulating",
+      "gold_concept": 160680006,
+      "pred_concept": 165245003,
+      "pred_start": 2141,
+      "pred_end": 2151,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "ambulating",
+        "walking",
+        "mobility"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 78,
+      "n_candidates_top100": 242
+    },
+    {
+      "annotation_id": "23291",
+      "gold_span": "voiding without assistance",
+      "gold_concept": 129023004,
+      "pred_concept": 102834005,
+      "pred_start": 2153,
+      "pred_end": 2179,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "voiding without assistance",
+        "urination without assistance",
+        "urinary voiding without assistance"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 46,
+      "n_candidates_top100": 145
+    },
+    {
+      "annotation_id": "23292",
+      "gold_span": "pain was well \ncontrolled",
+      "gold_concept": 1156446004,
+      "pred_concept": 22253000,
+      "pred_start": 2185,
+      "pred_end": 2210,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "pain was well controlled",
+        "pain controlled",
+        "controlled pain"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 22,
+      "n_candidates_top100": 152
+    },
+    {
+      "annotation_id": "23293",
+      "gold_span": "teaching",
+      "gold_concept": 311401005,
+      "pred_concept": 311401005,
+      "pred_start": 2295,
+      "pred_end": 2303,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "discharge teaching",
+        "patient education",
+        "teaching"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23294",
+      "gold_span": "instructions",
+      "gold_concept": 420227002,
+      "pred_concept": 83362003,
+      "pred_start": 2319,
+      "pred_end": 2331,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "instructions",
+        "discharge instructions",
+        "patient education"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 51,
+      "n_candidates_top100": 266
+    },
+    {
+      "annotation_id": "23295",
+      "gold_span": "discharge plan",
+      "gold_concept": 371754007,
+      "pred_concept": 371754007,
+      "pred_start": 2386,
+      "pred_end": 2400,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "pertinent results",
+      "search_terms": [
+        "discharge plan",
+        "discharge planning",
+        "patient discharge plan"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23296",
+      "gold_span": "Biliary pancreatitis",
+      "gold_concept": 95563007,
+      "pred_concept": 95563007,
+      "pred_start": 2794,
+      "pred_end": 2814,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge diagnosis",
+      "search_terms": [
+        "Biliary pancreatitis",
+        "Gallstone pancreatitis",
+        "Acute biliary pancreatitis"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23297",
+      "gold_span": "Mental Status",
+      "gold_concept": 392257007,
+      "pred_concept": 36456004,
+      "pred_start": 2839,
+      "pred_end": 2852,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge condition",
+      "search_terms": [
+        "Mental Status",
+        "mental status assessment",
+        "cognitive status"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 3,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23298",
+      "gold_span": "Level of Consciousness",
+      "gold_concept": 444714004,
+      "pred_concept": 365931003,
+      "pred_start": 2874,
+      "pred_end": 2896,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge condition",
+      "search_terms": [
+        "Level of Consciousness",
+        "Consciousness level",
+        "Consciousness status"
+      ],
+      "n_candidates": 12,
+      "gold_in_candidates": true,
+      "gold_rank": 4,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23299",
+      "gold_span": "Alert",
+      "gold_concept": 248234008,
+      "pred_concept": 248234008,
+      "pred_start": 2898,
+      "pred_end": 2903,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge condition",
+      "search_terms": [
+        "Alert",
+        "alertness",
+        "level of consciousness alert"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23300",
+      "gold_span": "interactive",
+      "gold_concept": 288577006,
+      "pred_concept": 10301000202103,
+      "pred_start": 2908,
+      "pred_end": 2919,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge condition",
+      "search_terms": [
+        "interactive",
+        "alert and interactive",
+        "alert-interactive"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 194,
+      "n_candidates_top100": 203
+    },
+    {
+      "annotation_id": "23301",
+      "gold_span": "Ambulatory - Independent",
+      "gold_concept": 165245003,
+      "pred_concept": 165245003,
+      "pred_start": 2938,
+      "pred_end": 2962,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge condition",
+      "search_terms": [
+        "Ambulatory - Independent",
+        "Independent ambulation",
+        "ambulating independently"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 5,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23302",
+      "gold_span": "surgical \nresection of your gallbladder",
+      "gold_concept": 38102005,
+      "pred_concept": 38102005,
+      "pred_start": 3043,
+      "pred_end": 3082,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "surgical resection of your gallbladder",
+        "surgical resection of gallbladder",
+        "cholecystectomy"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23303",
+      "gold_span": "post \noperative",
+      "gold_concept": 19585003,
+      "pred_concept": 183646003,
+      "pred_start": 3110,
+      "pred_end": 3125,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "post operative",
+        "postoperative",
+        "post-op"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 15,
+      "n_candidates_top100": 203
+    },
+    {
+      "annotation_id": "23304",
+      "gold_span": "medications",
+      "gold_concept": 394835006,
+      "pred_concept": 422037009,
+      "pred_start": 3388,
+      "pred_end": 3399,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "medications",
+        "Medication instruction",
+        "Medication instructions"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 36,
+      "n_candidates_top100": 191
+    },
+    {
+      "annotation_id": "23305",
+      "gold_span": "medication",
+      "gold_concept": 967006,
+      "pred_concept": 394835006,
+      "pred_start": 3456,
+      "pred_end": 3466,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "medication",
+        "patient education",
+        "clinical instruction"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 9,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23306",
+      "gold_span": "medications",
+      "gold_concept": 967006,
+      "pred_concept": 394835006,
+      "pred_start": 3496,
+      "pred_end": 3507,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "medications",
+        "medication instruction",
+        "patient education about medication"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23307",
+      "gold_span": "ambulate",
+      "gold_concept": 359665005,
+      "pred_concept": 370872001,
+      "pred_start": 3562,
+      "pred_end": 3570,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "ambulate",
+        "ambulation",
+        "walking"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23308",
+      "gold_span": "drink adequate amounts of fluids",
+      "gold_concept": 313210009,
+      "pred_concept": 313210009,
+      "pred_start": 3599,
+      "pred_end": 3631,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "drink adequate amounts of fluids",
+        "adequate fluid intake",
+        "fluid intake instructions"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 6,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23309",
+      "gold_span": "Avoid lifting \nweights",
+      "gold_concept": 304673006,
+      "pred_concept": 288334006,
+      "pred_start": 3634,
+      "pred_end": 3656,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "Avoid lifting weights greater than ___ lbs until you follow-up with your surgeon, who will instruct you further regardin...",
+        "Avoid lifting weights greater than ___ pounds until you follow up with your surgeon, who will instruct you further regarding...",
+        "Do not lift weights over ___ lbs until follow-up with surgeon"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 135
+    },
+    {
+      "annotation_id": "23310",
+      "gold_span": "follow-up",
+      "gold_concept": 183616001,
+      "pred_concept": 308273005,
+      "pred_start": 3688,
+      "pred_end": 3697,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "follow-up",
+        "follow up",
+        "postoperative follow-up"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 11,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23311",
+      "gold_span": "activity \nrestrictions",
+      "gold_concept": 304673006,
+      "pred_concept": 223415003,
+      "pred_start": 3758,
+      "pred_end": 3780,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "activity restrictions",
+        "postoperative activity restriction",
+        "activity limitation"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": true,
+      "gold_rank_top100": 150,
+      "n_candidates_top100": 239
+    },
+    {
+      "annotation_id": "23312",
+      "gold_span": "while taking pain \nmedications",
+      "gold_concept": 394835006,
+      "pred_concept": 1811000124107,
+      "pred_start": 3825,
+      "pred_end": 3855,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "while taking pain medications",
+        "pain medication use",
+        "analgesic use"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 224
+    },
+    {
+      "annotation_id": "23313",
+      "gold_span": "Primary Care",
+      "gold_concept": 737470001,
+      "pred_concept": null,
+      "pred_start": null,
+      "pred_end": null,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "Primary Care",
+        "primary care provider",
+        "primary care physician"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": "parse_fail"
+    },
+    {
+      "annotation_id": "23314",
+      "gold_span": "PCP",
+      "gold_concept": 737470001,
+      "pred_concept": 270423004,
+      "pred_start": 3920,
+      "pred_end": 3923,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "PCP",
+        "primary care provider",
+        "primary care physician"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 10,
+      "failure_reason": "selection_miss"
+    },
+    {
+      "annotation_id": "23315",
+      "gold_span": "increased pain",
+      "gold_concept": 1144586002,
+      "pred_concept": 1144586002,
+      "pred_start": 4012,
+      "pred_end": 4026,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "increased pain",
+        "heightened pain",
+        "excessive pain"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23316",
+      "gold_span": "swelling",
+      "gold_concept": 442672001,
+      "pred_concept": 442672001,
+      "pred_start": 4028,
+      "pred_end": 4036,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "swelling",
+        "edema",
+        "tissue edema"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23317",
+      "gold_span": "redness",
+      "gold_concept": 822962003,
+      "pred_concept": 822962003,
+      "pred_start": 4038,
+      "pred_end": 4045,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "redness",
+        "erythema",
+        "skin redness"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 4,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23318",
+      "gold_span": "drainage",
+      "gold_concept": 75823008,
+      "pred_concept": 75823008,
+      "pred_start": 4050,
+      "pred_end": 4058,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "drainage",
+        "wound drainage",
+        "postoperative wound exudate"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23319",
+      "gold_span": "incision \nsite",
+      "gold_concept": 609343002,
+      "pred_concept": 609343002,
+      "pred_start": 4068,
+      "pred_end": 4082,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "incision site",
+        "surgical incision site",
+        "postoperative incision site"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 2,
+      "failure_reason": null
+    },
+    {
+      "annotation_id": "23320",
+      "gold_span": "shower",
+      "gold_concept": 304673006,
+      "pred_concept": 20565007,
+      "pred_start": 4153,
+      "pred_end": 4159,
+      "concept_match": false,
+      "iou": 0.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "shower",
+        "take a shower",
+        "showering"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": false,
+      "gold_rank": null,
+      "failure_reason": "retrieval_miss",
+      "gold_in_top100": false,
+      "gold_rank_top100": null,
+      "n_candidates_top100": 173
+    },
+    {
+      "annotation_id": "23321",
+      "gold_span": "surgical incisions",
+      "gold_concept": 609343002,
+      "pred_concept": 609343002,
+      "pred_start": 4170,
+      "pred_end": 4188,
+      "concept_match": true,
+      "iou": 1.0,
+      "section": "discharge instructions",
+      "search_terms": [
+        "surgical incisions",
+        "surgical incision",
+        "postoperative incision"
+      ],
+      "n_candidates": 15,
+      "gold_in_candidates": true,
+      "gold_rank": 1,
+      "failure_reason": null
+    }
+  ],
+  "rule_improvement_suggestions": {
+    "stage_2_search_failures": [
+      {
+        "annotation_id": "23241",
+        "gold_span": "pancreatic rest",
+        "gold_concept": 19387007,
+        "search_terms": [
+          "pancreatic rest",
+          "pancreatic rest therapy",
+          "pancreas rest"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R12",
+            "concept_type": "Implicit_Concept_Mapping",
+            "intent_translation": "Search for clinically equivalent concepts rather than literal term matches when the exact term has no SNOMED equivalent"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23245",
+        "gold_span": "drained",
+        "gold_concept": 56783008,
+        "search_terms": [
+          "drained",
+          "pancreatic pseudocyst drainage",
+          "minimally invasive drainage of pancreatic pseudocyst"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R4",
+            "concept_type": "Surgical_Procedure",
+            "intent_translation": "Search for the specific surgical procedure name including approach modifiers when present"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23261",
+        "gold_span": "RA",
+        "gold_concept": 722742002,
+        "search_terms": [
+          "RA",
+          "Right Arm",
+          "right upper limb"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23266",
+        "gold_span": "PULM",
+        "gold_concept": 268925001,
+        "search_terms": [
+          "PULM: CTAB",
+          "Pulmonary system: clear to auscultation bilaterally",
+          "Clear to auscultation bilaterally"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23268",
+        "gold_span": "ABD",
+        "gold_concept": 225162003,
+        "search_terms": [
+          "ABD: Laparoscopic incisions open to air with dermabond and c/d/i",
+          "Abdomen laparoscopic incision open to air dermabond",
+          "Abdominal examination laparoscopic incision open to air dermabond"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23271",
+        "gold_span": "EXTR",
+        "gold_concept": 302773001,
+        "search_terms": [
+          "Warm, +pp, no c/c/e",
+          "warm skin positive peripheral pulses no cyanosis no clubbing no edema",
+          "Extremities"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23274",
+        "gold_span": "e",
+        "gold_concept": 424372002,
+        "search_terms": [
+          "e",
+          "erythema",
+          "redness"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "intent_translation": "Expand examination system abbreviations to their full clinical examination terms based on standard medical nomenclature"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23277",
+        "gold_span": "PACU",
+        "gold_concept": 386390005,
+        "search_terms": [
+          "PACU",
+          "Post Anesthesia Care Unit",
+          "Post-Anesthesia Care Unit"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R7",
+            "concept_type": "Therapy_Regime",
+            "intent_translation": "Search for therapy and regime concepts including specific treatment approaches"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23284",
+        "gold_span": "Diet was tolerated well",
+        "gold_concept": 310500000,
+        "search_terms": [
+          "Diet was tolerated well",
+          "diet tolerated",
+          "dietary tolerance"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "intent_translation": "Search for clinical observation and finding terms, including normal and abnormal states"
+          },
+          {
+            "rule_id": "R13",
+            "concept_type": "Multi_Word_Clinical_Phrase",
+            "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23290",
+        "gold_span": "ambulating",
+        "gold_concept": 160680006,
+        "search_terms": [
+          "ambulating",
+          "walking",
+          "mobility"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R9",
+            "concept_type": "Activity_Status",
+            "intent_translation": "Search for functional assessment and activity-related finding concepts"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23291",
+        "gold_span": "voiding without assistance",
+        "gold_concept": 129023004,
+        "search_terms": [
+          "voiding without assistance",
+          "urination without assistance",
+          "urinary voiding without assistance"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R9",
+            "concept_type": "Activity_Status",
+            "intent_translation": "Search for functional assessment and activity-related finding concepts"
+          },
+          {
+            "rule_id": "R13",
+            "concept_type": "Multi_Word_Clinical_Phrase",
+            "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23292",
+        "gold_span": "pain was well \ncontrolled",
+        "gold_concept": 1156446004,
+        "search_terms": [
+          "pain was well controlled",
+          "pain controlled",
+          "controlled pain"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "intent_translation": "Search for clinical observation and finding terms, including normal and abnormal states"
+          },
+          {
+            "rule_id": "R13",
+            "concept_type": "Multi_Word_Clinical_Phrase",
+            "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23294",
+        "gold_span": "instructions",
+        "gold_concept": 420227002,
+        "search_terms": [
+          "instructions",
+          "discharge instructions",
+          "patient education"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23300",
+        "gold_span": "interactive",
+        "gold_concept": 288577006,
+        "search_terms": [
+          "interactive",
+          "alert and interactive",
+          "alert-interactive"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "intent_translation": "Search for clinical observation and finding terms, including normal and abnormal states"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23303",
+        "gold_span": "post \noperative",
+        "gold_concept": 19585003,
+        "search_terms": [
+          "post operative",
+          "postoperative",
+          "post-op"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "intent_translation": "Search for clinical observation and finding terms, including normal and abnormal states"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23304",
+        "gold_span": "medications",
+        "gold_concept": 394835006,
+        "search_terms": [
+          "medications",
+          "Medication instruction",
+          "Medication instructions"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23309",
+        "gold_span": "Avoid lifting \nweights",
+        "gold_concept": 304673006,
+        "search_terms": [
+          "Avoid lifting weights greater than ___ lbs until you follow-up with your surgeon, who will instruct you further regardin...",
+          "Avoid lifting weights greater than ___ pounds until you follow up with your surgeon, who will instruct you further regarding...",
+          "Do not lift weights over ___ lbs until follow-up with surgeon"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          },
+          {
+            "rule_id": "R13",
+            "concept_type": "Multi_Word_Clinical_Phrase",
+            "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23311",
+        "gold_span": "activity \nrestrictions",
+        "gold_concept": 304673006,
+        "search_terms": [
+          "activity restrictions",
+          "postoperative activity restriction",
+          "activity limitation"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23312",
+        "gold_span": "while taking pain \nmedications",
+        "gold_concept": 394835006,
+        "search_terms": [
+          "while taking pain medications",
+          "pain medication use",
+          "analgesic use"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          },
+          {
+            "rule_id": "R13",
+            "concept_type": "Multi_Word_Clinical_Phrase",
+            "intent_translation": "Search for the complete clinical phrase as a unified concept, including common clinical variations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23320",
+        "gold_span": "shower",
+        "gold_concept": 304673006,
+        "search_terms": [
+          "shower",
+          "take a shower",
+          "showering"
+        ],
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "intent_translation": "Search for patient education and clinical instruction procedure concepts"
+          }
+        ]
+      }
+    ],
+    "stage_3_select_failures": [
+      {
+        "annotation_id": "23238",
+        "gold_span": "biliary \npancreatitis",
+        "gold_concept": 95563007,
+        "pred_concept": 235941008,
+        "gold_rank": 3,
+        "rules_applied": [
+          {
+            "rule_id": "R3",
+            "concept_type": "Clinical_Condition",
+            "disambiguation_logic": "Prefer disorder hierarchy for pathological conditions, finding hierarchy for symptoms or observations"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23249",
+        "gold_span": "discussion",
+        "gold_concept": 223482009,
+        "pred_concept": 223483004,
+        "gold_rank": 2,
+        "rules_applied": [
+          {
+            "rule_id": "R4",
+            "concept_type": "Surgical_Procedure",
+            "disambiguation_logic": "Select procedure concepts that match both the intervention type and approach"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23260",
+        "gold_span": "VS",
+        "gold_concept": 118227000,
+        "pred_concept": 410188000,
+        "gold_rank": 3,
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "disambiguation_logic": "Select concepts that represent examination procedures or vital sign findings based on the specific abbreviation context"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23263",
+        "gold_span": "NAD",
+        "gold_concept": 281900007,
+        "pred_concept": 69328002,
+        "gold_rank": 15,
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "disambiguation_logic": "Select concepts that represent examination procedures or vital sign findings based on the specific abbreviation context"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23265",
+        "gold_span": "RRR",
+        "gold_concept": 76863003,
+        "pred_concept": 301112006,
+        "gold_rank": 8,
+        "rules_applied": [
+          {
+            "rule_id": "R1",
+            "concept_type": "Physical_Exam_Abbreviation",
+            "disambiguation_logic": "Select concepts that represent examination procedures or vital sign findings based on the specific abbreviation context"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23270",
+        "gold_span": "incisions",
+        "gold_concept": 609343002,
+        "pred_concept": 460621000124104,
+        "gold_rank": 2,
+        "rules_applied": [
+          {
+            "rule_id": "R11",
+            "concept_type": "Morphologic_Abnormality",
+            "disambiguation_logic": "Select morphologic abnormality concepts for structural pathology"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23278",
+        "gold_span": "regular \ndiet",
+        "gold_concept": 36823005,
+        "pred_concept": 449894006,
+        "gold_rank": 1,
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "disambiguation_logic": "Select finding concepts for observable clinical states and patient conditions"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23297",
+        "gold_span": "Mental Status",
+        "gold_concept": 392257007,
+        "pred_concept": 36456004,
+        "gold_rank": 3,
+        "rules_applied": [
+          {
+            "rule_id": "R4",
+            "concept_type": "Surgical_Procedure",
+            "disambiguation_logic": "Select procedure concepts that match both the intervention type and approach"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23298",
+        "gold_span": "Level of Consciousness",
+        "gold_concept": 444714004,
+        "pred_concept": 365931003,
+        "gold_rank": 4,
+        "rules_applied": [
+          {
+            "rule_id": "R4",
+            "concept_type": "Surgical_Procedure",
+            "disambiguation_logic": "Select procedure concepts that match both the intervention type and approach"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23305",
+        "gold_span": "medication",
+        "gold_concept": 967006,
+        "pred_concept": 394835006,
+        "gold_rank": 9,
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "disambiguation_logic": "Select procedure concepts related to patient education or clinical guidance"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23306",
+        "gold_span": "medications",
+        "gold_concept": 967006,
+        "pred_concept": 394835006,
+        "gold_rank": 2,
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "disambiguation_logic": "Select procedure concepts related to patient education or clinical guidance"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23307",
+        "gold_span": "ambulate",
+        "gold_concept": 359665005,
+        "pred_concept": 370872001,
+        "gold_rank": 2,
+        "rules_applied": [
+          {
+            "rule_id": "R10",
+            "concept_type": "Education_Instruction",
+            "disambiguation_logic": "Select procedure concepts related to patient education or clinical guidance"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23310",
+        "gold_span": "follow-up",
+        "gold_concept": 183616001,
+        "pred_concept": 308273005,
+        "gold_rank": 11,
+        "rules_applied": [
+          {
+            "rule_id": "R6",
+            "concept_type": "Clinical_Finding",
+            "disambiguation_logic": "Select finding concepts for observable clinical states and patient conditions"
+          }
+        ]
+      },
+      {
+        "annotation_id": "23314",
+        "gold_span": "PCP",
+        "gold_concept": 737470001,
+        "pred_concept": 270423004,
+        "gold_rank": 10,
+        "rules_applied": [
+          {
+            "rule_id": "R4",
+            "concept_type": "Surgical_Procedure",
+            "disambiguation_logic": "Select procedure concepts that match both the intervention type and approach"
+          }
+        ]
+      }
+    ],
+    "stage_2_failure_count": 20,
+    "stage_3_failure_count": 14
+  }
+}

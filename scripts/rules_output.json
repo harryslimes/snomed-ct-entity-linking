@@ -1,634 +1,1069 @@
 {
+  "version": "3.0",
+  "mappings": {
+    "CVA": "cerebrovascular accident",
+    "VS": "vital signs",
+    "RA": "breathing room air",
+    "GEN": "general examination",
+    "NAD": "no abnormality detected",
+    "CV": "cardiovascular examination",
+    "RRR": "regular rate and rhythm",
+    "PULM": "pulmonary examination",
+    "CTAB": "clear to auscultation bilaterally",
+    "ABD": "abdominal examination",
+    "EXTR": "extremity examination",
+    "Warm": "Warm skin (finding)",
+    "PACU": "post anesthesia care unit",
+    "PCA": "patient controlled analgesia",
+    "PCP": "primary care provider",
+    "Penicillins": "allergy to penicillin",
+    "MI": "myocardial infarction",
+    "IV": "intravenous",
+    "BID": "twice daily",
+    "PO": "by mouth",
+    "Q3H": "every 3 hours",
+    "Q24H": "every 24 hours",
+    "PRN": "as needed"
+  },
   "g_rules": [
     {
       "id": "G1",
-      "rule": "For SNOMED search generation, use the exact annotated span text as the primary search term, but also generate variations including: (1) expanded forms of abbreviations, (2) removal of qualifiers like 'severe' or 'large', (3) medical synonyms, and (4) the formal medical term if the span uses colloquial language"
+      "rule": "Expand medical abbreviations to their full clinical terms using standard medical nomenclature. Consider document section context for disambiguation when the same abbreviation has multiple meanings.",
+      "stages": [
+        "stage_2_search"
+      ]
     },
     {
       "id": "G2",
-      "rule": "Always consider the section context when interpreting spans - the same text may map to different SNOMED concepts depending on whether it appears in History, Physical Exam, Medications, or Instructions sections"
+      "rule": "Include clinically equivalent synonyms and alternative phrasings when searching SNOMED. For compound clinical terms, search both the exact phrase and semantically equivalent alternatives that express the same clinical concept.",
+      "stages": [
+        "stage_2_search"
+      ]
     },
     {
       "id": "G3",
-      "rule": "For span boundary detection, include the complete medical concept but exclude: (1) articles (a, an, the), (2) possessive pronouns (his, her, your), (3) temporal qualifiers unless integral to the concept, and (4) anatomical laterality unless it changes the concept"
+      "rule": "Select SNOMED concepts from hierarchies that match the clinical context: procedures for interventions/actions, findings for observations/symptoms/signs, disorders for diagnoses/diseases, body structures for anatomy, situations for care contexts, morphologic abnormality for pathological structures.",
+      "stages": [
+        "stage_3_select"
+      ]
     },
     {
       "id": "G4",
-      "rule": "When selecting from SNOMED candidates, prefer concepts matching the semantic type expected for the section (e.g., procedures in surgical sections, findings in exam sections, disorders in diagnosis sections)"
+      "rule": "For negated findings or absent conditions, search for the positive concept and select the appropriate negative/absent variant. Terms like 'no', 'without', 'denies', 'absent', or negative descriptors like 'afebrile' indicate negation.",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G5",
+      "rule": "Document section headers provide critical disambiguation context. The same term may map to different SNOMED concepts based on its section (e.g., abbreviations in Physical Exam vs Past Medical History sections).",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G6",
+      "rule": "For implicit or non-literal clinical concepts, search for the medically implied meaning rather than the literal text. Clinical context and medical knowledge determine the appropriate conceptual mapping.",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G7",
+      "rule": "When multiple valid SNOMED concepts exist, prefer more specific concepts over general ones. Also prefer concepts that match the grammatical role (noun vs verb) and clinical intent of the span in its sentence context.",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G8",
+      "rule": "For multi-word clinical phrases, search for both the complete phrase and individual clinically significant components. Compound medical terms may have specific SNOMED concepts that differ from their component words.",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G9",
+      "rule": "Single-letter abbreviations in clinical notes often represent standardized medical abbreviations or examination findings. These require expansion based on their section context and surrounding clinical information.",
+      "stages": [
+        "stage_2_search"
+      ]
     }
   ],
-  "numbered_rules": [
+  "structured_rules": [
     {
-      "id": "R1",
-      "rule": "For medication allergies, annotate the drug class or specific medication name, mapping to 'Allergy to X (finding)' concepts",
-      "examples": [
-        "Penicillins \u2192 Allergy to penicillin (finding)"
-      ]
+      "rule_id": "R1",
+      "concept_type": "Physical_Exam_Abbreviation",
+      "stage_1_span": {
+        "label": "Physical_Exam_Abbreviation",
+        "description": "Capital letter abbreviations or short uppercase terms in Physical Exam sections representing body systems, examination procedures, or clinical findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand examination abbreviations to full medical terminology for body systems and examination procedures"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer examination procedure concepts when available, followed by finding concepts for examination results",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R2",
-      "rule": "In Physical Exam sections, single capital letters or standard abbreviations should be expanded to their full examination terms before SNOMED search",
-      "examples": [
-        "VS \u2192 Vital signs finding",
-        "CV \u2192 Cardiovascular physical examination",
-        "ABD \u2192 Examination of abdomen"
-      ]
+      "rule_id": "R2",
+      "concept_type": "Allergy_Medication",
+      "stage_1_span": {
+        "label": "Allergy_Medication",
+        "description": "Medication names, drug classes, or substances listed in the Allergies section of the clinical note"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Transform substance name to allergy finding by searching for 'allergy to [substance]' or 'hypersensitivity to [substance]' patterns"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select allergy or hypersensitivity findings over substance, product, or organism concepts",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "substance",
+          "product",
+          "organism"
+        ]
+      }
     },
     {
-      "id": "R3",
-      "rule": "Common physical exam abbreviations in findings should map to their standard interpretations",
-      "examples": [
-        "NAD \u2192 No abnormality detected",
-        "RRR \u2192 Normal heart rate",
-        "CTAB \u2192 Normal breath sounds",
-        "c/c/e \u2192 cyanosis/clubbing/edema"
-      ]
+      "rule_id": "R3",
+      "concept_type": "Clinical_Procedure",
+      "stage_1_span": {
+        "label": "Clinical_Procedure",
+        "description": "Medical procedures, surgeries, interventions, therapeutic actions, or clinical services performed or planned"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for procedure terms including common clinical variations, abbreviations, and both formal and colloquial medical terminology"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select specific procedure concepts over general action or observation concepts",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "qualifier value"
+        ]
+      }
     },
     {
-      "id": "R4",
-      "rule": "For negated findings (afebrile, without problem), map to the positive/normal state rather than absence of the negative",
-      "examples": [
-        "afebrile \u2192 Fever (finding)",
-        "voided without problem \u2192 Normal micturition"
-      ]
+      "rule_id": "R4",
+      "concept_type": "Negated_Finding",
+      "stage_1_span": {
+        "label": "Negated_Finding",
+        "description": "Clinical findings explicitly noted as absent, denied, or negative, including negation words or negative descriptors"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Extract the core clinical finding and search for both positive and corresponding negative/absent concept variants"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that explicitly represent absence, negation, or normal variants of the finding",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R5",
-      "rule": "Multi-word clinical conditions should be annotated as complete phrases when they represent a single unified diagnosis",
-      "examples": [
-        "biliary pancreatitis",
-        "gallstone pancreatitis",
-        "pancreatic necrosis",
-        "hiatal hernia"
-      ]
+      "rule_id": "R5",
+      "concept_type": "Functional_Status",
+      "stage_1_span": {
+        "label": "Functional_Status",
+        "description": "Patient functional abilities, mobility status, activity levels, or independence in daily activities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for functional status, ability, and mobility concepts matching the described activity or functional level"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer finding concepts describing patient functional status over procedure concepts for therapies or interventions",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "regime/therapy"
+        ]
+      }
     },
     {
-      "id": "R6",
-      "rule": "In discharge instructions, educational or activity-related spans should map to education/training procedures",
-      "examples": [
-        "ambulate \u2192 Ambulation training",
-        "drink adequate amounts of fluids \u2192 Fluid intake education",
-        "avoid lifting weights \u2192 Functional activity education"
-      ]
+      "rule_id": "R6",
+      "concept_type": "Diagnostic_Finding",
+      "stage_1_span": {
+        "label": "Diagnostic_Finding",
+        "description": "Diagnoses, pathological conditions, disorders, disease states, or abnormal clinical findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for disorder, disease, and pathological finding concepts including clinical synonyms and variations"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer disorder concepts for diseases and diagnoses, morphologic abnormality for structural abnormalities",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R7",
-      "rule": "Anatomical structures mentioned in clinical contexts should map to body structure concepts",
-      "examples": [
-        "GI tract \u2192 Gastrointestinal tract structure",
-        "esophagus \u2192 Esophageal structure"
-      ]
+      "rule_id": "R7",
+      "concept_type": "Anatomical_Structure",
+      "stage_1_span": {
+        "label": "Anatomical_Structure",
+        "description": "Body parts, organs, organ systems, anatomical locations, or body regions"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for anatomical structure concepts using both formal anatomical terms and common clinical terminology"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select body structure concepts over procedure or finding concepts when referring to anatomy",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "procedure"
+        ]
+      }
     },
     {
-      "id": "R8",
-      "rule": "Clinical actions and interventions map to procedure concepts",
-      "examples": [
-        "drained \u2192 Incision AND drainage",
-        "discussion \u2192 Discussion (procedure)",
-        "teaching \u2192 Patient education"
-      ]
+      "rule_id": "R8",
+      "concept_type": "Clinical_Observation",
+      "stage_1_span": {
+        "label": "Clinical_Observation",
+        "description": "Clinical observations, assessment findings, vital signs, or measurable clinical parameters"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for clinical finding concepts representing observations, measurements, or assessment results"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that represent clinical observations or states",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure"
+        ]
+      }
     },
     {
-      "id": "R9",
-      "rule": "Status descriptions and clinical states map to finding concepts",
-      "examples": [
-        "improved \u2192 Patient's condition improved",
-        "alive \u2192 Alive (finding)",
-        "hemodynamically stable \u2192 Hemodynamically stable (finding)"
-      ]
+      "rule_id": "R9",
+      "concept_type": "Care_Context",
+      "stage_1_span": {
+        "label": "Care_Context",
+        "description": "Clinical care settings, care management activities, or healthcare delivery contexts"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for regime/therapy, situation, or environment concepts matching the care context"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select regime/therapy or situation concepts for care contexts and management activities",
+        "preferred_hierarchy": "regime/therapy",
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R10",
-      "rule": "Abbreviations for clinical locations/units should expand to their care management concepts",
-      "examples": [
-        "PACU \u2192 Postanesthesia care",
-        "clinic \u2192 Outpatient care management",
-        "PCP \u2192 Primary care management"
-      ]
+      "rule_id": "R10",
+      "concept_type": "Implicit_Clinical_Concept",
+      "stage_1_span": {
+        "label": "Implicit_Clinical_Concept",
+        "description": "Terms where the clinical meaning differs significantly from literal interpretation, requiring medical domain knowledge"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the clinically implied concept based on medical knowledge rather than literal text interpretation"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts based on clinical interpretation and medical context rather than literal text matching",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R11",
-      "rule": "Pain-related phrases should map to pain control or pain finding concepts based on context",
-      "examples": [
-        "pain control \u2192 Pain control (procedure)",
-        "increased pain \u2192 Increased pain (finding)",
-        "pain was well controlled \u2192 Demonstrates adequate pain control"
-      ]
+      "rule_id": "R11",
+      "concept_type": "Single_Letter_Abbreviation",
+      "stage_1_span": {
+        "label": "Single_Letter_Abbreviation",
+        "description": "Single capital letters used as medical abbreviations in clinical documentation"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand single-letter abbreviations to their full medical terms based on section context and clinical usage patterns"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts matching the standard medical interpretation of the abbreviation in its clinical context",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
     },
     {
-      "id": "R12",
-      "rule": "Post-operative references should include the 'post operative' span when it modifies the clinical meaning",
-      "examples": [
-        "post operative period \u2192 Postoperative state (finding)"
-      ]
-    },
-    {
-      "id": "R13",
-      "rule": "Wound/incision descriptions should map to morphologic abnormality concepts",
-      "examples": [
-        "incisions \u2192 Surgical incision wound",
-        "pseudocyst \u2192 Pseudocyst (morphologic abnormality)"
-      ]
-    },
-    {
-      "id": "R14",
-      "rule": "Treatment modalities map to regime/therapy concepts",
-      "examples": [
-        "nasojejunal feedings \u2192 Nasojejunal feeding (regime/therapy)",
-        "heparin \u2192 Heparin therapy"
-      ]
-    },
-    {
-      "id": "R15",
-      "rule": "In family history, include the complete disease phrase for inherited conditions",
-      "examples": [
-        "metastatic lung cancer",
-        "pancreatic malignancy"
-      ]
-    },
-    {
-      "id": "R16",
-      "rule": "Common clinical abbreviations in narrative text should be annotated with their expanded meanings",
-      "examples": [
-        "CVA \u2192 Cerebrovascular accident",
-        "RA \u2192 Breathing room air"
-      ]
-    },
-    {
-      "id": "R17",
-      "rule": "Activity and functional status descriptions map to mobility/functional finding concepts",
-      "examples": [
-        "ambulating \u2192 Fully mobile",
-        "Ambulatory - Independent \u2192 Independent walking"
-      ]
-    },
-    {
-      "id": "R18",
-      "rule": "Diagnostic test interpretations and clinical assessments map to their respective procedure or finding concepts",
-      "examples": [
-        "Mental Status \u2192 Neurological mental status determination",
-        "Alert \u2192 Mentally alert"
-      ]
-    },
-    {
-      "id": "R19",
-      "rule": "Skin findings should include descriptive terms that are clinically relevant",
-      "examples": [
-        "Warm \u2192 Warm skin (finding)",
-        "redness \u2192 Redness of skin over lesion"
-      ]
-    },
-    {
-      "id": "R20",
-      "rule": "For ambiguous abbreviations like 'c' in 'c/c/e', use section context to determine meaning (cyanosis in extremity exam)",
-      "examples": [
-        "c \u2192 Cyanosis (finding)",
-        "e \u2192 Edema of extremity"
-      ]
+      "rule_id": "R12",
+      "concept_type": "Patient_Education_Activity",
+      "stage_1_span": {
+        "label": "Patient_Education_Activity",
+        "description": "References to patient education, instructions, recommendations, or self-care activities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for patient education, counseling, or health education procedure concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts related to patient education or counseling activities",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      }
     }
   ],
   "annotation_rule_map": {
     "23235": [
       "G1",
+      "G2",
       "G3",
-      "R1"
+      "G5",
+      "G7",
+      "R2"
     ],
     "23236": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R2",
+      "R6"
     ],
     "23237": [
       "G1",
+      "G2",
       "G3",
-      "G4"
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23238": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23239": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23240": [
       "G1",
+      "G2",
       "G3",
-      "R14"
+      "G5",
+      "G7",
+      "G8",
+      "R9"
     ],
     "23241": [
       "G1",
-      "G3"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "G8",
+      "R6",
+      "R10"
     ],
     "23242": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23243": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7"
     ],
     "23244": [
       "G1",
+      "G2",
       "G3",
-      "R13"
+      "G5",
+      "G7",
+      "R6"
     ],
     "23245": [
       "G1",
-      "G4",
-      "R8"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23246": [
       "G1",
+      "G2",
       "G3",
+      "G5",
+      "G7",
+      "G8",
       "R7"
     ],
     "23247": [
       "G1",
-      "G4",
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R3",
       "R10"
     ],
     "23248": [
       "G1",
+      "G2",
       "G3",
-      "G4"
+      "G5",
+      "G7",
+      "R3"
     ],
     "23249": [
       "G1",
-      "G4",
-      "R8"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23250": [
       "G1",
+      "G2",
       "G3",
-      "G4"
+      "G5",
+      "G7",
+      "R3"
     ],
     "23251": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23252": [
       "G1",
+      "G2",
       "G3",
+      "G5",
+      "G7",
       "R7"
     ],
     "23253": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23254": [
       "G1",
-      "G3"
+      "G2",
+      "G3",
+      "G5",
+      "G7"
     ],
     "23255": [
       "G1",
-      "G3"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23256": [
       "G1",
+      "G2",
       "G3",
-      "R15"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23257": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7"
     ],
     "23258": [
       "G1",
+      "G2",
       "G3",
-      "R16"
+      "G5",
+      "G7",
+      "R6"
     ],
     "23259": [
       "G1",
+      "G2",
       "G3",
-      "R15"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23260": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23261": [
       "G1",
       "G2",
-      "R16"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23262": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23263": [
       "G1",
       "G2",
-      "R3"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23264": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23265": [
       "G1",
       "G2",
-      "R3"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23266": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23267": [
       "G1",
       "G2",
-      "R3"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23268": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23269": [
       "G1",
-      "G3"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R10"
     ],
     "23270": [
       "G1",
+      "G2",
       "G3",
-      "R13"
+      "G5",
+      "G7",
+      "R6"
     ],
     "23271": [
       "G1",
       "G2",
-      "R2"
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23272": [
       "G1",
       "G2",
-      "R19"
+      "G3",
+      "G5",
+      "G7"
     ],
     "23273": [
       "G1",
       "G2",
-      "R20"
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R10"
     ],
     "23274": [
       "G1",
       "G2",
-      "R20"
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R10"
     ],
     "23275": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23276": [
       "G1",
+      "G2",
       "G3",
-      "G4"
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23277": [
       "G1",
-      "G4",
-      "R10"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R9"
     ],
     "23278": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23279": [
       "G1",
-      "G4",
-      "R8"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23280": [
       "G1",
+      "G2",
       "G3",
-      "R10"
+      "G5",
+      "G7",
+      "R3"
     ],
     "23281": [
       "G1",
-      "G4",
-      "R11"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23282": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23283": [
       "G1",
-      "G4",
-      "R11"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23284": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23285": [
       "G1",
+      "G2",
+      "G3",
+      "G5",
+      "G7",
       "G4",
+      "G8",
       "R4"
     ],
     "23286": [
       "G1",
-      "G4",
-      "R14"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23287": [
       "G1",
+      "G2",
+      "G3",
+      "G5",
+      "G7",
       "G4",
-      "R4"
+      "G6",
+      "R4",
+      "R10"
     ],
     "23288": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23289": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23290": [
       "G1",
-      "G4",
-      "R17"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R5"
     ],
     "23291": [
       "G1",
+      "G2",
+      "G3",
+      "G5",
+      "G7",
       "G4",
-      "R4"
+      "G8",
+      "R4",
+      "R5"
     ],
     "23292": [
       "G1",
-      "G4",
-      "R11"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8"
     ],
     "23293": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R3",
+      "R10",
+      "R12"
     ],
     "23294": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R3",
+      "R10",
+      "R12"
     ],
     "23295": [
       "G1",
-      "G4",
-      "R8"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23296": [
       "G1",
+      "G2",
       "G3",
-      "R5"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23297": [
       "G1",
-      "G4",
-      "R18"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23298": [
       "G1",
-      "G4",
-      "R18"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23299": [
       "G1",
-      "G4",
-      "R18"
+      "G2",
+      "G3",
+      "G5",
+      "G7"
     ],
     "23300": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7"
     ],
     "23301": [
       "G1",
-      "G4",
-      "R17"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R5"
     ],
     "23302": [
       "G1",
+      "G2",
       "G3",
-      "G4"
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23303": [
       "G1",
+      "G2",
       "G3",
-      "R12"
+      "G5",
+      "G7",
+      "G8"
     ],
     "23304": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "R3",
+      "R12"
     ],
     "23305": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "R3",
+      "R12"
     ],
     "23306": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "R3",
+      "R12"
     ],
     "23307": [
       "G1",
       "G2",
-      "G4",
-      "R6"
+      "G3",
+      "G5",
+      "G7",
+      "R3",
+      "R5"
     ],
     "23308": [
       "G1",
       "G2",
-      "G4",
-      "R6"
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3",
+      "R12"
     ],
     "23309": [
       "G1",
       "G2",
-      "G4",
-      "R6"
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3",
+      "R5",
+      "R12"
     ],
     "23310": [
       "G1",
-      "G4",
-      "R9"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R8"
     ],
     "23311": [
       "G1",
       "G2",
-      "G4",
-      "R6"
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3",
+      "R5",
+      "R12"
     ],
     "23312": [
       "G1",
       "G2",
-      "G4",
-      "R8"
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3",
+      "R12"
     ],
     "23313": [
       "G1",
-      "G4",
-      "R10"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R3"
     ],
     "23314": [
       "G1",
-      "G4",
-      "R10"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R3"
     ],
     "23315": [
       "G1",
-      "G4",
-      "R11"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "G8",
+      "R8"
     ],
     "23316": [
       "G1",
-      "G4",
-      "R13"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R6"
     ],
     "23317": [
       "G1",
-      "G4",
-      "R19"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R8"
     ],
     "23318": [
       "G1",
-      "G4",
-      "R13"
+      "G2",
+      "G3",
+      "G5",
+      "G7",
+      "R6"
     ],
     "23319": [
       "G1",
+      "G2",
       "G3",
-      "R13"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ],
     "23320": [
       "G1",
       "G2",
-      "G4",
-      "R6"
+      "G3",
+      "G5",
+      "G7",
+      "G6",
+      "R3",
+      "R5",
+      "R10",
+      "R12"
     ],
     "23321": [
       "G1",
+      "G2",
       "G3",
-      "R13"
+      "G5",
+      "G7",
+      "G8",
+      "R6"
     ]
   }
 }

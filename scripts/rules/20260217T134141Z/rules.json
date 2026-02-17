@@ -1,0 +1,1107 @@
+{
+  "version": "4.0",
+  "mappings": {
+    "TB": "tuberculosis",
+    "LH": "labile essential hypertension",
+    "PFO": "patent foramen ovale",
+    "TEE": "transesophageal echocardiography",
+    "TIA": "transient ischemic attack",
+    "SCM": "sternocleidomastoid muscle",
+    "HKS": "heel-to-knee test",
+    "FNF": "finger-to-nose test",
+    "DTRs": "deep tendon reflexes",
+    "CTAB": "clear to auscultation bilaterally",
+    "PERRL": "pupils equal round reactive to light",
+    "EOMI": "extraocular movements intact",
+    "VFF": "visual fields full",
+    "IGG": "immunoglobulin G",
+    "LDL": "low density lipoprotein cholesterol measurement",
+    "CHOL/HD": "cholesterol to HDL ratio measurement",
+    "LDLcalc": "calculated low density lipoprotein cholesterol level",
+    "eAG": "estimated average glucose"
+  },
+  "g_rules": [
+    {
+      "id": "G1",
+      "rule": "For body structure spans, prefer the most specific anatomical structure concept that accurately represents the referenced anatomy. When multiple hierarchy types exist, prefer 'body structure' over functional or morphologic classifications.",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G2",
+      "rule": "For procedure spans, distinguish between the actual procedure being performed versus the measurement/test result. Select procedure concepts for actions/interventions and finding concepts for results/observations.",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G3",
+      "rule": "When a span appears in a negated context (preceded by 'no', 'denies', 'without', etc.), search for and select the positive form of the concept, not a 'absence of' variant.",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G4",
+      "rule": "For medication-related spans, distinguish between the medication substance, the therapy/administration procedure, and the prescription act based on context.",
+      "stages": [
+        "stage_3_select"
+      ]
+    }
+  ],
+  "structured_rules": [
+    {
+      "rule_id": "R1",
+      "concept_type": "Anatomical_Structure",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          91723000
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For anatomical terms, search using the exact anatomical name. For colloquial terms or abbreviations, expand to the full anatomical structure name."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select the most specific anatomical concept that matches the referenced structure. If multiple matches exist at different specificity levels, prefer the more specific concept unless context suggests a broader region.",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "morphologic abnormality",
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R2",
+      "concept_type": "Clinical_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          404684003
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the clinical observation or finding described. For symptom descriptions, use the medical term for the symptom."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts over disorder concepts when describing observations or symptoms. Choose the concept that best matches the clinical observation being documented.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "situation",
+          "qualifier value"
+        ]
+      }
+    },
+    {
+      "rule_id": "R3",
+      "concept_type": "Neurological_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          102957003,
+          298314008
+        ],
+        "sections": [
+          "neurologic",
+          "physical exam"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For neurological examination findings, search using the clinical term for the sign or symptom. For named neurological tests, search for the test name."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "For neurological signs, prefer specific neurological finding concepts. For examination techniques or tests, select procedure concepts.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "body structure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R4",
+      "concept_type": "Disease_Disorder",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          64572001
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the disease or disorder name. For abbreviated conditions, expand to the full clinical diagnosis name."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select disorder concepts for diagnosed conditions. Prefer the most specific disorder concept that matches the clinical context.",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": [
+          "finding",
+          "morphologic abnormality"
+        ]
+      }
+    },
+    {
+      "rule_id": "R5",
+      "concept_type": "Procedure",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          128927009
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the procedure or intervention name. For diagnostic tests, include the type of test in the search."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts for actions, interventions, or tests being performed. For test results or observations, select finding concepts instead.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding",
+          "observable entity"
+        ]
+      }
+    },
+    {
+      "rule_id": "R6",
+      "concept_type": "Laboratory_Test",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          386053000
+        ],
+        "sections": [
+          "pertinent results"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For laboratory test names, search for the full test name including what is being measured. For test result interpretations, search for the finding."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "For the test itself, select procedure concepts. For abnormal results or interpretations, select finding concepts.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance",
+          "organism"
+        ]
+      }
+    },
+    {
+      "rule_id": "R7",
+      "concept_type": "Morphologic_Abnormality",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          49755003
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the pathological or morphological abnormality described."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select morphologic abnormality concepts for structural changes or pathological findings.",
+        "preferred_hierarchy": "morphologic abnormality",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R8",
+      "concept_type": "Cranial_Nerve",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          25238003
+        ],
+        "sections": [
+          "physical exam",
+          "neurologic"
+        ],
+        "span_pattern": "single_letter"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For Roman numeral cranial nerve references, convert to the full cranial nerve name (e.g., 'III' to 'oculomotor nerve')."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select the specific cranial nerve body structure concept.",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "finding",
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R9",
+      "concept_type": "Medication_Therapy",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          416608005
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For medication names mentioned as treatments, search for the therapy or administration concept, not just the substance."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "When medication is mentioned as a treatment, prefer therapy/administration procedure concepts over substance concepts.",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      }
+    },
+    {
+      "rule_id": "R10",
+      "concept_type": "Imaging_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          365853002
+        ],
+        "sections": [
+          "pertinent results"
+        ],
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For imaging findings, search for the radiological finding or abnormality described."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select imaging finding concepts when available, otherwise general finding concepts.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure",
+          "body structure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R11",
+      "concept_type": "Vital_Sign",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          118227000
+        ],
+        "sections": [
+          "physical exam"
+        ],
+        "span_pattern": "abbreviation"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For vital sign abbreviations, expand to the full vital sign name (e.g., 'P' to 'pulse rate', 'R' to 'respiratory rate')."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts for vital sign observations.",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure",
+          "observable entity"
+        ]
+      }
+    },
+    {
+      "rule_id": "R12",
+      "concept_type": "Negated_Finding",
+      "applies_to": {
+        "ancestor_concept_ids": [
+          404684003
+        ],
+        "sections": null,
+        "span_pattern": null
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "For negated findings, search for the positive form of the finding or condition."
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select the standard concept for the finding, not 'absence of' variants, as negation is handled contextually.",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": [
+          "situation"
+        ]
+      }
+    }
+  ],
+  "annotation_rule_map": {
+    "66713": [
+      "G3",
+      "R2"
+    ],
+    "66714": [
+      "R1"
+    ],
+    "66716": [
+      "R5"
+    ],
+    "66719": [
+      "R4"
+    ],
+    "66720": [
+      "R4"
+    ],
+    "66722": [
+      "G3",
+      "R2"
+    ],
+    "66724": [
+      "R2"
+    ],
+    "66729": [
+      "R2"
+    ],
+    "66730": [
+      "R2"
+    ],
+    "66732": [
+      "R1"
+    ],
+    "66733": [
+      "R2"
+    ],
+    "66738": [
+      "R2"
+    ],
+    "66740": [
+      "R1"
+    ],
+    "66748": [
+      "R2"
+    ],
+    "66749": [
+      "R1"
+    ],
+    "66751": [
+      "R4"
+    ],
+    "66752": [
+      "R2"
+    ],
+    "66753": [
+      "R4"
+    ],
+    "66754": [
+      "R2"
+    ],
+    "66757": [
+      "R4"
+    ],
+    "66761": [
+      "R2"
+    ],
+    "66762": [
+      "R4"
+    ],
+    "66763": [
+      "R2"
+    ],
+    "66764": [
+      "R4"
+    ],
+    "66771": [
+      "R2"
+    ],
+    "66772": [
+      "R2"
+    ],
+    "66773": [
+      "R2"
+    ],
+    "66779": [
+      "R2"
+    ],
+    "66780": [
+      "R1"
+    ],
+    "66781": [
+      "R2"
+    ],
+    "66784": [
+      "R2",
+      "R3"
+    ],
+    "66785": [
+      "R1"
+    ],
+    "66786": [
+      "R4"
+    ],
+    "66787": [
+      "R5"
+    ],
+    "66788": [
+      "R4"
+    ],
+    "66789": [
+      "R7"
+    ],
+    "66790": [
+      "R2"
+    ],
+    "66791": [
+      "R2"
+    ],
+    "66793": [
+      "R9"
+    ],
+    "66795": [
+      "R4"
+    ],
+    "66797": [
+      "R5"
+    ],
+    "66798": [
+      "R5"
+    ],
+    "66801": [
+      "R1"
+    ],
+    "66802": [
+      "R2",
+      "R3"
+    ],
+    "66804": [
+      "R7"
+    ],
+    "66806": [
+      "R5"
+    ],
+    "66808": [
+      "R1"
+    ],
+    "66814": [
+      "R7"
+    ],
+    "66815": [
+      "R4"
+    ],
+    "66816": [
+      "R4"
+    ],
+    "66824": [
+      "R11"
+    ],
+    "66825": [
+      "R11"
+    ],
+    "66841": [
+      "R2"
+    ],
+    "66842": [
+      "R2",
+      "R3"
+    ],
+    "66859": [
+      "R2"
+    ],
+    "66869": [
+      "R2"
+    ],
+    "66870": [
+      "R2"
+    ],
+    "66871": [
+      "R2"
+    ],
+    "66873": [
+      "R2"
+    ],
+    "66874": [
+      "R2"
+    ],
+    "66875": [
+      "R2"
+    ],
+    "66876": [
+      "R2",
+      "R3"
+    ],
+    "66877": [
+      "R2"
+    ],
+    "66880": [
+      "R2",
+      "R3"
+    ],
+    "66881": [
+      "R2",
+      "R3"
+    ],
+    "66883": [
+      "R1",
+      "R8"
+    ],
+    "66884": [
+      "R1",
+      "R8"
+    ],
+    "66885": [
+      "R1",
+      "R8"
+    ],
+    "66889": [
+      "R2"
+    ],
+    "66890": [
+      "R2"
+    ],
+    "66891": [
+      "R5"
+    ],
+    "66892": [
+      "R4"
+    ],
+    "66894": [
+      "R7"
+    ],
+    "66895": [
+      "R1",
+      "R8"
+    ],
+    "66898": [
+      "R1",
+      "R8"
+    ],
+    "66899": [
+      "R2"
+    ],
+    "66903": [
+      "R1",
+      "R8"
+    ],
+    "66904": [
+      "R2"
+    ],
+    "66905": [
+      "R1",
+      "R8"
+    ],
+    "66906": [
+      "R1",
+      "R8"
+    ],
+    "66907": [
+      "R2"
+    ],
+    "66908": [
+      "R1",
+      "R8"
+    ],
+    "66909": [
+      "R1"
+    ],
+    "66911": [
+      "R2"
+    ],
+    "66914": [
+      "R1"
+    ],
+    "66915": [
+      "R2"
+    ],
+    "66917": [
+      "R2",
+      "R3"
+    ],
+    "66920": [
+      "R2"
+    ],
+    "66921": [
+      "R2"
+    ],
+    "66922": [
+      "R1"
+    ],
+    "66925": [
+      "R2",
+      "R3"
+    ],
+    "66926": [
+      "R2",
+      "R3"
+    ],
+    "66927": [
+      "R1"
+    ],
+    "66928": [
+      "R1"
+    ],
+    "66929": [
+      "R2",
+      "R3"
+    ],
+    "66930": [
+      "R2",
+      "R3"
+    ],
+    "66931": [
+      "R2",
+      "R3"
+    ],
+    "66932": [
+      "R5",
+      "R3"
+    ],
+    "66933": [
+      "R5",
+      "R3"
+    ],
+    "66934": [
+      "R5"
+    ],
+    "66935": [
+      "R2"
+    ],
+    "66936": [
+      "R2"
+    ],
+    "66938": [
+      "R2"
+    ],
+    "66939": [
+      "R2",
+      "R3"
+    ],
+    "66943": [
+      "R4"
+    ],
+    "66949": [
+      "R4"
+    ],
+    "66951": [
+      "R1"
+    ],
+    "66972": [
+      "R1"
+    ],
+    "66973": [
+      "R1"
+    ],
+    "66977": [
+      "R2"
+    ],
+    "67015": [
+      "R5",
+      "R6"
+    ],
+    "67018": [
+      "R5",
+      "R6"
+    ],
+    "67019": [
+      "R5",
+      "R6"
+    ],
+    "67021": [
+      "R2"
+    ],
+    "67028": [
+      "R5",
+      "R6"
+    ],
+    "67029": [
+      "R5",
+      "R6"
+    ],
+    "67053": [
+      "R5"
+    ],
+    "67058": [
+      "R1"
+    ],
+    "67059": [
+      "R1"
+    ],
+    "67060": [
+      "R1"
+    ],
+    "67063": [
+      "R7"
+    ],
+    "67064": [
+      "R1"
+    ],
+    "67065": [
+      "R2"
+    ],
+    "67068": [
+      "R1"
+    ],
+    "67069": [
+      "R1"
+    ],
+    "67070": [
+      "R1"
+    ],
+    "67071": [
+      "R1"
+    ],
+    "67073": [
+      "R4"
+    ],
+    "67074": [
+      "R1"
+    ],
+    "67075": [
+      "R7"
+    ],
+    "67076": [
+      "R1"
+    ],
+    "67078": [
+      "R1"
+    ],
+    "67079": [
+      "R7"
+    ],
+    "67081": [
+      "R1"
+    ],
+    "67082": [
+      "R1"
+    ],
+    "67083": [
+      "R4"
+    ],
+    "67085": [
+      "R1"
+    ],
+    "67086": [
+      "R1"
+    ],
+    "67091": [
+      "R1"
+    ],
+    "67092": [
+      "R1"
+    ],
+    "67093": [
+      "R1"
+    ],
+    "67094": [
+      "R1"
+    ],
+    "67095": [
+      "R1"
+    ],
+    "67096": [
+      "R1"
+    ],
+    "67100": [
+      "R1"
+    ],
+    "67101": [
+      "R1"
+    ],
+    "67102": [
+      "R1"
+    ],
+    "67105": [
+      "R1"
+    ],
+    "67106": [
+      "R4"
+    ],
+    "67107": [
+      "R1"
+    ],
+    "67108": [
+      "R1"
+    ],
+    "67111": [
+      "R4"
+    ],
+    "67112": [
+      "R1"
+    ],
+    "67118": [
+      "R1"
+    ],
+    "67119": [
+      "R1"
+    ],
+    "67122": [
+      "R1"
+    ],
+    "67138": [
+      "R1"
+    ],
+    "67141": [
+      "R4"
+    ],
+    "67142": [
+      "R4"
+    ],
+    "67143": [
+      "R4"
+    ],
+    "67147": [
+      "R1"
+    ],
+    "67149": [
+      "R1"
+    ],
+    "67150": [
+      "R5"
+    ],
+    "67151": [
+      "R5"
+    ],
+    "67152": [
+      "R5"
+    ],
+    "67153": [
+      "R2"
+    ],
+    "67154": [
+      "R7"
+    ],
+    "67155": [
+      "R5"
+    ],
+    "67156": [
+      "R5"
+    ],
+    "67157": [
+      "R1"
+    ],
+    "67159": [
+      "R5"
+    ],
+    "67160": [
+      "R1"
+    ],
+    "67165": [
+      "R4"
+    ],
+    "67167": [
+      "G3",
+      "R2"
+    ],
+    "67170": [
+      "R2"
+    ],
+    "67173": [
+      "R5"
+    ],
+    "67177": [
+      "R1"
+    ],
+    "67178": [
+      "R1"
+    ],
+    "67179": [
+      "R1"
+    ],
+    "67182": [
+      "R5"
+    ],
+    "67187": [
+      "R4"
+    ],
+    "67188": [
+      "R2"
+    ],
+    "67190": [
+      "R2"
+    ],
+    "67191": [
+      "R4"
+    ],
+    "67194": [
+      "R2",
+      "R10"
+    ],
+    "67196": [
+      "R5"
+    ],
+    "67200": [
+      "R1"
+    ],
+    "67201": [
+      "R4"
+    ],
+    "67202": [
+      "R4"
+    ],
+    "67203": [
+      "R4"
+    ],
+    "67204": [
+      "R5"
+    ],
+    "67205": [
+      "R5"
+    ],
+    "67207": [
+      "R5",
+      "R6"
+    ],
+    "67208": [
+      "R5",
+      "R6"
+    ],
+    "67209": [
+      "R9"
+    ],
+    "67210": [
+      "R5",
+      "R6"
+    ],
+    "67211": [
+      "R5",
+      "R6"
+    ],
+    "67212": [
+      "R5"
+    ],
+    "67213": [
+      "R2"
+    ],
+    "67214": [
+      "R5"
+    ],
+    "67217": [
+      "R5"
+    ],
+    "67218": [
+      "R5"
+    ],
+    "67219": [
+      "R5"
+    ],
+    "67220": [
+      "R9"
+    ],
+    "67221": [
+      "R5",
+      "R6"
+    ],
+    "67227": [
+      "R4"
+    ],
+    "67229": [
+      "R4"
+    ],
+    "67231": [
+      "R2"
+    ],
+    "67233": [
+      "R10"
+    ],
+    "67234": [
+      "R1"
+    ],
+    "67240": [
+      "R5"
+    ],
+    "67241": [
+      "R5"
+    ],
+    "67242": [
+      "R4"
+    ],
+    "67247": [
+      "R5"
+    ],
+    "67248": [
+      "R4"
+    ],
+    "67249": [
+      "R2",
+      "R10"
+    ],
+    "67251": [
+      "R4"
+    ],
+    "67253": [
+      "R5"
+    ],
+    "67254": [
+      "R5"
+    ],
+    "67257": [
+      "R2"
+    ],
+    "67258": [
+      "R5"
+    ],
+    "67259": [
+      "R5"
+    ],
+    "67261": [
+      "R1"
+    ],
+    "67264": [
+      "R9"
+    ],
+    "67266": [
+      "R4"
+    ],
+    "67268": [
+      "R4"
+    ],
+    "67269": [
+      "R4"
+    ],
+    "67271": [
+      "R4"
+    ],
+    "67273": [
+      "R4"
+    ],
+    "67281": [
+      "R5"
+    ],
+    "67291": [
+      "R5"
+    ],
+    "67293": [
+      "R4"
+    ],
+    "67294": [
+      "R2"
+    ],
+    "67296": [
+      "R5"
+    ],
+    "67297": [
+      "R1"
+    ],
+    "67301": [
+      "R5"
+    ],
+    "67305": [
+      "R5"
+    ],
+    "67306": [
+      "R9"
+    ]
+  },
+  "_iteration_meta": {
+    "note_index": 0,
+    "note_id": "18568215-DS-21",
+    "n_annotations": 238,
+    "extend_mode": false,
+    "existing_rules_path": null,
+    "sample_path": "scripts/sampled_annotations.json"
+  }
+}

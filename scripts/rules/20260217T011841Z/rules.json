@@ -1,0 +1,2733 @@
+{
+  "version": "3.0",
+  "mappings": {
+    "CTAB": "clear to auscultation bilaterally",
+    "TB": "tuberculosis",
+    "LH": "labile hypertension",
+    "OSA": "obstructive sleep apnea",
+    "HTN": "hypertension",
+    "HL": "hyperlipidemia",
+    "HLD": "hyperlipidemia",
+    "PMHx": "past medical history",
+    "LOC": "loss of consciousness",
+    "N/V": "nausea and vomiting",
+    "CP": "chest pain",
+    "SOB": "shortness of breath",
+    "RLE": "right lower extremity",
+    "RUE": "right upper extremity",
+    "NLFF": "nasolabial fold flattening",
+    "PFO": "patent foramen ovale",
+    "TEE": "transesophageal echocardiography",
+    "TTE": "transthoracic echocardiography",
+    "LDL": "low density lipoprotein cholesterol",
+    "FHx": "family history",
+    "FNF": "finger-to-nose test",
+    "HKS": "heel-to-knee test",
+    "USOH": "usual state of health",
+    "NAD": "no acute distress",
+    "OLT": "orthotopic liver transplantation",
+    "DVT": "deep venous thrombosis",
+    "SVC": "superior vena cava",
+    "PVT": "portal vein thrombosis",
+    "OLD": "orthotopic liver transplant",
+    "ATN": "acute tubular necrosis",
+    "HCV": "hepatitis C virus",
+    "VL": "viral load",
+    "SBP": "systolic blood pressure",
+    "PICC": "peripherally inserted central catheter",
+    "EP": "electrophysiology",
+    "RBBB": "right bundle branch block",
+    "AVNRT": "atrioventricular nodal reentrant tachycardia",
+    "SEM": "systolic ejection murmur",
+    "BM": "bone marrow",
+    "R": "right",
+    "L": "left",
+    "S": "ultrasonography",
+    "NSCLC": "non-small cell lung cancer",
+    "NSCLA": "non-small cell lung adenocarcinoma",
+    "PET/CT": "positron emission tomography computed tomography",
+    "PEERLA": "pupils equal round reactive to light and accommodation",
+    "OP": "oropharyngeal",
+    "LLQ": "left lower quadrant",
+    "XII": "hypoglossal nerve",
+    "proBNP": "pro-brain natriuretic peptide",
+    "LIPASE": "lipase",
+    "LDH": "lactate dehydrogenase",
+    "CXR": "chest x-ray",
+    "PNA": "pneumonia",
+    "PTX": "pneumothorax",
+    "RA": "room air",
+    "FDG": "fluorodeoxyglucose",
+    "Latex": "allergy to latex"
+  },
+  "g_rules": [
+    {
+      "id": "G1",
+      "rule": "When generating search terms, expand all medical abbreviations to their full clinical terms using standard medical nomenclature",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G2",
+      "rule": "For anatomical structures, if the span includes laterality information (left/right), preserve it in the search to find lateralized SNOMED concepts",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G3",
+      "rule": "When concepts involve negation or absence, search for the positive finding and look for negated forms in the candidate list",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G4",
+      "rule": "For medication names appearing in allergy sections, search for allergy-specific concepts rather than just the medication",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G5",
+      "rule": "When selecting among hierarchy types, prefer procedure hierarchies for actions/interventions, finding hierarchies for observations, and disorder hierarchies for diagnoses",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G6",
+      "rule": "For vital signs and measurements, prefer finding hierarchies over observable entity hierarchies when both are available",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G7",
+      "rule": "Consider the clinical section context to disambiguate terms that have multiple medical meanings",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G8",
+      "rule": "For complex clinical phrases, search using both the exact phrase and clinically equivalent synonym terms",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G9",
+      "rule": "When a span represents a differential diagnosis that was ruled out, still annotate it but prefer disorder hierarchy concepts",
+      "stages": [
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G10",
+      "rule": "For discharge instruction items, interpret action-oriented phrases as patient education or counseling procedures rather than just clinical findings",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G11",
+      "rule": "For post-surgical status notations using 's/p', search for the procedure concept rather than a post-procedure state finding",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G12",
+      "rule": "When encountering clinical status descriptions that describe a patient's overall presentation, search for comprehensive clinical assessment findings",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G13",
+      "rule": "For imaging and diagnostic test names, search for the procedure concept rather than the finding or result concept",
+      "stages": [
+        "stage_2_search",
+        "stage_3_select"
+      ]
+    },
+    {
+      "id": "G14",
+      "rule": "When a span describes progression or change in clinical status, search for concepts that capture the temporal aspect of the condition",
+      "stages": [
+        "stage_2_search"
+      ]
+    },
+    {
+      "id": "G15",
+      "rule": "For laboratory test names, prefer procedure concepts over observable entity concepts, and never select the substance being measured",
+      "stages": [
+        "stage_3_select"
+      ]
+    }
+  ],
+  "structured_rules": [
+    {
+      "rule_id": "R1",
+      "concept_type": "Physical_Exam_Abbreviation",
+      "stage_1_span": {
+        "label": "Physical_Exam_Abbreviation",
+        "description": "Single capital letters or abbreviations in Physical Exam sections representing examination systems or findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand single letters to their anatomical meaning based on standard neurological exam conventions and search for the corresponding anatomical structure"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select body structure concepts for anatomical references, nerve structure concepts for cranial nerves",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R2",
+      "concept_type": "Allergy_Medication",
+      "stage_1_span": {
+        "label": "Allergy_Medication",
+        "description": "Medication names appearing in allergy or adverse drug reaction sections"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for allergy to the medication rather than the medication itself"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select allergy or adverse reaction concepts specific to the mentioned drug",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "substance",
+          "product"
+        ]
+      }
+    },
+    {
+      "rule_id": "R3",
+      "concept_type": "Clinical_Procedure",
+      "stage_1_span": {
+        "label": "Clinical_Procedure",
+        "description": "References to medical procedures, tests, or interventions"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Use the standard medical name for the procedure, expanding any abbreviations"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer procedure concepts over finding concepts for active interventions",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R4",
+      "concept_type": "Negated_Finding",
+      "stage_1_span": {
+        "label": "Negated_Finding",
+        "description": "Clinical findings that are explicitly negated or noted as absent"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the positive form of the finding, as SNOMED often has specific absent/negative concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that indicate absence or negation of the finding",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R5",
+      "concept_type": "Functional_Status",
+      "stage_1_span": {
+        "label": "Functional_Status",
+        "description": "Descriptions of patient abilities, activities, or functional capabilities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for functional assessment or ability-related concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer finding concepts that describe functional abilities or limitations",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "procedure"
+        ]
+      }
+    },
+    {
+      "rule_id": "R6",
+      "concept_type": "Diagnostic_Finding",
+      "stage_1_span": {
+        "label": "Diagnostic_Finding",
+        "description": "Diagnoses, conditions, or pathological findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Use standard medical terminology for the condition, including common clinical synonyms"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer disorder concepts for diseases, morphologic abnormality for pathological changes",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R7",
+      "concept_type": "Anatomical_Structure",
+      "stage_1_span": {
+        "label": "Anatomical_Structure",
+        "description": "References to body parts, organs, or anatomical regions"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Include laterality and specificity modifiers in the search"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select the most specific anatomical concept that matches the clinical context",
+        "preferred_hierarchy": "body structure",
+        "reject_hierarchies": [
+          "finding",
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R8",
+      "concept_type": "Clinical_Observation",
+      "stage_1_span": {
+        "label": "Clinical_Observation",
+        "description": "Observable clinical signs, symptoms, or examination findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Use clinical terminology that captures the observed phenomenon"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer finding concepts that represent clinical observations",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R9",
+      "concept_type": "Care_Context",
+      "stage_1_span": {
+        "label": "Care_Context",
+        "description": "References to healthcare services, departments, or care settings"
+      },
+      "stage_2_search": {
+        "filtering_logic": "Drop if the concept cannot be mapped to a standard SNOMED care setting",
+        "intent_translation": "Search for healthcare service or environment concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts representing healthcare services or settings when available",
+        "preferred_hierarchy": "environment",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R10",
+      "concept_type": "Implicit_Concept",
+      "stage_1_span": {
+        "label": "Implicit_Concept",
+        "description": "Text that implies a clinical concept through context rather than explicit naming"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Transform the implicit reference into the explicit clinical concept it represents"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select concepts that capture the implied clinical meaning rather than literal interpretation",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R11",
+      "concept_type": "Single_Letter_Abbreviation",
+      "stage_1_span": {
+        "label": "Single_Letter_Abbreviation",
+        "description": "Single letters used as medical abbreviations in clinical contexts"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand based on section context and standard medical abbreviation conventions"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Use section context to disambiguate when multiple expansions are possible",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R12",
+      "concept_type": "Patient_Education",
+      "stage_1_span": {
+        "label": "Patient_Education",
+        "description": "References to patient education, counseling, or discharge instructions"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for patient education or counseling procedure concepts"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer procedure concepts related to education or counseling",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R13",
+      "concept_type": "Pain_Characteristic",
+      "stage_1_span": {
+        "label": "Pain_Characteristic",
+        "description": "Descriptions of pain quality, intensity, or radiation patterns"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for pain-related findings that describe the specific characteristic mentioned"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that capture the pain quality or pattern described",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": [
+          "disorder"
+        ]
+      }
+    },
+    {
+      "rule_id": "R14",
+      "concept_type": "Medication_Administration",
+      "stage_1_span": {
+        "label": "Medication_Administration",
+        "description": "References to ongoing medication therapy or treatment regimens"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for therapy or medication administration procedure concepts rather than just the medication substance"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer procedure concepts for ongoing therapies over substance concepts",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "substance"
+        ]
+      }
+    },
+    {
+      "rule_id": "R15",
+      "concept_type": "Laboratory_Test",
+      "stage_1_span": {
+        "label": "Laboratory_Test",
+        "description": "Laboratory tests, measurements, or diagnostic evaluations"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the procedure concept for the test or measurement"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer procedure concepts for the test over finding concepts for the result",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "observable entity"
+        ]
+      }
+    },
+    {
+      "rule_id": "R16",
+      "concept_type": "Clinical_Status_Change",
+      "stage_1_span": {
+        "label": "Clinical_Status_Change",
+        "description": "Descriptions of changes in patient condition, worsening, or improvement"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for clinical course or patient condition findings"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select finding concepts that represent the clinical trajectory or status change",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R17",
+      "concept_type": "Surgical_Status",
+      "stage_1_span": {
+        "label": "Surgical_Status",
+        "description": "Post-surgical status indicators using 's/p' notation"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for the surgical procedure itself, not the post-procedure state"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts for the surgery performed",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": [
+          "finding"
+        ]
+      }
+    },
+    {
+      "rule_id": "R18",
+      "concept_type": "Metastatic_Disease",
+      "stage_1_span": {
+        "label": "Metastatic_Disease",
+        "description": "References to metastatic cancer, staging, or spread patterns"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for concepts that include staging information or metastatic qualifiers"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer disorder concepts that include TNM staging or metastatic qualifiers",
+        "preferred_hierarchy": "disorder",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R19",
+      "concept_type": "Morphologic_Finding",
+      "stage_1_span": {
+        "label": "Morphologic_Finding",
+        "description": "Pathological or morphological descriptors like mass, nodule, lesion, or structural abnormalities"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for morphologic abnormality concepts, including location-specific variants when anatomical context is provided"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer morphologic abnormality concepts for structural changes, finding concepts for clinical observations of these changes",
+        "preferred_hierarchy": "morphologic abnormality",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R20",
+      "concept_type": "Respiratory_Finding",
+      "stage_1_span": {
+        "label": "Respiratory_Finding",
+        "description": "Breathing patterns, respiratory symptoms, or oxygen therapy references"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for respiratory-specific findings or oxygen therapy procedures"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "For oxygen therapy, prefer procedure concepts; for breathing patterns, prefer finding concepts",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R21",
+      "concept_type": "Clinical_Action",
+      "stage_1_span": {
+        "label": "Clinical_Action",
+        "description": "Action verbs in clinical context that represent procedures or examinations"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Convert action verbs to their corresponding medical procedure terms"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select procedure concepts that match the clinical action described",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R22",
+      "concept_type": "Cardiology_Abbreviation",
+      "stage_1_span": {
+        "label": "Cardiology_Abbreviation",
+        "description": "Abbreviated terms commonly used in cardiac examinations and reports"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand cardiac abbreviations to their full clinical terms"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select cardiovascular-specific concepts when available",
+        "preferred_hierarchy": null,
+        "reject_hierarchies": []
+      }
+    }
+  ],
+  "annotation_rule_map": {
+    "66713": [
+      "G3",
+      "R8"
+    ],
+    "66714": [
+      "G2",
+      "R7"
+    ],
+    "66716": [
+      "G5",
+      "R3"
+    ],
+    "66719": [
+      "G6",
+      "R6"
+    ],
+    "66720": [
+      "G8",
+      "R6"
+    ],
+    "66722": [
+      "G3",
+      "R8"
+    ],
+    "66724": [
+      "R8"
+    ],
+    "66729": [
+      "R8"
+    ],
+    "66730": [
+      "R8"
+    ],
+    "66732": [
+      "G2",
+      "R7"
+    ],
+    "66733": [
+      "G2",
+      "R8"
+    ],
+    "66738": [
+      "R8"
+    ],
+    "66740": [
+      "R7"
+    ],
+    "66748": [
+      "R8"
+    ],
+    "66749": [
+      "R7"
+    ],
+    "66751": [
+      "G1",
+      "R6"
+    ],
+    "66752": [
+      "R8"
+    ],
+    "66753": [
+      "G8",
+      "R6"
+    ],
+    "66754": [
+      "R6"
+    ],
+    "66757": [
+      "R6"
+    ],
+    "66761": [
+      "R5"
+    ],
+    "66762": [
+      "G1",
+      "R6"
+    ],
+    "66763": [
+      "R8"
+    ],
+    "66764": [
+      "R6"
+    ],
+    "66771": [
+      "R8"
+    ],
+    "66772": [
+      "G2",
+      "R8"
+    ],
+    "66773": [
+      "G2",
+      "R8"
+    ],
+    "66779": [
+      "R5"
+    ],
+    "66780": [
+      "G2",
+      "R7"
+    ],
+    "66781": [
+      "R8"
+    ],
+    "66784": [
+      "R6"
+    ],
+    "66785": [
+      "G2",
+      "R7"
+    ],
+    "66786": [
+      "G2",
+      "R6"
+    ],
+    "66787": [
+      "R9"
+    ],
+    "66788": [
+      "G8",
+      "R6"
+    ],
+    "66789": [
+      "R6"
+    ],
+    "66790": [
+      "R9"
+    ],
+    "66791": [
+      "R8"
+    ],
+    "66793": [
+      "G4",
+      "R3"
+    ],
+    "66795": [
+      "G1",
+      "R6"
+    ],
+    "66797": [
+      "G1",
+      "R3"
+    ],
+    "66798": [
+      "R3"
+    ],
+    "66801": [
+      "G2",
+      "R7"
+    ],
+    "66802": [
+      "R8"
+    ],
+    "66804": [
+      "R6"
+    ],
+    "66806": [
+      "R3"
+    ],
+    "66808": [
+      "R7"
+    ],
+    "66814": [
+      "R6"
+    ],
+    "66815": [
+      "G2",
+      "R6"
+    ],
+    "66816": [
+      "R6"
+    ],
+    "66824": [
+      "G1",
+      "R11"
+    ],
+    "66825": [
+      "G1",
+      "R11"
+    ],
+    "66841": [
+      "G2",
+      "R8"
+    ],
+    "66842": [
+      "G3",
+      "R8"
+    ],
+    "66859": [
+      "G2",
+      "R8"
+    ],
+    "66869": [
+      "R8"
+    ],
+    "66870": [
+      "R5"
+    ],
+    "66871": [
+      "R5"
+    ],
+    "66873": [
+      "R5"
+    ],
+    "66874": [
+      "R5"
+    ],
+    "66875": [
+      "R5"
+    ],
+    "66876": [
+      "G3",
+      "R8"
+    ],
+    "66877": [
+      "R8"
+    ],
+    "66880": [
+      "G3",
+      "R8"
+    ],
+    "66881": [
+      "G3",
+      "R8"
+    ],
+    "66883": [
+      "G1",
+      "R1"
+    ],
+    "66884": [
+      "G1",
+      "R1"
+    ],
+    "66885": [
+      "G1",
+      "R1"
+    ],
+    "66889": [
+      "G1",
+      "R8"
+    ],
+    "66890": [
+      "R8"
+    ],
+    "66891": [
+      "R3"
+    ],
+    "66892": [
+      "G3",
+      "R6"
+    ],
+    "66894": [
+      "R6"
+    ],
+    "66895": [
+      "G1",
+      "R1"
+    ],
+    "66898": [
+      "G1",
+      "R1"
+    ],
+    "66899": [
+      "G3",
+      "R8"
+    ],
+    "66903": [
+      "G1",
+      "R1"
+    ],
+    "66904": [
+      "R8"
+    ],
+    "66905": [
+      "G1",
+      "R1"
+    ],
+    "66906": [
+      "G1",
+      "R1"
+    ],
+    "66907": [
+      "R5"
+    ],
+    "66908": [
+      "G1",
+      "R1"
+    ],
+    "66909": [
+      "G1",
+      "R7"
+    ],
+    "66911": [
+      "R5"
+    ],
+    "66914": [
+      "G1",
+      "G2",
+      "R7"
+    ],
+    "66915": [
+      "G3",
+      "R8"
+    ],
+    "66917": [
+      "G3",
+      "R8"
+    ],
+    "66920": [
+      "R8"
+    ],
+    "66921": [
+      "R8"
+    ],
+    "66922": [
+      "G1",
+      "R7"
+    ],
+    "66925": [
+      "R8"
+    ],
+    "66926": [
+      "R8"
+    ],
+    "66927": [
+      "G2",
+      "R7"
+    ],
+    "66928": [
+      "R7"
+    ],
+    "66929": [
+      "G3",
+      "R8"
+    ],
+    "66930": [
+      "G3",
+      "R8"
+    ],
+    "66931": [
+      "G3",
+      "R8"
+    ],
+    "66932": [
+      "G1",
+      "R3"
+    ],
+    "66933": [
+      "G1",
+      "R3"
+    ],
+    "66934": [
+      "R3"
+    ],
+    "66935": [
+      "R5"
+    ],
+    "66936": [
+      "R8"
+    ],
+    "66938": [
+      "R5"
+    ],
+    "66939": [
+      "R8"
+    ],
+    "66943": [
+      "R6"
+    ],
+    "66949": [
+      "R6"
+    ],
+    "66951": [
+      "R7"
+    ],
+    "66972": [
+      "R7"
+    ],
+    "66973": [
+      "R7"
+    ],
+    "66977": [
+      "R8"
+    ],
+    "67015": [
+      "G1",
+      "R3"
+    ],
+    "67018": [
+      "G1",
+      "R3"
+    ],
+    "67019": [
+      "G1",
+      "R3"
+    ],
+    "67021": [
+      "R8"
+    ],
+    "67028": [
+      "G1",
+      "R3"
+    ],
+    "67029": [
+      "G1",
+      "R3"
+    ],
+    "67053": [
+      "R3"
+    ],
+    "67058": [
+      "G2",
+      "R7"
+    ],
+    "67059": [
+      "G2",
+      "R7"
+    ],
+    "67060": [
+      "G2",
+      "R7"
+    ],
+    "67063": [
+      "R6"
+    ],
+    "67064": [
+      "G2",
+      "R7"
+    ],
+    "67065": [
+      "R8"
+    ],
+    "67068": [
+      "R7"
+    ],
+    "67069": [
+      "R7"
+    ],
+    "67070": [
+      "R7"
+    ],
+    "67071": [
+      "R7"
+    ],
+    "67073": [
+      "R6"
+    ],
+    "67074": [
+      "R7"
+    ],
+    "67075": [
+      "R6"
+    ],
+    "67076": [
+      "G2",
+      "R7"
+    ],
+    "67078": [
+      "G2",
+      "R7"
+    ],
+    "67079": [
+      "R6"
+    ],
+    "67081": [
+      "G2",
+      "R7"
+    ],
+    "67082": [
+      "G2",
+      "R7"
+    ],
+    "67083": [
+      "G2",
+      "R6"
+    ],
+    "67085": [
+      "R7"
+    ],
+    "67086": [
+      "G2",
+      "R7"
+    ],
+    "67091": [
+      "R7"
+    ],
+    "67092": [
+      "G2",
+      "R7"
+    ],
+    "67093": [
+      "G2",
+      "R7"
+    ],
+    "67094": [
+      "G2",
+      "R7"
+    ],
+    "67095": [
+      "G2",
+      "R7"
+    ],
+    "67096": [
+      "G2",
+      "R7"
+    ],
+    "67100": [
+      "R7"
+    ],
+    "67101": [
+      "R7"
+    ],
+    "67102": [
+      "G2",
+      "R7"
+    ],
+    "67105": [
+      "R7"
+    ],
+    "67106": [
+      "G2",
+      "R6"
+    ],
+    "67107": [
+      "G2",
+      "R7"
+    ],
+    "67108": [
+      "R7"
+    ],
+    "67111": [
+      "R6"
+    ],
+    "67112": [
+      "R7"
+    ],
+    "67118": [
+      "R7"
+    ],
+    "67119": [
+      "R7"
+    ],
+    "67122": [
+      "G2",
+      "R7"
+    ],
+    "67138": [
+      "R7"
+    ],
+    "67141": [
+      "R6"
+    ],
+    "67142": [
+      "R6"
+    ],
+    "67143": [
+      "R6"
+    ],
+    "67147": [
+      "G2",
+      "R7"
+    ],
+    "67149": [
+      "R7"
+    ],
+    "67150": [
+      "R3"
+    ],
+    "67151": [
+      "R3"
+    ],
+    "67152": [
+      "R3"
+    ],
+    "67153": [
+      "R9"
+    ],
+    "67154": [
+      "R6"
+    ],
+    "67155": [
+      "R3"
+    ],
+    "67156": [
+      "R3"
+    ],
+    "67157": [
+      "R7"
+    ],
+    "67159": [
+      "R3"
+    ],
+    "67160": [
+      "R7"
+    ],
+    "67165": [
+      "G8",
+      "R6"
+    ],
+    "67167": [
+      "G3",
+      "R8"
+    ],
+    "67170": [
+      "R6"
+    ],
+    "67173": [
+      "R3"
+    ],
+    "67177": [
+      "R7"
+    ],
+    "67178": [
+      "R7"
+    ],
+    "67179": [
+      "R7"
+    ],
+    "67182": [
+      "G1",
+      "R3"
+    ],
+    "67187": [
+      "R6"
+    ],
+    "67188": [
+      "R8"
+    ],
+    "67190": [
+      "R9"
+    ],
+    "67191": [
+      "R6"
+    ],
+    "67194": [
+      "R8"
+    ],
+    "67196": [
+      "R3"
+    ],
+    "67200": [
+      "R7"
+    ],
+    "67201": [
+      "R6"
+    ],
+    "67202": [
+      "R6"
+    ],
+    "67203": [
+      "R6"
+    ],
+    "67204": [
+      "R3"
+    ],
+    "67205": [
+      "R3"
+    ],
+    "67207": [
+      "G1",
+      "R3"
+    ],
+    "67208": [
+      "G1",
+      "R3"
+    ],
+    "67209": [
+      "R3"
+    ],
+    "67210": [
+      "G1",
+      "R3"
+    ],
+    "67211": [
+      "G1",
+      "R3"
+    ],
+    "67212": [
+      "R12"
+    ],
+    "67213": [
+      "G3",
+      "R8"
+    ],
+    "67214": [
+      "R12"
+    ],
+    "67217": [
+      "R12"
+    ],
+    "67218": [
+      "R3"
+    ],
+    "67219": [
+      "R3"
+    ],
+    "67220": [
+      "R3"
+    ],
+    "67221": [
+      "G1",
+      "R3"
+    ],
+    "67227": [
+      "R6"
+    ],
+    "67229": [
+      "R6"
+    ],
+    "67231": [
+      "R8"
+    ],
+    "67233": [
+      "R8"
+    ],
+    "67234": [
+      "R7"
+    ],
+    "67240": [
+      "R3"
+    ],
+    "67241": [
+      "R3"
+    ],
+    "67242": [
+      "R6"
+    ],
+    "67247": [
+      "R9"
+    ],
+    "67248": [
+      "R6"
+    ],
+    "67249": [
+      "R8"
+    ],
+    "67251": [
+      "R6"
+    ],
+    "67253": [
+      "R3"
+    ],
+    "67254": [
+      "R3"
+    ],
+    "67257": [
+      "R8"
+    ],
+    "67258": [
+      "R12"
+    ],
+    "67259": [
+      "R3"
+    ],
+    "67261": [
+      "R7"
+    ],
+    "67264": [
+      "G4",
+      "R3"
+    ],
+    "67266": [
+      "G1",
+      "R6"
+    ],
+    "67268": [
+      "R6"
+    ],
+    "67269": [
+      "R6"
+    ],
+    "67271": [
+      "R6"
+    ],
+    "67273": [
+      "R6"
+    ],
+    "67281": [
+      "R12"
+    ],
+    "67291": [
+      "R3"
+    ],
+    "67293": [
+      "R6"
+    ],
+    "67294": [
+      "R8"
+    ],
+    "67296": [
+      "R3"
+    ],
+    "67297": [
+      "R7"
+    ],
+    "67301": [
+      "R9"
+    ],
+    "67305": [
+      "R3"
+    ],
+    "67306": [
+      "R3"
+    ],
+    "49870": [
+      "G1",
+      "R6"
+    ],
+    "49871": [
+      "G1",
+      "R17"
+    ],
+    "49872": [
+      "R8"
+    ],
+    "49873": [
+      "R13"
+    ],
+    "49878": [
+      "G3",
+      "R13"
+    ],
+    "49880": [
+      "R6"
+    ],
+    "49885": [
+      "R3"
+    ],
+    "49886": [
+      "G2",
+      "R7"
+    ],
+    "49887": [
+      "R3"
+    ],
+    "49888": [
+      "R3"
+    ],
+    "49889": [
+      "R14"
+    ],
+    "49894": [
+      "G2",
+      "R7"
+    ],
+    "49895": [
+      "R14"
+    ],
+    "49911": [
+      "G1",
+      "R8"
+    ],
+    "49917": [
+      "R8"
+    ],
+    "49918": [
+      "R8"
+    ],
+    "49923": [
+      "G9",
+      "R10"
+    ],
+    "49924": [
+      "G9",
+      "R10"
+    ],
+    "49926": [
+      "R8"
+    ],
+    "49929": [
+      "G3",
+      "R4"
+    ],
+    "49939": [
+      "G1",
+      "R6"
+    ],
+    "49940": [
+      "R3"
+    ],
+    "49942": [
+      "R6"
+    ],
+    "49943": [
+      "R6"
+    ],
+    "49944": [
+      "R8"
+    ],
+    "49946": [
+      "R6"
+    ],
+    "49947": [
+      "R6"
+    ],
+    "49949": [
+      "R6"
+    ],
+    "49950": [
+      "R8"
+    ],
+    "49951": [
+      "G1",
+      "R6"
+    ],
+    "49953": [
+      "G1",
+      "R3"
+    ],
+    "49955": [
+      "G1",
+      "R6"
+    ],
+    "49956": [
+      "R8"
+    ],
+    "49957": [
+      "R8"
+    ],
+    "49959": [
+      "G1",
+      "R15"
+    ],
+    "49962": [
+      "G1",
+      "R8"
+    ],
+    "49963": [
+      "G1",
+      "R3"
+    ],
+    "49964": [
+      "R8"
+    ],
+    "49965": [
+      "R6"
+    ],
+    "49966": [
+      "R6"
+    ],
+    "49967": [
+      "R6"
+    ],
+    "49968": [
+      "R6"
+    ],
+    "49969": [
+      "G1",
+      "G2",
+      "R11"
+    ],
+    "49970": [
+      "R7"
+    ],
+    "49971": [
+      "R6"
+    ],
+    "49972": [
+      "G1",
+      "G2",
+      "R7"
+    ],
+    "49973": [
+      "R6"
+    ],
+    "49974": [
+      "R3"
+    ],
+    "49975": [
+      "R6"
+    ],
+    "49976": [
+      "R3"
+    ],
+    "49977": [
+      "R3"
+    ],
+    "49978": [
+      "R8"
+    ],
+    "49981": [
+      "G1",
+      "R6"
+    ],
+    "49982": [
+      "R3"
+    ],
+    "49984": [
+      "R8"
+    ],
+    "49985": [
+      "G1",
+      "R6"
+    ],
+    "49986": [
+      "R3"
+    ],
+    "49988": [
+      "R8"
+    ],
+    "49989": [
+      "R6"
+    ],
+    "49990": [
+      "R3"
+    ],
+    "49991": [
+      "R6"
+    ],
+    "49992": [
+      "R6"
+    ],
+    "49993": [
+      "R3"
+    ],
+    "49994": [
+      "G2",
+      "R3"
+    ],
+    "49995": [
+      "R6"
+    ],
+    "49996": [
+      "R6"
+    ],
+    "49999": [
+      "R3"
+    ],
+    "50000": [
+      "R3"
+    ],
+    "50001": [
+      "R3"
+    ],
+    "50002": [
+      "R3"
+    ],
+    "50003": [
+      "R6"
+    ],
+    "50004": [
+      "R6"
+    ],
+    "50005": [
+      "R3"
+    ],
+    "50006": [
+      "R8"
+    ],
+    "50008": [
+      "G1",
+      "R6"
+    ],
+    "50009": [
+      "R6"
+    ],
+    "50016": [
+      "G2",
+      "R7"
+    ],
+    "50020": [
+      "R7"
+    ],
+    "50026": [
+      "G1",
+      "R8"
+    ],
+    "50027": [
+      "R7"
+    ],
+    "50037": [
+      "R8"
+    ],
+    "50039": [
+      "R7"
+    ],
+    "50040": [
+      "G1",
+      "G2",
+      "R7"
+    ],
+    "50043": [
+      "R3"
+    ],
+    "50044": [
+      "R8"
+    ],
+    "50045": [
+      "R3"
+    ],
+    "50048": [
+      "R3"
+    ],
+    "50057": [
+      "G12",
+      "R8"
+    ],
+    "50060": [
+      "R7"
+    ],
+    "50068": [
+      "R8"
+    ],
+    "50071": [
+      "R8"
+    ],
+    "50081": [
+      "R8"
+    ],
+    "50082": [
+      "G1",
+      "G2",
+      "R7"
+    ],
+    "50085": [
+      "R8"
+    ],
+    "50088": [
+      "R8"
+    ],
+    "50124": [
+      "R15"
+    ],
+    "50126": [
+      "R15"
+    ],
+    "50132": [
+      "R8"
+    ],
+    "50167": [
+      "R8"
+    ],
+    "50168": [
+      "R8"
+    ],
+    "50169": [
+      "R6"
+    ],
+    "50170": [
+      "R3"
+    ],
+    "50172": [
+      "R8"
+    ],
+    "50174": [
+      "R6"
+    ],
+    "50178": [
+      "R7"
+    ],
+    "50179": [
+      "R7"
+    ],
+    "50181": [
+      "R8"
+    ],
+    "50188": [
+      "R7"
+    ],
+    "50189": [
+      "R6"
+    ],
+    "50193": [
+      "R6"
+    ],
+    "50195": [
+      "G1",
+      "R8"
+    ],
+    "50196": [
+      "G1",
+      "R7"
+    ],
+    "50207": [
+      "G2",
+      "R7"
+    ],
+    "50209": [
+      "G1",
+      "R17"
+    ],
+    "50215": [
+      "R6"
+    ],
+    "50216": [
+      "G1",
+      "R15"
+    ],
+    "50218": [
+      "G1",
+      "R15"
+    ],
+    "50219": [
+      "R14"
+    ],
+    "50221": [
+      "R8"
+    ],
+    "50222": [
+      "R8"
+    ],
+    "50223": [
+      "R8"
+    ],
+    "50224": [
+      "G1",
+      "R6"
+    ],
+    "50229": [
+      "R8"
+    ],
+    "50230": [
+      "R8"
+    ],
+    "50231": [
+      "R8"
+    ],
+    "50232": [
+      "R3"
+    ],
+    "50233": [
+      "R14"
+    ],
+    "50239": [
+      "G1",
+      "R6"
+    ],
+    "50240": [
+      "G1",
+      "R17"
+    ],
+    "50241": [
+      "R3"
+    ],
+    "50243": [
+      "G1",
+      "R6"
+    ],
+    "50244": [
+      "G1",
+      "R15"
+    ],
+    "50247": [
+      "R6"
+    ],
+    "50248": [
+      "R6"
+    ],
+    "50249": [
+      "R8"
+    ],
+    "50256": [
+      "R14"
+    ],
+    "50265": [
+      "R14"
+    ],
+    "50269": [
+      "G1",
+      "R8"
+    ],
+    "50272": [
+      "R3"
+    ],
+    "50273": [
+      "R8"
+    ],
+    "50276": [
+      "R3"
+    ],
+    "50277": [
+      "R8"
+    ],
+    "50280": [
+      "R8"
+    ],
+    "50285": [
+      "R6"
+    ],
+    "50286": [
+      "R15"
+    ],
+    "50288": [
+      "R3"
+    ],
+    "50290": [
+      "R3"
+    ],
+    "50291": [
+      "R3"
+    ],
+    "50295": [
+      "G3",
+      "R4"
+    ],
+    "50297": [
+      "R15"
+    ],
+    "50303": [
+      "R8"
+    ],
+    "50304": [
+      "R8"
+    ],
+    "50305": [
+      "R8"
+    ],
+    "50307": [
+      "R8"
+    ],
+    "50311": [
+      "R8"
+    ],
+    "50312": [
+      "G1",
+      "R3"
+    ],
+    "50317": [
+      "R16"
+    ],
+    "50318": [
+      "R14"
+    ],
+    "50328": [
+      "R8"
+    ],
+    "50330": [
+      "R16"
+    ],
+    "50333": [
+      "R8"
+    ],
+    "50334": [
+      "R8"
+    ],
+    "50337": [
+      "R8"
+    ],
+    "50340": [
+      "R8"
+    ],
+    "50341": [
+      "R8"
+    ],
+    "50343": [
+      "G1",
+      "R8"
+    ],
+    "50344": [
+      "R6"
+    ],
+    "50346": [
+      "R6"
+    ],
+    "50352": [
+      "R5"
+    ],
+    "50353": [
+      "G10",
+      "R8"
+    ],
+    "50354": [
+      "R8"
+    ],
+    "50357": [
+      "G10",
+      "R8"
+    ],
+    "50360": [
+      "R8"
+    ],
+    "50362": [
+      "R8"
+    ],
+    "50363": [
+      "G10",
+      "R3"
+    ],
+    "50364": [
+      "G10",
+      "R16"
+    ],
+    "50365": [
+      "G10",
+      "R14"
+    ],
+    "38855": [
+      "G1",
+      "G4"
+    ],
+    "38857": [
+      "G1",
+      "R3"
+    ],
+    "38858": [
+      "R3",
+      "R10"
+    ],
+    "38859": [
+      "G1",
+      "R3"
+    ],
+    "38860": [
+      "G1",
+      "R6",
+      "R18"
+    ],
+    "38861": [
+      "G14",
+      "R16"
+    ],
+    "38865": [
+      "R21"
+    ],
+    "38866": [
+      "G1",
+      "G2",
+      "R7"
+    ],
+    "38867": [
+      "R3"
+    ],
+    "38868": [
+      "G1",
+      "R6"
+    ],
+    "38869": [
+      "G1",
+      "G13",
+      "R3"
+    ],
+    "38886": [
+      "R8"
+    ],
+    "38887": [
+      "R7"
+    ],
+    "38888": [
+      "R19"
+    ],
+    "38889": [
+      "R7"
+    ],
+    "38891": [
+      "R19"
+    ],
+    "38893": [
+      "R19"
+    ],
+    "38894": [
+      "R19"
+    ],
+    "38895": [
+      "R7"
+    ],
+    "38896": [
+      "R19"
+    ],
+    "38897": [
+      "R7"
+    ],
+    "38898": [
+      "R6"
+    ],
+    "38899": [
+      "R7"
+    ],
+    "38900": [
+      "R19"
+    ],
+    "38901": [
+      "R7"
+    ],
+    "38902": [
+      "R19"
+    ],
+    "38903": [
+      "R7"
+    ],
+    "38904": [
+      "R19"
+    ],
+    "38905": [
+      "R7"
+    ],
+    "209074": [
+      "R7"
+    ],
+    "38907": [
+      "R7"
+    ],
+    "38908": [
+      "R7"
+    ],
+    "38909": [
+      "R7"
+    ],
+    "38910": [
+      "G7",
+      "R11"
+    ],
+    "38913": [
+      "R6"
+    ],
+    "38914": [
+      "R19"
+    ],
+    "38915": [
+      "R7"
+    ],
+    "38916": [
+      "R10",
+      "R19"
+    ],
+    "38917": [
+      "R7"
+    ],
+    "38918": [
+      "R19"
+    ],
+    "38919": [
+      "R7"
+    ],
+    "38920": [
+      "R7"
+    ],
+    "38922": [
+      "R7"
+    ],
+    "38923": [
+      "R3"
+    ],
+    "38924": [
+      "R7"
+    ],
+    "38925": [
+      "R10"
+    ],
+    "38926": [
+      "R6"
+    ],
+    "38927": [
+      "R10"
+    ],
+    "38928": [
+      "R6"
+    ],
+    "38929": [
+      "R19"
+    ],
+    "38930": [
+      "R6"
+    ],
+    "38931": [
+      "R7"
+    ],
+    "38932": [
+      "R7"
+    ],
+    "38933": [
+      "R6"
+    ],
+    "38934": [
+      "R3"
+    ],
+    "38935": [
+      "G2",
+      "R7"
+    ],
+    "38936": [
+      "R6"
+    ],
+    "38939": [
+      "R3"
+    ],
+    "38940": [
+      "R6"
+    ],
+    "38941": [
+      "R6",
+      "R19"
+    ],
+    "38942": [
+      "R6"
+    ],
+    "38944": [
+      "R6"
+    ],
+    "38945": [
+      "R7"
+    ],
+    "38956": [
+      "R5",
+      "R8"
+    ],
+    "38959": [
+      "G1",
+      "R8"
+    ],
+    "38961": [
+      "G1",
+      "R7"
+    ],
+    "38962": [
+      "R19"
+    ],
+    "38967": [
+      "R10",
+      "R19"
+    ],
+    "38968": [
+      "R3",
+      "R10"
+    ],
+    "38971": [
+      "R8"
+    ],
+    "38974": [
+      "R22"
+    ],
+    "38981": [
+      "R19"
+    ],
+    "38982": [
+      "G1",
+      "R7"
+    ],
+    "38991": [
+      "R8"
+    ],
+    "38994": [
+      "G1",
+      "R1",
+      "R7"
+    ],
+    "38997": [
+      "R7"
+    ],
+    "38998": [
+      "R7"
+    ],
+    "39000": [
+      "R7"
+    ],
+    "39001": [
+      "R10"
+    ],
+    "39003": [
+      "R8"
+    ],
+    "39018": [
+      "G1",
+      "G15",
+      "R15"
+    ],
+    "39019": [
+      "G1",
+      "G15",
+      "R15"
+    ],
+    "39022": [
+      "G1",
+      "G15",
+      "R15"
+    ],
+    "39032": [
+      "R10"
+    ],
+    "39035": [
+      "R6"
+    ],
+    "39038": [
+      "R18"
+    ],
+    "39040": [
+      "G13",
+      "R3"
+    ],
+    "39041": [
+      "G13",
+      "R3"
+    ],
+    "39043": [
+      "R6",
+      "R18"
+    ],
+    "39045": [
+      "R6",
+      "R18"
+    ],
+    "39046": [
+      "R6",
+      "R18"
+    ],
+    "39047": [
+      "R7"
+    ],
+    "39048": [
+      "R19"
+    ],
+    "39049": [
+      "R7"
+    ],
+    "39050": [
+      "R6"
+    ],
+    "39051": [
+      "R6",
+      "R18"
+    ],
+    "39052": [
+      "R6"
+    ],
+    "39057": [
+      "R8"
+    ],
+    "39058": [
+      "R7"
+    ],
+    "39060": [
+      "R8"
+    ],
+    "39062": [
+      "R7"
+    ],
+    "39063": [
+      "R8"
+    ],
+    "39064": [
+      "R19"
+    ],
+    "39065": [
+      "R7"
+    ],
+    "39066": [
+      "R7"
+    ],
+    "39069": [
+      "R6"
+    ],
+    "39070": [
+      "R6",
+      "R8"
+    ],
+    "39071": [
+      "R6"
+    ],
+    "39074": [
+      "R6"
+    ],
+    "39075": [
+      "R6",
+      "R19"
+    ],
+    "39077": [
+      "R6"
+    ],
+    "39079": [
+      "R7"
+    ],
+    "39080": [
+      "R7"
+    ],
+    "39081": [
+      "R19"
+    ],
+    "39082": [
+      "R7"
+    ],
+    "39083": [
+      "R7"
+    ],
+    "39084": [
+      "R8",
+      "R10"
+    ],
+    "39085": [
+      "R7"
+    ],
+    "39086": [
+      "R10"
+    ],
+    "39087": [
+      "R8"
+    ],
+    "39088": [
+      "R7"
+    ],
+    "39089": [
+      "R8",
+      "R10"
+    ],
+    "39090": [
+      "R6"
+    ],
+    "39091": [
+      "R3"
+    ],
+    "39092": [
+      "R3"
+    ],
+    "39097": [
+      "R7"
+    ],
+    "39099": [
+      "R6",
+      "R8"
+    ],
+    "39104": [
+      "R6"
+    ],
+    "39106": [
+      "R19"
+    ],
+    "39109": [
+      "R19"
+    ],
+    "39112": [
+      "R6"
+    ],
+    "39114": [
+      "R7"
+    ],
+    "39117": [
+      "R8",
+      "R19"
+    ],
+    "39119": [
+      "R19"
+    ],
+    "39120": [
+      "R19"
+    ],
+    "39122": [
+      "R7"
+    ],
+    "39123": [
+      "G7",
+      "R11"
+    ],
+    "39127": [
+      "R7"
+    ],
+    "39130": [
+      "R6"
+    ],
+    "39133": [
+      "R19"
+    ],
+    "39134": [
+      "R16"
+    ],
+    "39136": [
+      "R7"
+    ],
+    "39137": [
+      "R7"
+    ],
+    "39138": [
+      "R16"
+    ],
+    "39140": [
+      "R7"
+    ],
+    "39141": [
+      "R7"
+    ],
+    "39143": [
+      "R7"
+    ],
+    "39144": [
+      "G1",
+      "R10"
+    ],
+    "39145": [
+      "R19"
+    ],
+    "39146": [
+      "R7",
+      "R10"
+    ],
+    "39148": [
+      "R6"
+    ],
+    "39150": [
+      "R19"
+    ],
+    "39154": [
+      "R7"
+    ],
+    "39155": [
+      "R3"
+    ],
+    "39157": [
+      "R3"
+    ],
+    "39158": [
+      "R8"
+    ],
+    "39160": [
+      "G1",
+      "R6"
+    ],
+    "39165": [
+      "R7"
+    ],
+    "39166": [
+      "R7"
+    ],
+    "39167": [
+      "R10",
+      "R19"
+    ],
+    "39168": [
+      "R7"
+    ],
+    "39175": [
+      "R7"
+    ],
+    "39177": [
+      "R6",
+      "R8"
+    ],
+    "39181": [
+      "R19"
+    ],
+    "39183": [
+      "R19"
+    ],
+    "39184": [
+      "R10"
+    ],
+    "39185": [
+      "R6"
+    ],
+    "39186": [
+      "R7"
+    ],
+    "39187": [
+      "R8",
+      "R10"
+    ],
+    "39188": [
+      "R8"
+    ],
+    "39189": [
+      "R7"
+    ],
+    "39190": [
+      "R8",
+      "R10"
+    ],
+    "39194": [
+      "R7"
+    ],
+    "39195": [
+      "R8",
+      "R10"
+    ],
+    "39196": [
+      "R6"
+    ],
+    "39197": [
+      "R6"
+    ],
+    "39198": [
+      "R6"
+    ],
+    "39201": [
+      "R19"
+    ],
+    "39202": [
+      "R8",
+      "R19"
+    ],
+    "39204": [
+      "R7"
+    ],
+    "39205": [
+      "R19"
+    ],
+    "39206": [
+      "G7",
+      "R11"
+    ],
+    "39211": [
+      "R7"
+    ],
+    "39234": [
+      "G1",
+      "R6"
+    ],
+    "39240": [
+      "R6",
+      "R8"
+    ],
+    "39242": [
+      "R19"
+    ],
+    "39243": [
+      "R6"
+    ],
+    "39247": [
+      "G7",
+      "R11"
+    ],
+    "39248": [
+      "R6"
+    ],
+    "39249": [
+      "R3"
+    ],
+    "39250": [
+      "R3",
+      "R10"
+    ],
+    "39251": [
+      "R8",
+      "R20"
+    ],
+    "39252": [
+      "R20"
+    ],
+    "39259": [
+      "R6"
+    ],
+    "39262": [
+      "R3"
+    ],
+    "39263": [
+      "G1",
+      "R6"
+    ],
+    "39264": [
+      "R3",
+      "R10"
+    ],
+    "39266": [
+      "R6"
+    ],
+    "39267": [
+      "R3"
+    ],
+    "39270": [
+      "R20"
+    ],
+    "39272": [
+      "G1",
+      "R6"
+    ],
+    "39273": [
+      "G1",
+      "G13",
+      "R3"
+    ],
+    "39274": [
+      "R6",
+      "R18"
+    ],
+    "39275": [
+      "R10"
+    ],
+    "39276": [
+      "R6"
+    ],
+    "39277": [
+      "R10"
+    ],
+    "39278": [
+      "R6"
+    ],
+    "39280": [
+      "R14",
+      "R10"
+    ],
+    "39285": [
+      "R6"
+    ],
+    "39288": [
+      "R14"
+    ],
+    "39289": [
+      "R8",
+      "R10"
+    ],
+    "39293": [
+      "R8",
+      "R10"
+    ],
+    "39300": [
+      "R10"
+    ],
+    "127364": [
+      "R6",
+      "R20"
+    ],
+    "39303": [
+      "R6"
+    ],
+    "39305": [
+      "R6"
+    ],
+    "39306": [
+      "R6"
+    ],
+    "39307": [
+      "R8"
+    ],
+    "39308": [
+      "R8",
+      "R10"
+    ],
+    "39309": [
+      "G1",
+      "R20"
+    ],
+    "39310": [
+      "R5"
+    ],
+    "39311": [
+      "R10"
+    ],
+    "39312": [
+      "R8",
+      "R10"
+    ],
+    "39315": [
+      "R6",
+      "R10"
+    ],
+    "39317": [
+      "R3"
+    ],
+    "39318": [
+      "R3"
+    ],
+    "39320": [
+      "R3"
+    ],
+    "39327": [
+      "R10"
+    ],
+    "39329": [
+      "R6"
+    ],
+    "39334": [
+      "R6"
+    ]
+  },
+  "_iteration_meta": {
+    "note_index": 2,
+    "note_id": "12204158-DS-10",
+    "n_annotations": 230,
+    "extend_mode": true,
+    "existing_rules_path": "scripts/rules/20260217T010559Z/rules.json",
+    "sample_path": "scripts/sampled_annotations.json"
+  }
+}
