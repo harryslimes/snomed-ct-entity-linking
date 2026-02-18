@@ -36,8 +36,8 @@ SPLIT_DIR = REPO_ROOT / "data" / "old-challenge-split"
 TERMINOLOGY_CSV = REPO_ROOT / "3rd Place" / "assets" / "dataflattened_terminology.csv"
 DEFAULT_RULES_PATH = Path(__file__).parent / "rules_output.json"
 
-CONTEXT_BEFORE = 300
-CONTEXT_AFTER = 100
+DEFAULT_CONTEXT_BEFORE = 300
+DEFAULT_CONTEXT_AFTER = 100
 
 
 # ---------------------------------------------------------------------------
@@ -205,9 +205,22 @@ def check_gold_in_wider_retrieval(per_ann_results: list[dict]) -> None:
 # Context extraction
 # ---------------------------------------------------------------------------
 
-def get_context(note_text: str, start: int, end: int) -> tuple[str, str, str]:
-    ctx_start = max(0, start - CONTEXT_BEFORE)
-    ctx_end = min(len(note_text), end + CONTEXT_AFTER)
+def get_context(
+    note_text: str, start: int, end: int,
+    context_before: int = DEFAULT_CONTEXT_BEFORE,
+    context_after: int = DEFAULT_CONTEXT_AFTER,
+) -> tuple[str, str, str]:
+    ctx_start = max(0, start - context_before)
+    ctx_end = min(len(note_text), end + context_after)
+
+    # Snap ctx_start back to a word boundary so we don't cut mid-word
+    while ctx_start > 0 and not note_text[ctx_start - 1].isspace():
+        ctx_start -= 1
+
+    # Snap ctx_end forward to a word boundary so we don't cut mid-word
+    while ctx_end < len(note_text) and not note_text[ctx_end].isspace():
+        ctx_end += 1
+
     return note_text[ctx_start:start], note_text[start:end], note_text[end:ctx_end]
 
 
@@ -979,6 +992,7 @@ def run(args: argparse.Namespace) -> None:
     print(f"Note: {note_id}  |  {len(note_anns)} annotations")
     print(f"Rules: {len(g_rules)} global, {len(structured_by_id)} structured, {len(mappings)} mappings")
     print(f"Backend: {args.backend}")
+    print(f"Context window: {args.context_before} before / {args.context_after} after")
 
     # Initialize retrieval
     t = time.monotonic()
@@ -1026,7 +1040,10 @@ def run(args: argparse.Namespace) -> None:
         search_rules_text = format_rules_for_search(g_rules, applicable_structured)
         select_rules_text = format_rules_for_select(g_rules, applicable_structured)
 
-        before, span, after = get_context(note_text, gold_start, gold_end)
+        before, span, after = get_context(
+            note_text, gold_start, gold_end,
+            args.context_before, args.context_after,
+        )
 
         # Check if span matches a mapping (bypass LLM search)
         mapping_hit = mappings_lower.get(gold_span.strip().lower())
@@ -1056,6 +1073,16 @@ def run(args: argparse.Namespace) -> None:
     t0 = time.time()
 
     if args.backend == "vllm":
+        if args.reset_prefix_cache:
+            import urllib.request
+            url = f"{args.vllm_url}/reset_prefix_cache"
+            try:
+                req = urllib.request.Request(url, method="POST")
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    print(f"Prefix cache reset: HTTP {resp.status}")
+            except Exception as e:
+                print(f"Warning: prefix cache reset failed ({e}) — continuing anyway")
+
         # Pipelined: each annotation flows search→retrieve→select independently
         # so vLLM's continuous batching keeps the GPU saturated throughout.
         print(f"\n=== PIPELINED: search → retrieve → select ({len(annotations)} annotations) ===")
@@ -1284,6 +1311,8 @@ def run(args: argparse.Namespace) -> None:
         "model": model_name,
         "temperature": 0.0,
         "reasoning_effort": reasoning,
+        "context_before": args.context_before,
+        "context_after": args.context_after,
         "n_annotations": n_total,
         "n_mapping_resolved": n_mapping_resolved,
         "n_concept_matches": n_matches,
@@ -1417,7 +1446,41 @@ def main() -> None:
         "--replay", type=str, default=None, metavar="PATH",
         help="Replay results from a saved JSON file (no inference, just report + top-100 check)",
     )
+    parser.add_argument(
+        "--context-before", type=int, default=None, metavar="N",
+        help=f"Characters of context before the span (default: {DEFAULT_CONTEXT_BEFORE})",
+    )
+    parser.add_argument(
+        "--context-after", type=int, default=None, metavar="N",
+        help=f"Characters of context after the span (default: {DEFAULT_CONTEXT_AFTER})",
+    )
+    parser.add_argument(
+        "--config", type=str, default=None, metavar="PATH",
+        help="Path to a JSON config file (can set context_before, context_after)",
+    )
+    parser.add_argument(
+        "--reset-prefix-cache", action="store_true", default=False,
+        help="Call vLLM's /reset_prefix_cache before running (requires VLLM_SERVER_DEV_MODE=1)",
+    )
     args = parser.parse_args()
+
+    # Load config file, then apply CLI overrides on top
+    config: dict = {}
+    if args.config:
+        with open(args.config) as _f:
+            config = json.load(_f)
+    args.context_before = args.context_before if args.context_before is not None else config.get("context_before", DEFAULT_CONTEXT_BEFORE)
+    args.context_after = args.context_after if args.context_after is not None else config.get("context_after", DEFAULT_CONTEXT_AFTER)
+    if "reasoning_effort" in config and args.reasoning_effort == "low":  # "low" is the argparse default
+        args.reasoning_effort = config["reasoning_effort"]
+    if "vllm_model" in config and args.vllm_model == "openai/gpt-oss-20b":
+        args.vllm_model = config["vllm_model"]
+    if "vllm_url" in config and args.vllm_url == "http://localhost:8000":
+        args.vllm_url = config["vllm_url"]
+    if "concurrency" in config and args.concurrency == 0:
+        args.concurrency = config["concurrency"]
+    args.reset_prefix_cache = args.reset_prefix_cache or config.get("reset_prefix_cache", False)
+
     if args.replay:
         replay(args.replay)
     else:
