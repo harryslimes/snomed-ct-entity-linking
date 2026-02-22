@@ -1,0 +1,104 @@
+{
+  "rules": [
+    {
+      "id": "S001",
+      "rule": "When a lab test abbreviation (e.g., AST, HCT, ESR, CRP, LDH, PH) appears with a numeric value or qualifier like 'wnl', select the measurement/determination PROCEDURE, not an interpretive finding such as 'above reference range' or 'within reference range'.",
+      "priority": 1,
+      "applies_when": {}
+    },
+    {
+      "id": "S002",
+      "rule": "When a body-region abbreviation (ABD, PUL, GI, EXT, NEURO) appears as a section heading in a physical exam (typically followed by a colon and descriptive findings), select 'Examination of [system]' PROCEDURE, not the body structure or a clinical finding.",
+      "priority": 1,
+      "applies_when": {
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "S003",
+      "rule": "When an imaging or procedure abbreviation (CT, MRI, CTs, u/s, ultrasound) appears WITHOUT an explicit body-site qualifier as part of the span itself, select the GENERIC procedure concept (e.g., 'Computed tomography', 'Magnetic resonance imaging', 'Ultrasonography'), even if surrounding context mentions a specific body region.",
+      "priority": 1,
+      "applies_when": {}
+    },
+    {
+      "id": "S004",
+      "rule": "When a disease or condition abbreviation (e.g., ESRD, CHF) appears in a problem list, past medical history, or diagnosis list, select the BASE disorder concept, not a more specific variant (e.g., 'on dialysis', 'decompensated') unless the specific qualifier is explicitly stated in the span or immediately adjacent text.",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S005",
+      "rule": "When a vessel name abbreviation (LAD, LCX, RCA) follows 's/p' or 'stent to' phrasing, the span refers to the ANATOMICAL BODY STRUCTURE of the vessel, not a 'stent in vessel' finding. Select the base artery/vessel structure.",
+      "priority": 1,
+      "applies_when": {}
+    },
+    {
+      "id": "S006",
+      "rule": "In physical exam lung auscultation context, 'CTA' or 'CTAB' means 'clear to auscultation' and maps to a normal breath sounds FINDING, not to computed tomography angiography.",
+      "priority": 1,
+      "applies_when": {
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "S007",
+      "rule": "For vertebral references (L3, L4, L5, C5, C7, T9), prefer 'Bone structure of [level]' over 'Entire body of Nth vertebra', 'Structure of lamina', or 'Structure of spinous process' unless the context explicitly specifies a sub-part. The generic bone structure concept is the default.",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S008",
+      "rule": "When a blood gas parameter (PO2, PCO2, pCO2, pO2) appears with 'TYPE-ART' or in an arterial blood gas panel, select the ARTERIAL-specific measurement. When it appears with 'VBG' or venous context, select the VENOUS-specific measurement. Without specimen type info, select the generic measurement.",
+      "priority": 2,
+      "applies_when": {
+        "sections": [
+          "pertinent results"
+        ]
+      }
+    },
+    {
+      "id": "S009",
+      "rule": "When 'PPx' or 'prophylaxis' appears as a care plan category header (e.g., '# PPx:' or 'DVT PPx:'), select the generic 'Preventive procedure' concept, not a specific prophylaxis subtype like anticoagulant or antibiotic prophylaxis.",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S010",
+      "rule": "When abbreviations appear in a motor strength grading table (e.g., 'Delt Bic Tri WrE FFl FE IO IP Quad Ham TA'), interpret them as the muscle groups being tested: FFl=finger flexors, FE=forearm extensors, IO=intrinsic hand muscles, IP=iliopsoas. Select muscle body structures, not joints or unrelated structures.",
+      "priority": 2,
+      "applies_when": {
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "S011",
+      "rule": "When a lateralized variant (right/left) exists as a candidate but the span text does not specify laterality, select the GENERIC non-lateralized body structure (e.g., 'Structure of tibial nerve' not 'Structure of right posterior tibial nerve').",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S012",
+      "rule": "When 'IV' appears before a medication name or dose (e.g., 'Hydralazine 10 mg IV'), it denotes the route of administration. Select 'Administration of drug or medicament via intravenous route' (procedure) over 'Intravenous therapy' (regime/therapy).",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S013",
+      "rule": "When context includes a dermatome distribution (e.g., 'T9 dermatome') or nerve distribution list (e.g., 'SPN/DPN/TN'), the span refers to a NERVE structure, not a bone structure. Select the spinal nerve or peripheral nerve concept.",
+      "priority": 2,
+      "applies_when": {}
+    },
+    {
+      "id": "S014",
+      "rule": "When 'GYN' modifies a disease noun (e.g., 'GYN cancer'), it refers to the female genital organ body structure, not a gynecologic examination procedure or referral finding.",
+      "priority": 2,
+      "applies_when": {}
+    }
+  ]
+}
