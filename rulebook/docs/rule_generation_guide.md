@@ -206,6 +206,14 @@ vllm serve openai/gpt-oss-20b \
     --enable-chunked-prefill
 ```
 
+**Note on determinism:** vLLM inference is non-deterministic with concurrent requests
+due to floating-point non-associativity from varying batch compositions. The
+`VLLM_BATCH_INVARIANT=1` env var exists in vLLM nightly (0.16+) but does not yet
+work with quantized MoE models (e.g. Qwen3-30B-A3B-AWQ). See
+[docs/vllm_batch_invariance_investigation.md](../../docs/vllm_batch_invariance_investigation.md)
+for details. The rule evaluation loop mitigates this by using per-rule cost gating
+(counting actual prediction flips) rather than relying on stable accuracy numbers.
+
 Run the test:
 
 ```bash

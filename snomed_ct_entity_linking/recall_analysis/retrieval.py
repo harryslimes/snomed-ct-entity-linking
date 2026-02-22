@@ -33,27 +33,44 @@ def dense_search(
     faiss_sctids: list[int],
     top_k: int,
     verbose: bool = True,
+    oversample: int = 1,
 ) -> list[list[tuple[int, float, int]]]:
     """
     Batch FAISS nearest-neighbor search.
 
+    Args:
+        oversample: Fetch top_k * oversample raw vectors before deduplicating
+            per concept. Use oversample > 1 with a multi-vector index (one
+            vector per description rather than one per concept) so that
+            top_k unique concepts are reliably returned after dedup.
+
     Returns:
         List of per-query results, each a list of (sctid, score, rank).
+        Each SCTID appears at most once (first/best hit kept).
     """
+    search_k = min(top_k * oversample, faiss_index.ntotal)
     if verbose:
-        print(f"FAISS search: {len(query_embeddings):,} queries x top-{top_k} ...")
+        print(f"FAISS search: {len(query_embeddings):,} queries x top-{search_k} ...")
     t0 = time.time()
-    scores, indices = faiss_index.search(query_embeddings, top_k)
+    scores, indices = faiss_index.search(query_embeddings, search_k)
     if verbose:
         print(f"  FAISS search done in {time.time() - t0:.1f}s")
 
     results = []
     for i in range(len(query_embeddings)):
+        seen: set[int] = set()
         query_results = []
-        for rank, (idx, score) in enumerate(zip(indices[i], scores[i])):
+        rank = 1
+        for idx, score in zip(indices[i], scores[i]):
             if idx == -1:
                 break
-            query_results.append((faiss_sctids[idx], float(score), rank + 1))
+            sctid = faiss_sctids[idx]
+            if sctid not in seen:
+                seen.add(sctid)
+                query_results.append((sctid, float(score), rank))
+                rank += 1
+                if rank > top_k:
+                    break
         results.append(query_results)
     return results
 

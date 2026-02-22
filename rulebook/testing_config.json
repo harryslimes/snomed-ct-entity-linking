@@ -1,9 +1,8 @@
 {
   "context_before": 200,
   "context_after": 0,
-  "reasoning_effort": "low",
+  "reasoning_effort": "high",
   "vllm_model": "openai/gpt-oss-20b",
   "vllm_url": "http://localhost:8000",
-  "concurrency": 0,
-  "reset_prefix_cache": true
+  "concurrency": 0
 }

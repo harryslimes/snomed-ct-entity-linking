@@ -87,6 +87,7 @@ _bm25_index = None
 _bm25_sctids = None
 _encoder = None
 _concept_names: dict[int, tuple[str, str]] = {}
+_index_server_url: str | None = None  # set via --index-server
 
 
 def _init_retrieval() -> None:
@@ -94,6 +95,17 @@ def _init_retrieval() -> None:
     global _bm25_index, _bm25_sctids, _encoder, _concept_names
 
     if _retrieval_ready:
+        return
+
+    if _index_server_url:
+        import requests
+        resp = requests.get(f"{_index_server_url}/health", timeout=10)
+        resp.raise_for_status()
+        h = resp.json()
+        print(f"Connected to index server at {_index_server_url}: "
+              f"{h['faiss_vectors']:,} concepts, {h['bm25_docs']:,} descriptions ({h['device']})")
+        _concept_names = load_concept_names()
+        _retrieval_ready = True
         return
 
     from snomed_ct_entity_linking.recall_analysis.config import Config
@@ -115,6 +127,32 @@ def snomed_search(query_text: str, top_k: int = 10) -> list[dict]:
 
 def snomed_search_batch(queries: list[str], top_k: int = 10) -> list[list[dict]]:
     """Batch SNOMED retrieval: encode + FAISS + BM25 all queries at once."""
+    _init_retrieval()
+    top_k = min(max(top_k, 1), 100)
+
+    if _index_server_url:
+        import requests
+        resp = requests.post(
+            f"{_index_server_url}/search/hybrid",
+            json={"queries": queries, "fusion_top_k": top_k},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        all_results = []
+        for query_hits in resp.json()["results"]:
+            results = []
+            for hit in query_hits:
+                sctid = hit["sctid"]
+                cname, hierarchy = _concept_names.get(sctid, (hit.get("name") or "Unknown", "unknown"))
+                results.append({
+                    "concept_id": sctid,
+                    "concept_name": cname,
+                    "hierarchy": hierarchy,
+                    "score": round(hit["rrf_score"], 4),
+                })
+            all_results.append(results)
+        return all_results
+
     from snomed_ct_entity_linking.recall_analysis.config import Config
     from snomed_ct_entity_linking.recall_analysis.retrieval import (
         dense_search,
@@ -122,13 +160,11 @@ def snomed_search_batch(queries: list[str], top_k: int = 10) -> list[list[dict]]
         sparse_search,
     )
 
-    _init_retrieval()
-    top_k = min(max(top_k, 1), 100)
     cfg = Config()
-
     query_embs = _encoder.encode(queries, batch_size=max(len(queries), 1))
     dense_results = dense_search(
         query_embs, _faiss_index, _faiss_sctids, cfg.dense_top_k, verbose=False,
+        oversample=4,
     )
     sparse_results = sparse_search(
         queries, _bm25_index, _bm25_sctids, cfg.sparse_top_k,
@@ -153,6 +189,88 @@ def snomed_search_batch(queries: list[str], top_k: int = 10) -> list[list[dict]]
     return all_results
 
 
+def snomed_search_batch_items(
+    items: list[tuple[str, list[str]]],
+    top_k: int = 10,
+) -> dict[str, list[dict]]:
+    """Batch SNOMED retrieval using the batch_hybrid endpoint.
+
+    Each item is (id, queries) — multiple search terms per annotation.
+    The server does a single SapBERT encode + FAISS + BM25 pass and
+    per-item cross-query RRF fusion.
+
+    Returns {id: [candidate_dicts]} with results already fused and sorted.
+    """
+    _init_retrieval()
+    top_k = min(max(top_k, 1), 100)
+
+    if _index_server_url:
+        import requests
+        payload = {
+            "items": [
+                {"id": item_id, "queries": queries, "top_k": top_k}
+                for item_id, queries in items
+                if queries  # skip items with no search terms
+            ],
+        }
+        if not payload["items"]:
+            return {item_id: [] for item_id, _ in items}
+
+        resp = requests.post(
+            f"{_index_server_url}/search/batch_hybrid",
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+
+        result_map: dict[str, list[dict]] = {}
+        for item_result in resp.json()["results"]:
+            candidates = []
+            for hit in item_result["results"]:
+                sctid = hit["sctid"]
+                cname, hierarchy = _concept_names.get(
+                    sctid, (hit.get("name") or "Unknown", "unknown")
+                )
+                candidates.append({
+                    "concept_id": sctid,
+                    "concept_name": cname,
+                    "hierarchy": hierarchy,
+                    "score": round(hit["rrf_score"], 4),
+                })
+            result_map[item_result["id"]] = candidates
+
+        # Ensure every input item has an entry
+        for item_id, _ in items:
+            result_map.setdefault(item_id, [])
+        return result_map
+
+    # Fallback: in-process retrieval — flatten, search, regroup
+    all_queries: list[str] = []
+    item_slices: list[tuple[str, int, int]] = []
+    for item_id, queries in items:
+        start = len(all_queries)
+        all_queries.extend(queries)
+        item_slices.append((item_id, start, len(all_queries)))
+
+    if not all_queries:
+        return {item_id: [] for item_id, _ in items}
+
+    batch_results = snomed_search_batch(all_queries, top_k=top_k)
+
+    result_map = {}
+    for item_id, qstart, qend in item_slices:
+        merged: dict[int, dict] = {}
+        for results in batch_results[qstart:qend]:
+            for c in results:
+                cid = c["concept_id"]
+                if cid not in merged or c["score"] > merged[cid]["score"]:
+                    merged[cid] = c
+        result_map[item_id] = sorted(
+            merged.values(), key=lambda x: x["score"], reverse=True
+        )[:top_k]
+    return result_map
+
+
 def check_gold_in_wider_retrieval(per_ann_results: list[dict]) -> None:
     """For retrieval misses, check if gold concept is in wider top-100 retrieval.
 
@@ -166,28 +284,16 @@ def check_gold_in_wider_retrieval(per_ann_results: list[dict]) -> None:
     print(f"\n  Checking {len(misses)} retrieval misses against wider top-100 pool ...")
     _init_retrieval()
 
-    # Batch all search terms from all misses
-    all_queries: list[str] = []
-    miss_query_ranges: list[tuple[int, int]] = []
-    for miss in misses:
-        start = len(all_queries)
-        all_queries.extend(miss["search_terms"])
-        miss_query_ranges.append((start, len(all_queries)))
+    # One batch call — server does cross-query fusion per miss
+    items = [
+        (str(i), miss["search_terms"])
+        for i, miss in enumerate(misses)
+    ]
+    result_map = snomed_search_batch_items(items, top_k=100)
 
-    batch_results = snomed_search_batch(all_queries, top_k=100)
-
-    for miss, (qstart, qend) in zip(misses, miss_query_ranges):
+    for i, miss in enumerate(misses):
         gold_cid = miss["gold_concept"]
-
-        # Merge candidates across search terms
-        merged: dict[int, dict] = {}
-        for results in batch_results[qstart:qend]:
-            for c in results:
-                cid = c["concept_id"]
-                if cid not in merged or c["score"] > merged[cid]["score"]:
-                    merged[cid] = c
-
-        candidates = sorted(merged.values(), key=lambda x: x["score"], reverse=True)
+        candidates = result_map.get(str(i), [])
         candidate_ids = [c["concept_id"] for c in candidates]
 
         found = gold_cid in candidate_ids
@@ -330,10 +436,11 @@ The rules below are specifically curated for concept disambiguation. Follow \
 the hierarchy preferences and disambiguation logic carefully.
 
 Respond with ONLY a JSON object:
-{"concept_id": <integer>, "span_start": <int>, "span_end": <int>}
+{"choice": <integer>}
 
-Choose the concept whose meaning best matches the clinical text in context. \
-The span_start and span_end should be the exact character positions provided.\
+where <integer> is the 1-based index of the best matching candidate from the \
+numbered list. Choose the concept whose meaning best matches the clinical text \
+in context.\
 """
 
 
@@ -344,13 +451,30 @@ The span_start and span_end should be the exact character positions provided.\
 def build_search_prompt(
     before: str, span: str, after: str,
     section_header: str, rules_text: str,
+    prompt_style: str = "standard",
 ) -> str:
+    excerpt = f"...{before}>>>{span}<<<{after}..."
+    if prompt_style == "repeated-text":
+        return f"""\
+You will annotate the following text:
+TEXT (Section: {section_header}): {excerpt}
+
+According to the rules provided below:
+{rules_text}
+
+For reference, this is the text again:
+TEXT (Section: {section_header}): {excerpt}
+
+The text between >>> and <<< is the region of interest.
+Generate search terms to find the matching SNOMED concept.\
+"""
+    # standard (default)
     return f"""\
 {rules_text}
 
 Section: {section_header}
 
-Excerpt: ...{before}>>>{span}<<<{after}...
+Excerpt: {excerpt}
 
 The text between >>> and <<< is the region of interest.
 Generate search terms to find the matching SNOMED concept.\
@@ -361,25 +485,45 @@ def build_select_prompt(
     before: str, span: str, after: str,
     section_header: str, ann_start: int, ann_end: int,
     rules_text: str, candidates: list[dict],
+    prompt_style: str = "standard",
 ) -> str:
+    excerpt = f"...{before}>>>{span}<<<{after}..."
     candidates_text = "\n".join(
-        f"  {i+1}. [{c['concept_id']}] {c['concept_name']} ({c['hierarchy']}) — score: {c['score']}"
+        f"  {i+1}. {c['concept_name']}"
         for i, c in enumerate(candidates)
     )
+    if prompt_style == "repeated-text":
+        return f"""\
+You will annotate the following text:
+TEXT (Section: {section_header}): {excerpt}
+
+According to the rules provided below:
+{rules_text}
+
+For reference, this is the text again:
+TEXT (Section: {section_header}): {excerpt}
+
+The text between >>> and <<< is the region of interest.
+
+SNOMED candidates:
+{candidates_text}
+
+Select the best matching concept by number.\
+"""
+    # standard (default)
     return f"""\
 {rules_text}
 
 Section: {section_header}
 
-Excerpt: ...{before}>>>{span}<<<{after}...
+Excerpt: {excerpt}
 
 The text between >>> and <<< is the region of interest.
-Span position: start={ann_start}, end={ann_end}
 
-SNOMED search results:
+SNOMED candidates:
 {candidates_text}
 
-Select the best matching concept and confirm span boundaries.\
+Select the best matching concept by number.\
 """
 
 
@@ -400,34 +544,71 @@ def parse_search_terms(text: str, fallback_span: str) -> list[str]:
     return [fallback_span.strip()]
 
 
-def parse_concept_response(text: str) -> tuple[int, int, int] | None:
-    # Try code fence first
-    fence_match = re.search(r"```(?:json)?\s*\n([\s\S]*?)\n```", text)
-    if fence_match:
+def parse_concept_response(
+    text: str,
+    candidates: list[dict] | None = None,
+) -> tuple[int, int, int] | None:
+    """Parse the LLM's concept selection response.
+
+    Supports two formats:
+      - Index-based: {"choice": N}  (1-indexed into candidates list)
+      - Legacy:      {"concept_id": N, "span_start": M, "span_end": K}
+    When candidates is provided, index-based parsing is tried first.
+    """
+
+    def _try_json(raw: str) -> dict | None:
         try:
-            result = json.loads(fence_match.group(1))
+            return json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+    def _extract_json(text: str) -> dict | None:
+        # Try code fence first
+        fence_match = re.search(r"```(?:json)?\s*\n([\s\S]*?)\n```", text)
+        if fence_match:
+            result = _try_json(fence_match.group(1))
+            if result:
+                return result
+        # Try inline JSON (look for any {...})
+        for m in re.finditer(r"\{[^{}]*\}", text):
+            result = _try_json(m.group())
+            if result:
+                return result
+        return None
+
+    parsed = _extract_json(text)
+
+    # Index-based format: {"choice": N}
+    if parsed and candidates:
+        choice = parsed.get("choice")
+        if choice is not None:
+            try:
+                idx = int(choice) - 1  # 1-indexed -> 0-indexed
+                if 0 <= idx < len(candidates):
+                    return (candidates[idx]["concept_id"], -1, -1)
+            except (ValueError, TypeError):
+                pass
+
+    # Legacy format: {"concept_id": N, ...}
+    if parsed and "concept_id" in parsed:
+        try:
             return (
-                int(result["concept_id"]),
-                int(result.get("span_start", -1)),
-                int(result.get("span_end", -1)),
+                int(parsed["concept_id"]),
+                int(parsed.get("span_start", -1)),
+                int(parsed.get("span_end", -1)),
             )
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+        except (ValueError, TypeError):
             pass
 
-    # Try inline JSON
-    try:
-        match = re.search(r"\{[^{}]*\"concept_id\"[^{}]*\}", text)
-        if match:
-            result = json.loads(match.group())
-            return (
-                int(result["concept_id"]),
-                int(result.get("span_start", -1)),
-                int(result.get("span_end", -1)),
-            )
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
-        pass
+    # Fallback: bare "choice": N in text
+    if candidates:
+        choice_match = re.search(r"\"choice\"\s*:\s*(\d+)", text)
+        if choice_match:
+            idx = int(choice_match.group(1)) - 1
+            if 0 <= idx < len(candidates):
+                return (candidates[idx]["concept_id"], -1, -1)
 
-    # Fallback: extract concept_id only
+    # Fallback: bare "concept_id": N in text
     cid_match = re.search(r"\"concept_id\"\s*:\s*(\d+)", text)
     if cid_match:
         return (int(cid_match.group(1)), -1, -1)
@@ -475,12 +656,15 @@ async def sonnet_search_terms_batch(prompts: list[str], spans: list[str]) -> lis
     return results
 
 
-async def sonnet_select_batch(prompts: list[str]) -> list[tuple[int, int, int] | None]:
+async def sonnet_select_batch(
+    prompts: list[str],
+    candidates_per_ann: list[list[dict]],
+) -> list[tuple[int, int, int] | None]:
     """Sequential Pass 2 for Sonnet backend."""
     results = []
-    for i, prompt in enumerate(prompts):
+    for i, (prompt, cands) in enumerate(zip(prompts, candidates_per_ann)):
         raw = await _sonnet_call(SELECT_SYSTEM, prompt)
-        results.append(parse_concept_response(raw))
+        results.append(parse_concept_response(raw, cands))
         if (i + 1) % 10 == 0:
             print(f"  [select] {i+1}/{len(prompts)} done")
     return results
@@ -490,78 +674,6 @@ async def sonnet_select_batch(prompts: list[str]) -> list[tuple[int, int, int] |
 # Backend: vLLM / gpt-oss-20b (concurrent, via AsyncOpenAI)
 # ---------------------------------------------------------------------------
 
-class _AsyncBatchRetriever:
-    """Accumulates SNOMED search queries from concurrent tasks and processes in batches.
-
-    Instead of each annotation calling snomed_search() individually (one SapBERT
-    encode + one FAISS search + one BM25 search per query), this collects queries
-    arriving from concurrent annotations and processes them in efficient batches.
-    """
-
-    def __init__(self, batch_size: int = 32, flush_interval: float = 0.15):
-        self._queue: asyncio.Queue = asyncio.Queue()
-        self._batch_size = batch_size
-        self._flush_interval = flush_interval
-        self.n_queries = 0
-        self.n_batches = 0
-        self._stop = False
-
-    async def search_multi(self, queries: list[str], top_k: int = 10) -> list[list[dict]]:
-        """Submit multiple queries and await all results."""
-        loop = asyncio.get_event_loop()
-        futures = []
-        for q in queries:
-            future = loop.create_future()
-            await self._queue.put((q, top_k, future))
-            futures.append(future)
-        return [await f for f in futures]
-
-    def stop(self):
-        self._stop = True
-
-    async def worker(self):
-        """Background worker: collects queries into batches and processes them."""
-        loop = asyncio.get_event_loop()
-        while not self._stop or not self._queue.empty():
-            batch = []
-
-            # Wait for first item (with timeout to check stop flag)
-            try:
-                item = await asyncio.wait_for(self._queue.get(), timeout=0.5)
-                batch.append(item)
-            except asyncio.TimeoutError:
-                continue
-
-            # Collect more items within flush_interval window
-            deadline = loop.time() + self._flush_interval
-            while len(batch) < self._batch_size:
-                remaining = deadline - loop.time()
-                if remaining <= 0:
-                    break
-                try:
-                    item = await asyncio.wait_for(self._queue.get(), timeout=remaining)
-                    batch.append(item)
-                except asyncio.TimeoutError:
-                    break
-
-            if not batch:
-                continue
-
-            # Process batch
-            queries = [q for q, _, _ in batch]
-            top_k = max(tk for _, tk, _ in batch)
-
-            results = await loop.run_in_executor(
-                None, snomed_search_batch, queries, top_k,
-            )
-
-            for (_, _, future), result in zip(batch, results):
-                if not future.done():
-                    future.set_result(result)
-
-            self.n_queries += len(batch)
-            self.n_batches += 1
-
 
 def vllm_pipeline(
     annotations: list[dict],
@@ -569,37 +681,63 @@ def vllm_pipeline(
     model: str = "openai/gpt-oss-20b",
     max_concurrent: int = 0,
     reasoning_effort: str = "low",
-) -> tuple[list[list[str]], list[list[dict]], list[tuple[int, int, int] | None]]:
-    """Run the full search->retrieve->select pipeline with continuous batching.
+    prompt_style: str = "standard",
+    *,
+    precomputed_search_terms: list[list[str]] | None = None,
+    precomputed_candidates: list[list[dict]] | None = None,
+    search_only: bool = False,
+    search_terms_only: bool = False,
+) -> tuple[list[list[str]], list[list[dict]], list[tuple[int, int, int] | None], list[dict]]:
+    """Run the search->retrieve->select pipeline with continuous batching.
 
     Each annotation independently flows through:
       1. LLM generates search terms (Pass 1)
       2. Batched SNOMED retrieval (queries accumulated across annotations)
       3. LLM selects concept from candidates (Pass 2)
 
-    All LLM requests share a single AsyncOpenAI client so vLLM's continuous
-    batching keeps the GPU saturated. Retrieval queries are accumulated by an
-    async batch retriever for efficient SapBERT/FAISS/BM25 processing.
+    If precomputed_search_terms AND precomputed_candidates are provided,
+    phases 1+2 are skipped entirely and only the select phase runs.
+
+    If search_only=True, only phases 1+2 run (no select LLM call).
+    Selections will be None for all annotations.
+
+    If search_terms_only=True, only phase 1 runs (LLM calls only, no
+    retrieval at all). candidates_list will be empty lists. Use this to
+    batch many LLM calls efficiently, then do retrieval separately.
     """
     from openai import AsyncOpenAI
 
     extra_body = {}
-    if reasoning_effort:
+    if reasoning_effort and reasoning_effort != "none":
         extra_body["reasoning_effort"] = reasoning_effort
+
+    select_only = (precomputed_search_terms is not None
+                   and precomputed_candidates is not None)
 
     n = len(annotations)
     conc_label = "unlimited" if max_concurrent <= 0 else str(max_concurrent)
+    if search_terms_only:
+        search_only = True  # implies search_only
+    mode_label = ("select-only" if select_only
+                  else "search-terms-only" if search_terms_only
+                  else "search-only" if search_only
+                  else "full")
     print(f"  Pipeline: {n} annotations "
           f"(max_concurrent={conc_label}, model={model}, "
-          f"reasoning_effort={reasoning_effort})")
+          f"reasoning_effort={reasoning_effort}, mode={mode_label})")
 
-    # Scale max_tokens with reasoning effort — reasoning tokens count against the budget
-    max_tokens = {"low": 256, "medium": 1024, "high": 2048}.get(reasoning_effort, 256)
+    # Scale max_tokens with reasoning effort — reasoning tokens count against the budget.
+    # Reasoning models (e.g. gpt-oss-20b) put chain-of-thought into reasoning_content
+    # which counts against the token budget.  The actual JSON output is tiny (~20-50 tokens)
+    # but reasoning can consume thousands.  With insufficient budget, content=None and
+    # finish_reason="length".
+    max_tokens = {"low": 1024, "medium": 4096, "high": 16384}.get(reasoning_effort, 256)
 
-    # Pre-build search prompts
-    search_prompts = [
+    # Pre-build search prompts (not needed in select-only mode)
+    search_prompts = None if select_only else [
         build_search_prompt(a["before"], a["span"], a["after"],
-                            a["section_header"], a["search_rules_text"])
+                            a["section_header"], a["search_rules_text"],
+                            prompt_style=prompt_style)
         for a in annotations
     ]
 
@@ -613,6 +751,9 @@ def vllm_pipeline(
     # Per-annotation timing arrays
     ann_timings: list[dict] = [{"search_s": 0.0, "retrieval_s": 0.0, "select_s": 0.0, "total_s": 0.0, "mapping_bypass": False} for _ in range(n)]
 
+    # Token usage tracking (prompt_tokens per LLM call)
+    _prompt_token_counts: list[int] = []
+
     async def _run():
         async_client = AsyncOpenAI(
             base_url=f"{base_url}/v1", api_key="unused",
@@ -620,13 +761,10 @@ def vllm_pipeline(
             timeout=300.0,
         )
         sem = asyncio.Semaphore(max_concurrent) if max_concurrent > 0 else None
-        batcher = _AsyncBatchRetriever(batch_size=32, flush_interval=0.15)
-        worker_task = asyncio.create_task(batcher.worker())
 
-        pbar = tqdm(total=n, desc="Annotations", unit="ann",
-                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]")
+        _prompt_logged: set[str] = set()
 
-        async def _llm_call(system_prompt: str, user_prompt: str, max_tokens: int) -> str:
+        async def _llm_call(system_prompt: str, user_prompt: str, max_tokens: int, *, call_type: str = "") -> str:
             if sem is not None:
                 await sem.acquire()
             try:
@@ -634,84 +772,217 @@ def vllm_pipeline(
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ]
-                resp = await async_client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.0,
-                    frequency_penalty=0.3,
-                    extra_body=extra_body if extra_body else None,
-                )
-                choice = resp.choices[0]
-                content = choice.message.content or ""
-                reasoning = getattr(choice.message, "reasoning_content", None) or ""
-                return content.strip() if content.strip() else reasoning.strip()
-            except Exception as e:
-                tqdm.write(f"  ERROR: {e}")
+                if call_type not in _prompt_logged:
+                    _prompt_logged.add(call_type)
+                    tqdm.write(f"\n{'='*60}\nPROMPT SAMPLE [{call_type}]\n{'='*60}")
+                    tqdm.write(f"[SYSTEM]\n{system_prompt}")
+                    tqdm.write(f"\n[USER]\n{system_prompt + chr(10)*2 + user_prompt}")
+                    tqdm.write(f"{'='*60}\n")
+
+                tok_budget = max_tokens
+                for attempt in range(2):
+                    try:
+                        resp = await async_client.chat.completions.create(
+                            model=model,
+                            messages=messages,
+                            max_tokens=tok_budget,
+                            temperature=0.0,
+                            frequency_penalty=0.3,
+                            seed=42,  # determinism also requires VLLM_BATCH_INVARIANT=1 on server
+                            extra_body=extra_body if extra_body else None,
+                        )
+                        if resp.usage and resp.usage.prompt_tokens:
+                            _prompt_token_counts.append(resp.usage.prompt_tokens)
+                        choice = resp.choices[0]
+                        content = choice.message.content or ""
+                        reasoning = getattr(choice.message, "reasoning_content", None) or ""
+                        return content.strip() if content.strip() else reasoning.strip()
+                    except Exception as e:
+                        err_str = str(e)
+                        # Retry once if max_tokens exceeds available context headroom.
+                        # Error format: "has N input tokens (M > CTX - N)"
+                        if attempt == 0 and "max_tokens" in err_str and "maximum context length" in err_str:
+                            m = re.search(r"\((\d+) > (\d+) - (\d+)\)", err_str)
+                            if m:
+                                available = int(m.group(2)) - int(m.group(3)) - 2
+                                if available >= 16:
+                                    tqdm.write(f"  [{call_type}] context headroom={available} tokens; retrying")
+                                    tok_budget = available
+                                    continue
+                        tqdm.write(f"  ERROR: {e}")
+                        return ""
                 return ""
             finally:
                 if sem is not None:
                     sem.release()
 
-        async def _process_annotation(idx: int):
-            a = annotations[idx]
-            t_ann_start = time.monotonic()
+        pbar = tqdm(total=n, desc="Annotations", unit="ann",
+                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]")
 
-            # --- Pass 1: search terms ---
-            t_search = time.monotonic()
-            if a.get("mapping_hit"):
-                # Mapping bypass: use mapped expansion + original span directly
-                search_terms = [a["mapping_hit"], a["span"]]
-                ann_timings[idx]["mapping_bypass"] = True
+        if select_only:
+            # ---------------------------------------------------------
+            # Select-only mode: reuse precomputed search terms + cands
+            # ---------------------------------------------------------
+            for idx in range(n):
+                out_search_terms[idx] = precomputed_search_terms[idx]
+                out_candidates[idx] = precomputed_candidates[idx]
+
+            async def _select_only(idx: int):
+                a = annotations[idx]
+                candidates = out_candidates[idx]
+                t_sel = time.monotonic()
+                select_prompt = build_select_prompt(
+                    a["before"], a["span"], a["after"],
+                    a["section_header"], a["gold_start"], a["gold_end"],
+                    a["select_rules_text"], candidates,
+                    prompt_style=prompt_style,
+                )
+                raw_select = await _llm_call(
+                    SELECT_SYSTEM, select_prompt,
+                    max_tokens=max_tokens, call_type="select",
+                )
+                out_selections[idx] = parse_concept_response(raw_select, candidates)
+                ann_timings[idx]["select_s"] = time.monotonic() - t_sel
+                ann_timings[idx]["total_s"] = ann_timings[idx]["select_s"]
+                pbar.update(1)
+
+            await asyncio.gather(*[_select_only(i) for i in range(n)])
+        else:
+            # ---------------------------------------------------------
+            # Full streaming pipeline: search → retrieve → select
+            # ---------------------------------------------------------
+            if search_terms_only:
+                # ---------------------------------------------------------
+                # Search-terms-only mode: LLM calls only, no retrieval
+                # ---------------------------------------------------------
+                async def _search_only_ann(idx: int):
+                    a = annotations[idx]
+                    t_start = time.monotonic()
+                    if a.get("mapping_hit"):
+                        search_terms = [a["mapping_hit"], a["span"]]
+                        ann_timings[idx]["mapping_bypass"] = True
+                    else:
+                        raw_search = await _llm_call(
+                            SEARCH_SYSTEM, search_prompts[idx],
+                            max_tokens=max_tokens, call_type="search",
+                        )
+                        search_terms = parse_search_terms(raw_search, a["span"])
+                    ann_timings[idx]["search_s"] = time.monotonic() - t_start
+                    ann_timings[idx]["total_s"] = ann_timings[idx]["search_s"]
+                    out_search_terms[idx] = search_terms
+                    pbar.update(1)
+
+                await asyncio.gather(*[_search_only_ann(i) for i in range(n)])
             else:
-                raw_search = await _llm_call(SEARCH_SYSTEM, search_prompts[idx], max_tokens=max_tokens)
-                search_terms = parse_search_terms(raw_search, a["span"])
-            ann_timings[idx]["search_s"] = time.monotonic() - t_search
-            out_search_terms[idx] = search_terms
+                # ---------------------------------------------------------
+                # Streaming pipeline: search → retrieve (→ select)
+                # ---------------------------------------------------------
+                _retr_queue: asyncio.Queue[tuple[int, list[str], asyncio.Future]] = asyncio.Queue()
+                _retr_stop = False
+                _retr_n_queries = 0
+                _retr_n_batches = 0
 
-            # --- Retrieval (batched across annotations) ---
-            t_retr = time.monotonic()
-            per_term_results = await batcher.search_multi(search_terms, top_k=10)
-            merged: dict[int, dict] = {}
-            for results in per_term_results:
-                for c in results:
-                    cid = c["concept_id"]
-                    if cid not in merged or c["score"] > merged[cid]["score"]:
-                        merged[cid] = c
-            candidates = sorted(merged.values(), key=lambda x: x["score"], reverse=True)[:15]
-            ann_timings[idx]["retrieval_s"] = time.monotonic() - t_retr
-            out_candidates[idx] = candidates
+                async def _retrieval_worker(batch_size: int = 512, flush_interval: float = 0.25):
+                    nonlocal _retr_n_queries, _retr_n_batches, _retr_stop
+                    loop = asyncio.get_event_loop()
+                    while not _retr_stop or not _retr_queue.empty():
+                        batch: list[tuple[int, list[str], asyncio.Future]] = []
+                        try:
+                            item = await asyncio.wait_for(_retr_queue.get(), timeout=0.5)
+                            batch.append(item)
+                        except asyncio.TimeoutError:
+                            continue
+                        deadline = loop.time() + flush_interval
+                        while len(batch) < batch_size:
+                            remaining = deadline - loop.time()
+                            if remaining <= 0:
+                                break
+                            try:
+                                item = await asyncio.wait_for(_retr_queue.get(), timeout=remaining)
+                                batch.append(item)
+                            except asyncio.TimeoutError:
+                                break
+                        if not batch:
+                            continue
+                        items = [(str(idx), queries) for idx, queries, _ in batch]
+                        try:
+                            result_map = await loop.run_in_executor(
+                                None, snomed_search_batch_items, items, 10,
+                            )
+                        except Exception as e:
+                            tqdm.write(f"  Retrieval ERROR: {e}")
+                            result_map = {}
+                        for idx, _, future in batch:
+                            candidates = result_map.get(str(idx), [])[:15]
+                            if not future.done():
+                                future.set_result(candidates)
+                        _retr_n_queries += sum(len(q) for _, q, _ in batch)
+                        _retr_n_batches += 1
 
-            # --- Pass 2: select concept ---
-            t_sel = time.monotonic()
-            select_prompt = build_select_prompt(
-                a["before"], a["span"], a["after"],
-                a["section_header"], a["gold_start"], a["gold_end"],
-                a["select_rules_text"], candidates,
-            )
-            raw_select = await _llm_call(SELECT_SYSTEM, select_prompt, max_tokens=max_tokens)
-            out_selections[idx] = parse_concept_response(raw_select)
-            ann_timings[idx]["select_s"] = time.monotonic() - t_sel
+                retr_task = asyncio.create_task(_retrieval_worker())
 
-            ann_timings[idx]["total_s"] = time.monotonic() - t_ann_start
-            pbar.update(1)
+                async def _process_annotation(idx: int):
+                    a = annotations[idx]
+                    t_ann_start = time.monotonic()
 
-        tasks = [_process_annotation(i) for i in range(n)]
-        await asyncio.gather(*tasks)
+                    # --- Pass 1: search terms ---
+                    t_search = time.monotonic()
+                    if a.get("mapping_hit"):
+                        search_terms = [a["mapping_hit"], a["span"]]
+                        ann_timings[idx]["mapping_bypass"] = True
+                    else:
+                        raw_search = await _llm_call(
+                            SEARCH_SYSTEM, search_prompts[idx],
+                            max_tokens=max_tokens, call_type="search",
+                        )
+                        search_terms = parse_search_terms(raw_search, a["span"])
+                    ann_timings[idx]["search_s"] = time.monotonic() - t_search
+                    out_search_terms[idx] = search_terms
 
-        # Shut down batcher
-        batcher.stop()
-        await worker_task
+                    # --- Retrieval (via micro-batcher) ---
+                    t_retr = time.monotonic()
+                    future = asyncio.get_event_loop().create_future()
+                    await _retr_queue.put((idx, search_terms, future))
+                    candidates = await future
+                    ann_timings[idx]["retrieval_s"] = time.monotonic() - t_retr
+                    out_candidates[idx] = candidates
+
+                    # --- Pass 2: select concept (skipped in search_only mode) ---
+                    if not search_only:
+                        t_sel = time.monotonic()
+                        select_prompt = build_select_prompt(
+                            a["before"], a["span"], a["after"],
+                            a["section_header"], a["gold_start"], a["gold_end"],
+                            a["select_rules_text"], candidates,
+                            prompt_style=prompt_style,
+                        )
+                        raw_select = await _llm_call(
+                            SELECT_SYSTEM, select_prompt,
+                            max_tokens=max_tokens, call_type="select",
+                        )
+                        out_selections[idx] = parse_concept_response(raw_select, candidates)
+                        ann_timings[idx]["select_s"] = time.monotonic() - t_sel
+
+                    ann_timings[idx]["total_s"] = time.monotonic() - t_ann_start
+                    pbar.update(1)
+
+                await asyncio.gather(*[_process_annotation(i) for i in range(n)])
+
+                _retr_stop = True
+                await retr_task
+                tqdm.write(f"  Retrieval: {_retr_n_queries} queries in {_retr_n_batches} batch calls")
 
         pbar.close()
         await async_client.close()
 
-        tqdm.write(f"  Retrieval: {batcher.n_queries} queries in {batcher.n_batches} batches "
-                    f"(avg {batcher.n_queries / max(batcher.n_batches, 1):.1f} queries/batch)")
-
     asyncio.run(_run())
 
     elapsed = time.time() - t0
+    if _prompt_token_counts:
+        peak = max(_prompt_token_counts)
+        avg = sum(_prompt_token_counts) / len(_prompt_token_counts)
+        print(f"  Context: peak={peak} tokens, avg={avg:.0f} tokens "
+              f"({len(_prompt_token_counts)} LLM calls)")
     print(f"  Pipeline done in {elapsed:.1f}s ({n / elapsed:.1f} ann/s)")
     return out_search_terms, out_candidates, out_selections, ann_timings
 
@@ -992,6 +1263,7 @@ def run(args: argparse.Namespace) -> None:
     print(f"Note: {note_id}  |  {len(note_anns)} annotations")
     print(f"Rules: {len(g_rules)} global, {len(structured_by_id)} structured, {len(mappings)} mappings")
     print(f"Backend: {args.backend}")
+    print(f"Prompt style: {args.prompt_style}")
     print(f"Context window: {args.context_before} before / {args.context_after} after")
 
     # Initialize retrieval
@@ -1073,16 +1345,6 @@ def run(args: argparse.Namespace) -> None:
     t0 = time.time()
 
     if args.backend == "vllm":
-        if args.reset_prefix_cache:
-            import urllib.request
-            url = f"{args.vllm_url}/reset_prefix_cache"
-            try:
-                req = urllib.request.Request(url, method="POST")
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    print(f"Prefix cache reset: HTTP {resp.status}")
-            except Exception as e:
-                print(f"Warning: prefix cache reset failed ({e}) — continuing anyway")
-
         # Pipelined: each annotation flows search→retrieve→select independently
         # so vLLM's continuous batching keeps the GPU saturated throughout.
         print(f"\n=== PIPELINED: search → retrieve → select ({len(annotations)} annotations) ===")
@@ -1091,6 +1353,7 @@ def run(args: argparse.Namespace) -> None:
             base_url=args.vllm_url, model=args.vllm_model,
             max_concurrent=args.concurrency,
             reasoning_effort=args.reasoning_effort,
+            prompt_style=args.prompt_style,
         )
         bench["pipeline_ann_timings"] = pipeline_ann_timings
     else:
@@ -1113,7 +1376,8 @@ def run(args: argparse.Namespace) -> None:
                 unmapped_indices.append(i)
                 unmapped_prompts.append(
                     build_search_prompt(a["before"], a["span"], a["after"],
-                                        a["section_header"], a["search_rules_text"])
+                                        a["section_header"], a["search_rules_text"],
+                                        prompt_style=args.prompt_style)
                 )
                 unmapped_spans.append(a["span"])
 
@@ -1124,33 +1388,15 @@ def run(args: argparse.Namespace) -> None:
             for idx, terms in zip(unmapped_indices, llm_search_terms):
                 all_search_terms[idx] = terms
 
-        print(f"\n=== RETRIEVAL: Running SNOMED searches (batched) ===")
-        # Collect all search terms and batch-retrieve at once
-        all_queries = []
-        query_ann_map = []  # (annotation_idx, term_idx)
-        for idx, search_terms in enumerate(all_search_terms):
-            for term_idx, term in enumerate(search_terms):
-                all_queries.append(term)
-                query_ann_map.append((idx, term_idx))
-
-        print(f"  {len(all_queries)} queries from {len(annotations)} annotations")
-        batch_results = snomed_search_batch(all_queries, top_k=10)
-
-        # Map results back to annotations and merge per-annotation
-        ann_term_results: dict[int, list[list[dict]]] = {}
-        for (ann_idx, _), results in zip(query_ann_map, batch_results):
-            ann_term_results.setdefault(ann_idx, []).append(results)
+        print(f"\n=== RETRIEVAL: Running SNOMED searches (batch_hybrid) ===")
+        n_queries = sum(len(terms) for terms in all_search_terms)
+        items = [(str(idx), terms) for idx, terms in enumerate(all_search_terms)]
+        print(f"  {n_queries} queries from {len(annotations)} annotations (1 batch call)")
+        result_map = snomed_search_batch_items(items, top_k=10)
 
         all_candidates: list[list[dict]] = []
         for idx in range(len(annotations)):
-            merged: dict[int, dict] = {}
-            for results in ann_term_results.get(idx, []):
-                for c in results:
-                    cid = c["concept_id"]
-                    if cid not in merged or c["score"] > merged[cid]["score"]:
-                        merged[cid] = c
-            candidates = sorted(merged.values(), key=lambda x: x["score"], reverse=True)[:15]
-            all_candidates.append(candidates)
+            all_candidates.append(result_map.get(str(idx), [])[:15])
 
         print(f"\n=== PASS 2: Selecting concepts ({len(annotations)} annotations) ===")
         select_prompts = [
@@ -1158,11 +1404,12 @@ def run(args: argparse.Namespace) -> None:
                 a["before"], a["span"], a["after"],
                 a["section_header"], a["gold_start"], a["gold_end"],
                 a["select_rules_text"], candidates,
+                prompt_style=args.prompt_style,
             )
             for a, candidates in zip(annotations, all_candidates)
         ]
         all_selections = asyncio.run(
-            sonnet_select_batch(select_prompts)
+            sonnet_select_batch(select_prompts, all_candidates)
         )
 
     bench["pipeline_total_s"] = time.time() - t0
@@ -1311,6 +1558,7 @@ def run(args: argparse.Namespace) -> None:
         "model": model_name,
         "temperature": 0.0,
         "reasoning_effort": reasoning,
+        "prompt_style": args.prompt_style,
         "context_before": args.context_before,
         "context_after": args.context_after,
         "n_annotations": n_total,
@@ -1431,8 +1679,12 @@ def main() -> None:
         help="Max concurrent requests for vLLM (default: 0 = unlimited, let vLLM batch)",
     )
     parser.add_argument(
-        "--reasoning-effort", choices=["low", "medium", "high"], default="low",
-        help="Reasoning effort for gpt-oss-20b (default: low)",
+        "--reasoning-effort", choices=["low", "medium", "high", "none"], default="low",
+        help="Reasoning effort for gpt-oss-20b (default: low). Use 'none' to disable (e.g. for non-reasoning models)",
+    )
+    parser.add_argument(
+        "--prompt-style", choices=["standard", "repeated-text"], default="standard",
+        help="Prompt template style: 'standard' (rules then excerpt) or 'repeated-text' (excerpt sandwiched around rules) (default: standard)",
     )
     parser.add_argument(
         "--rules", type=str, default=None, metavar="PATH",
@@ -1447,6 +1699,11 @@ def main() -> None:
         help="Replay results from a saved JSON file (no inference, just report + top-100 check)",
     )
     parser.add_argument(
+        "--index-server", type=str, default=None, metavar="URL",
+        help="URL of a running snomed_index_server.py (e.g. http://127.0.0.1:8421). "
+             "Skips local FAISS/BM25/SapBERT loading entirely.",
+    )
+    parser.add_argument(
         "--context-before", type=int, default=None, metavar="N",
         help=f"Characters of context before the span (default: {DEFAULT_CONTEXT_BEFORE})",
     )
@@ -1457,10 +1714,6 @@ def main() -> None:
     parser.add_argument(
         "--config", type=str, default=None, metavar="PATH",
         help="Path to a JSON config file (can set context_before, context_after)",
-    )
-    parser.add_argument(
-        "--reset-prefix-cache", action="store_true", default=False,
-        help="Call vLLM's /reset_prefix_cache before running (requires VLLM_SERVER_DEV_MODE=1)",
     )
     args = parser.parse_args()
 
@@ -1479,7 +1732,10 @@ def main() -> None:
         args.vllm_url = config["vllm_url"]
     if "concurrency" in config and args.concurrency == 0:
         args.concurrency = config["concurrency"]
-    args.reset_prefix_cache = args.reset_prefix_cache or config.get("reset_prefix_cache", False)
+    if "prompt_style" in config and args.prompt_style == "standard":
+        args.prompt_style = config["prompt_style"]
+    global _index_server_url
+    _index_server_url = args.index_server
 
     if args.replay:
         replay(args.replay)
