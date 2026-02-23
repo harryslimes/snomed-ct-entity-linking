@@ -42,6 +42,13 @@ ENV TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas
 RUN pip install --no-deps "fastsafetensors>=0.1.10" 2>/dev/null || \
     echo "fastsafetensors install skipped (may need manual install)"
 
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && apt-get install -y --no-install-recommends gh && \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     apt-get clean -y && rm -rf /var/lib/apt/lists/*
