@@ -536,8 +536,8 @@ def parse_search_terms(text: str, fallback_span: str) -> list[str]:
         match = re.search(r"\{[^{}]*\"search_terms\"[^{}]*\}", text)
         if match:
             result = json.loads(match.group())
-            terms = result.get("search_terms", [])
-            if terms:
+            terms = result.get("search_terms", None)
+            if terms is not None:  # allow empty list [] as intentional skip
                 return terms[:3]
     except (json.JSONDecodeError, KeyError):
         pass

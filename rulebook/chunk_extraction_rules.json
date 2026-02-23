@@ -1,0 +1,49 @@
+{
+  "rules": [
+    {
+      "id": "CE001",
+      "rule": "Skip 'urine' when the chunk contains URINE rows with dipstick/macroscopic parameters only: Color-, Appear-, Blood-NEG/TR, Nitrite-, Glucose-, Ketone-, Bilirub-, Urobiln-, pH-, Leuks-. These reagent-strip urinalysis rows are not annotated as distinct SNOMED concepts.",
+      "priority": 1
+    },
+    {
+      "id": "CE002",
+      "rule": "Extract 'urine' when the chunk contains URINE followed by microscopy fields (RBC-, WBC-, Bacteri-, Yeast-, Epi-, Cast-, Mucous-) or urine chemistry fields (Creat-, Osmolal-, Hours-RANDOM, Na-, K-, Cl-) or culture/specimen markers (Source:, URINE CULTURE). These map to distinct SNOMED concepts for microscopy, chemistry panel, or culture.",
+      "priority": 2
+    },
+    {
+      "id": "CE003",
+      "rule": "Skip 'normal' when the chunk contains 'pressure is normal' (referring to estimated/derived hemodynamic pressures, e.g., pulmonary artery systolic pressure). Extract 'normal' when it describes structural anatomy (size, motion, diameters), ventricular function (often accompanied by LVEF in parentheses), or direct physical/neurological exam findings.",
+      "priority": 2
+    },
+    {
+      "id": "CE004",
+      "rule": "Extract 'normal' when the chunk contains qualifiers like 'LVEF', 'free wall motion', 'systolic function', 'cavity size', 'finger to nose', or anatomical diameters. These indicate direct structural or functional clinical observations that warrant annotation as a finding qualifier.",
+      "priority": 2
+    },
+    {
+      "id": "CE005",
+      "rule": "Skip 'effusion' when it appears as a standalone term at or near the start of the chunk, immediately followed by medication list formatting (e.g., numbered drugs, 'mg Tablet Sig', 'Refills') or discharge instruction prose ('Please return to the hospital'). This indicates a diagnosis label/header, not an active clinical finding.",
+      "priority": 1
+    },
+    {
+      "id": "CE006",
+      "rule": "Skip 'R' when the chunk contains a reflex/DTR table: look for column headers like 'Bi Tri Pat Ach' combined with rows starting with 'L' and 'R' each followed by multiple numeric scores. In this context 'R' is a table row label, not a clinical concept.",
+      "priority": 1
+    },
+    {
+      "id": "CE007",
+      "rule": "Extract 'R' when it appears in a vitals listing as 'R: [number]' (respiratory rate, SNOMED 106049001). Key signal: chunk contains multiple vital-sign abbreviations (T:, P:, BP:, SaO2:) with numeric values.",
+      "priority": 2
+    },
+    {
+      "id": "CE008",
+      "rule": "Extract 'R' (as 'right', SNOMED 368209003) when it directly precedes an anatomical location or body-part descriptor (e.g., 'R distal dorsal arm', 'R knee'). Key signal: 'R' followed by a spatial/anatomical noun phrase rather than a colon-number pattern or a numeric table column.",
+      "priority": 2
+    },
+    {
+      "id": "CE009",
+      "rule": "Skip 'seizures' when it is the very first word of the chunk AND immediately followed by 'with' (e.g., 'seizures with secondary generalization'). This signals the term is a sentence fragment completing a compound clinical diagnosis (e.g., 'complex partial seizures') split from the preceding chunk \u2014 not an independently annotatable span. If 'seizures' appears anywhere else in the chunk with its own syntactic context, extract it.",
+      "priority": 2
+    }
+  ]
+}
