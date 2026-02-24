@@ -2,122 +2,107 @@
   "rules": [
     {
       "id": "CE001",
-      "rule": "Extract 'urine' only when part of a structured lab result line with clinical parameters (e.g., RBC, WBC, pH, Nitrite, Protein, Glucose) or culture results. Skip if 'urine' appears in isolated descriptive fields like Color, Appearance, or Sp (specifically in 'Color-Straw Appear-Clear Sp').",
+      "rule": "Extract 'urine' only when followed by lab parameter patterns like 'RBC-', 'WBC-', 'Bacteri-', 'Yeast-', 'Epi-', 'CastHy-', 'Mucous-', 'Hours-', 'Creat-', 'Na-', 'K-', 'Cl-', 'Osmolal-', 'Source:', or 'Culture' within the same chunk.",
       "priority": 2
     },
     {
       "id": "CE002",
-      "rule": "Extract 'urine' when it precedes a colon or is followed by a colon and then a clinical test result (e.g., 'URINE RBC-4*', 'URINE CastHy-8*', 'URINE Culture: NO GROWTH').",
+      "rule": "Skip 'urine' if it appears in a chunk with 'Color-', 'Appear-', 'Sp ___', 'Blood-', 'Nitrite-', 'Protein-', 'Glucose-', 'Ketone-', 'Bilirub-', 'Urobiln-', 'pH-', 'Leuks-' but no subsequent lab values like 'RBC-', 'WBC-', etc.",
       "priority": 2
     },
     {
       "id": "CE003",
-      "rule": "Do not extract 'urine' if it appears in a non-laboratory context, such as in a section header (e.g., 'URINE CULTURE') or as part of a specimen source (e.g., 'Source: Catheter') without accompanying test values.",
+      "rule": "Skip 'urine' when it is part of a line containing 'Sp ___' (e.g., 'Sp ___') and no lab values or identifiers (e.g., 'Source:', 'Culture') appear in the same chunk.",
       "priority": 2
     },
     {
       "id": "CE004",
-      "rule": "Extract 'normal' only when it follows a clinical measurement or assessment and is part of a structured, parenthetical, or comma-separated description of a physiological parameter (e.g., 'LVEF 60-70%', 'free wall motion are normal').",
+      "rule": "Extract 'normal' only when it appears in a clinical assessment context within a medical imaging or physical exam section (e.g., 'ventricular septal defect. Right ventricular chamber size and free wall motion are normal' or 'sensation in upper and lower extremities, normal finger to nose bilaterally') and is followed by a clinical descriptor such as 'motion', 'size', 'function', or 'strength'.",
       "priority": 2
     },
     {
       "id": "CE005",
-      "rule": "Do not extract 'normal' when it appears in a narrative summary or impression section (e.g., 'IMPRESSION: Normal global and regional biventricular') unless paired with a measurable parameter.",
+      "rule": "Skip 'normal' if it appears in a section labeled 'Pertinent Results' or 'IMPRESSION' and is not immediately followed by a clinical descriptor (e.g., 'pressure is normal' in 'Pertinent Results' chunk without further clinical detail).",
       "priority": 2
     },
     {
       "id": "CE006",
-      "rule": "Extract 'normal' when it directly describes a quantified or anatomical finding (e.g., 'left ventricular size is normal', 'aortic valve leaflets are mildly thickened but... normal') in a clinical assessment context.",
+      "rule": "Extract 'normal' only when it is part of a sentence describing a measurable anatomical or functional parameter (e.g., 'left ventricular systolic function is normal', 'aortic valve leaflets are mildly thickened but aortic... normal') and is not standalone in a summary or impression line.",
       "priority": 2
     },
     {
       "id": "CE007",
-      "rule": "Extract 'effusion' only when it appears in a clinical imaging or diagnostic section (e.g., ECHO, Admission Labs, DIAGNOSED BY) and is part of a structured description of fluid location (e.g., 'pericardial effusion', 'pleural effusion') with anatomical or morphological detail (e.g., 'circumferential', 'moderate-sized').",
+      "rule": "Extract 'effusion' only when it appears in a medical imaging or diagnostic procedure section (e.g., ECHO, CXR, MRI, CT) and is preceded by 'pericardial' or 'pleural' or 'R sided' or 'L sided' or 'small to moderate sized'.",
       "priority": 2
     },
     {
       "id": "CE008",
-      "rule": "Do not extract 'effusion' when it appears in discharge medication or instruction sections, especially when immediately followed by a medication name or dosage (e.g., 'effusion 2. Prednisone...') or when part of a follow-up instruction line.",
+      "rule": "Skip 'effusion' when it appears in discharge medication or discharge instruction sections, especially when followed by a medication list, dosing instruction, or follow-up instruction (e.g., 'effusion\n2. Prednisone...', 'effusion\n.\nPlease return...').",
       "priority": 2
     },
     {
       "id": "CE009",
-      "rule": "Do not extract 'effusion' if it appears alone on a line or in a list format without clinical context or anatomical specification (e.g., 'effusion' as a standalone term in a medication list or discharge summary).",
+      "rule": "Skip 'effusion' if it appears in a chunk that contains 'Sig:', 'Disp:', 'Refills:', or 'PO' in the same line or immediately after, indicating a medication order or prescription context.",
       "priority": 2
     },
     {
       "id": "CE010",
-      "rule": "Extract 'r' only when it appears as part of a structured, abbreviated anatomical or clinical descriptor (e.g., 'R' in 'R distal dorsal arm' or 'L' in 'L chest') within a lesion or body part listing; skip if standalone or in non-anatomical context.",
+      "rule": "Extract 'r' only when it appears as a standalone character in a clinical exam context (e.g., 'R: 18' in vitals) and is preceded by a space and a letter (e.g., 'R: ' or 'R. '), not as part of a word or acronym.",
       "priority": 2
     },
     {
       "id": "CE011",
-      "rule": "Do not extract 'r' when it appears in isolation, as a single character in a line, or within a motor/sensory exam line (e.g., 'R 3 3 3 3 1') unless followed by a body part or lesion descriptor.",
+      "rule": "Skip 'r' if it appears in a line containing 'Bi Tri ___ Pat Ach' (DTR reflex table header) or as part of a reflex table row (e.g., 'R  3  3    3    3   1'), regardless of surrounding context.",
       "priority": 2
     },
     {
       "id": "CE012",
-      "rule": "Extract 'r' only when part of a paired anatomical notation (e.g., 'R' or 'L') preceding a lesion or body site (e.g., 'R distal dorsal arm'), and when the pattern matches clinical documentation conventions for laterality.",
+      "rule": "Skip 'r' if it appears immediately after a number and a space (e.g., '3  3    3    3   1') in a reflex table line, or when part of a sequence of numbers indicating reflex grading (e.g., 'R 3 3 3 3 1').",
       "priority": 2
     },
     {
       "id": "CE013",
-      "rule": "Extract 'seizures' when it appears in clinical narrative context indicating a neurological event, especially in HPI, hospital course, or discharge instructions, and is linked to symptoms, evaluation, or treatment.",
+      "rule": "Extract 'seizures' only when it appears in a clinical narrative context describing a patient's event or symptom, such as 'episodes of seizures', 'febrile seizures', or 'unresponsiveness c/f seizures'. Skip if it appears in a section labeled 'Brief Hospital Course' or 'Discharge Instructions' when part of a diagnostic conclusion or plan (e.g., 'likely triggered by stroke' or 'workup for stroke') unless preceded by a clinical event description.",
       "priority": 2
     },
     {
       "id": "CE014",
-      "rule": "Do not extract 'seizures' when it appears in a family history or social history section as a negative finding (e.g., 'No seizures') unless followed by clinical context indicating active or past neurological events.",
+      "rule": "Skip 'seizures' when it appears in a chunk that contains 'c/f' (e.g., 'unresponsiveness c/f seizures') and is immediately followed by a diagnostic or etiological explanation (e.g., 'likely triggered by stroke') or a plan (e.g., 'workup for stroke'), as these indicate inferred or post-hoc labeling rather than documented clinical event.",
       "priority": 2
     },
     {
       "id": "CE015",
-      "rule": "Extract 'seizures' only when it is part of a clinical description involving episodes, events, or diagnostic evaluation; skip if used in passive or non-clinical phrasing (e.g., 'likely triggered by seizures').",
+      "rule": "Extract 'seizures' only when it is part of a phrase describing a patient\u2019s actual clinical event, such as 'episodes of seizures', 'febrile seizures', or 'unresponsiveness c/f seizures', and is not preceded by a diagnostic label like 'thought to be' or 'likely' in the same sentence or chunk.",
       "priority": 2
     },
     {
       "id": "CE016",
-      "rule": "Extract 'ct' only when part of a structured imaging order or report context (e.g., 'CT torso', 'CT-torso', 'CT on ___ showed'), indicating a diagnostic imaging study.",
+      "rule": "Extract 'ct' only when followed by a body region or anatomical descriptor (e.g., 'CT torso', 'CT-torso', 'CT on ___ showed') and appears in imaging or diagnostic procedure context within History of Present Illness, Brief Hospital Course, or Past Oncology History sections.",
       "priority": 2
     },
     {
       "id": "CE017",
-      "rule": "Do not extract 'ct' when it appears in narrative or impression sections without anatomical or procedural context (e.g., 'CT with contrast is not able to provide...').",
+      "rule": "Skip 'ct' when it appears in a chunk containing 'IMPRESSION' or 'Pertinent Results' section labels, or when followed by 'with contrast' without a body region or diagnostic purpose.",
       "priority": 2
     },
     {
       "id": "CE018",
-      "rule": "Extract 'ct' only if followed by a body region (e.g., 'torso', 'abdomen', 'chest') or a modifier (e.g., 'with contrast', 'prior to admission'), indicating a specific imaging study.",
+      "rule": "Skip 'ct' if it appears in a line with 'prior to admission' or 'prior to admittion' and is part of a retrospective reference to prior imaging without current diagnostic intent.",
       "priority": 2
     },
     {
       "id": "CE019",
-      "rule": "Extract 'ldl' only when it appears in a structured, clinical checklist or assessment context (e.g., 'LDL documented?', 'LDL >100') within sections like Brief Hospital Course or Discharge Planning.",
+      "rule": "Extract 'cxr' only when it appears in a medical imaging or diagnostic procedure section (e.g., 'CXR demonstrated', 'CXR revealed', 'CXR was without') and is followed by clinical findings or imaging results.",
       "priority": 2
     },
     {
       "id": "CE020",
-      "rule": "Do not extract 'ldl' when it appears in narrative text as a standalone value (e.g., 'LDL 149') without accompanying clinical decision or structured assessment language.",
+      "rule": "Skip 'cxr' if it appears in a section labeled 'TTE (___)' or 'CXR (___):' with a colon and no subsequent clinical findings or imaging description.",
       "priority": 2
     },
     {
       "id": "CE021",
-      "rule": "Extract 'ldl' only if immediately followed by a clinical threshold, action, or assessment (e.g., 'LDL >100', 'LDL = 62') in a checklist or structured format.",
-      "priority": 2
-    },
-    {
-      "id": "CE022",
-      "rule": "Extract 'cxr' only when it appears in a clinical imaging or diagnostic context, especially when followed by findings, abnormalities, or procedural actions (e.g., 'CXR revealed', 'CXR demonstrated', 'CXR evidence of').",
-      "priority": 2
-    },
-    {
-      "id": "CE023",
-      "rule": "Do not extract 'cxr' when it appears in a procedural or equipment section (e.g., 'CXR (___):') or as part of a line item listing devices (e.g., 'PICC line terminating in SVC') without diagnostic content.",
-      "priority": 2
-    },
-    {
-      "id": "CE024",
-      "rule": "Extract 'cxr' only if it is part of a sentence or phrase describing imaging findings, interpretations, or clinical conclusions (e.g., 'CXR showed', 'CXR revealed'), not when used as a standalone label or header.",
+      "rule": "Skip 'cxr' when it appears in a chunk that contains '___:' immediately before it, indicating a placeholder or template line, such as '___: CXR'.",
       "priority": 2
     }
   ]

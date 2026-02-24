@@ -770,17 +770,25 @@ Response format — a single JSON object:
   "rules": [
     {
       "id": "CE###",
-      "rule": "Concise extraction guidance (<100 words).",
+      "rule": "Specific extraction rule (<100 words).",
       "priority": 2
     }
   ]
 }
 
 Rules guidance:
-  - Each rule MUST be under 100 words. Be telegraphic.
+  - Each rule MUST be under 100 words.
+  - BE MAXIMALLY SPECIFIC. Reference exact strings, field names, formatting \
+    patterns, and character sequences you see in the examples. Do NOT write \
+    generic guidance like "extract when in clinical context" — instead write \
+    "extract when followed by '-[number]*' lab value format (e.g., 'RBC-4*', \
+    'WBC-12')".
+  - Quote literal text patterns from the examples. Good: "skip when chunk \
+    contains 'Bi Tri Pat Ach' (DTR reflex table header)". Bad: "skip in \
+    motor/sensory exam notation".
+  - Name specific field formats, delimiters, keywords, and section markers \
+    visible in the chunk text. The more concrete the pattern, the better.
   - Write rules the extraction model can apply using ONLY the chunk text.
-  - Focus on patterns like: medication list format, section-specific patterns, \
-    dosing context, clinical narrative context.
   - Priority: P1 = hard override, P2 = standard, P3 = guideline.
   - Prefer P2 unless the pattern absolutely requires override.
   - Generate 1-3 rules per group of examples.\
