@@ -2,47 +2,162 @@
   "rules": [
     {
       "id": "CE001",
-      "rule": "Skip 'urine' when the chunk contains URINE rows with dipstick/macroscopic parameters only: Color-, Appear-, Blood-NEG/TR, Nitrite-, Glucose-, Ketone-, Bilirub-, Urobiln-, pH-, Leuks-. These reagent-strip urinalysis rows are not annotated as distinct SNOMED concepts.",
-      "priority": 1
+      "rule": "Extract 'urine' only when followed by lab parameters (e.g., RBC, WBC, pH, Creat, etc.) or culture results indicating a clinical test or result.",
+      "priority": 2
     },
     {
       "id": "CE002",
-      "rule": "Extract 'urine' when the chunk contains URINE followed by microscopy fields (RBC-, WBC-, Bacteri-, Yeast-, Epi-, Cast-, Mucous-) or urine chemistry fields (Creat-, Osmolal-, Hours-RANDOM, Na-, K-, Cl-) or culture/specimen markers (Source:, URINE CULTURE). These map to distinct SNOMED concepts for microscopy, chemistry panel, or culture.",
+      "rule": "Skip 'urine' if it appears in a line with only descriptive attributes (e.g., Color, Appear, Sp) and no measurable lab values or diagnostic findings.",
       "priority": 2
     },
     {
       "id": "CE003",
-      "rule": "Skip 'normal' when the chunk contains 'pressure is normal' (referring to estimated/derived hemodynamic pressures, e.g., pulmonary artery systolic pressure). Extract 'normal' when it describes structural anatomy (size, motion, diameters), ventricular function (often accompanied by LVEF in parentheses), or direct physical/neurological exam findings.",
+      "rule": "Extract 'urine' when part of a structured lab line with a time stamp and clinical markers (e.g., 'URINE RBC-4*', 'URINE CastHy-8*'), especially if preceding or following lab values.",
       "priority": 2
     },
     {
       "id": "CE004",
-      "rule": "Extract 'normal' when the chunk contains qualifiers like 'LVEF', 'free wall motion', 'systolic function', 'cavity size', 'finger to nose', or anatomical diameters. These indicate direct structural or functional clinical observations that warrant annotation as a finding qualifier.",
+      "rule": "Extract 'normal' when it appears in clinical assessment contexts within structured sections (e.g., TTE, CXR, ECHO, Admission Labs, Physical Exam) and is followed by anatomical or functional parameters (e.g., size, motion, function, LVEF).",
       "priority": 2
     },
     {
       "id": "CE005",
-      "rule": "Skip 'effusion' when it appears as a standalone term at or near the start of the chunk, immediately followed by medication list formatting (e.g., numbered drugs, 'mg Tablet Sig', 'Refills') or discharge instruction prose ('Please return to the hospital'). This indicates a diagnosis label/header, not an active clinical finding.",
-      "priority": 1
+      "rule": "Skip 'normal' when it appears in summary or impression statements (e.g., 'IMPRESSION: Normal global and regional biventricular') unless immediately followed by measurable clinical parameters.",
+      "priority": 2
     },
     {
       "id": "CE006",
-      "rule": "Skip 'R' when the chunk contains a reflex/DTR table: look for column headers like 'Bi Tri Pat Ach' combined with rows starting with 'L' and 'R' each followed by multiple numeric scores. In this context 'R' is a table row label, not a clinical concept.",
-      "priority": 1
-    },
-    {
-      "id": "CE007",
-      "rule": "Extract 'R' when it appears in a vitals listing as 'R: [number]' (respiratory rate, SNOMED 106049001). Key signal: chunk contains multiple vital-sign abbreviations (T:, P:, BP:, SaO2:) with numeric values.",
+      "rule": "Extract 'normal' only if it modifies a clinically relevant anatomical or functional finding (e.g., 'size is normal', 'function is normal') and appears in a section with objective clinical data.",
       "priority": 2
     },
     {
       "id": "CE008",
-      "rule": "Extract 'R' (as 'right', SNOMED 368209003) when it directly precedes an anatomical location or body-part descriptor (e.g., 'R distal dorsal arm', 'R knee'). Key signal: 'R' followed by a spatial/anatomical noun phrase rather than a colon-number pattern or a numeric table column.",
+      "rule": "Skip 'effusion' when it appears in medication or instruction sections (e.g., 'Discharge Medications', 'Discharge Instructions') unless paired with procedural or imaging context.",
       "priority": 2
     },
     {
       "id": "CE009",
-      "rule": "Skip 'seizures' when it is the very first word of the chunk AND immediately followed by 'with' (e.g., 'seizures with secondary generalization'). This signals the term is a sentence fragment completing a compound clinical diagnosis (e.g., 'complex partial seizures') split from the preceding chunk \u2014 not an independently annotatable span. If 'seizures' appears anywhere else in the chunk with its own syntactic context, extract it.",
+      "rule": "Extract 'effusion' only if preceded by 'pericardial' or 'pleural' or followed by clinical management (e.g., 'thoracentesis', 'tamponade', 'diastolic collapse').",
+      "priority": 2
+    },
+    {
+      "id": "CE010",
+      "rule": "Extract 'r' only when part of a structured anatomical or clinical descriptor (e.g., 'R distal dorsal arm', 'L chest') in a lesion or diagnosis list; skip if part of motor/sensory exam notation (e.g., 'R 3', 'L 2') or non-anatomical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE011",
+      "rule": "Skip 'r' when it appears as a standalone letter in motor reflex or coordination assessments (e.g., 'R 3', 'R 2') or as part of a line with only numeric values and no anatomical reference.",
+      "priority": 2
+    },
+    {
+      "id": "CE012",
+      "rule": "Extract 'r' when it follows a clinical site descriptor (e.g., 'R distal dorsal arm', 'R knee') and is part of a lesion or diagnosis list; only if paired with a pathology type (e.g., 'squamous cell carcinoma').",
+      "priority": 2
+    },
+    {
+      "id": "CE013",
+      "rule": "Extract 'seizures' when it appears in clinical narrative context indicating a medical event or symptom (e.g., 'episodes of seizures', 'c/f seizures', 'thought to be seizures'), especially in HPI, Hospital Course, or Discharge Instructions.",
+      "priority": 2
+    },
+    {
+      "id": "CE014",
+      "rule": "Skip 'seizures' when it appears in a negated or hypothetical context (e.g., 'no seizures', 'denies seizures', 'likely triggered by...seizures') unless followed by clinical confirmation or management.",
+      "priority": 2
+    },
+    {
+      "id": "CE015",
+      "rule": "Extract 'seizures' only if it is part of a clinical event description with temporal or clinical context (e.g., 'four episodes', 'during an event', 'unresponsiveness c/f seizures'); skip standalone or non-descriptive mentions.",
+      "priority": 2
+    },
+    {
+      "id": "CE017",
+      "rule": "Skip 'ct' when it appears in radiology impression or summary lines without clinical intent (e.g., 'no metastatic lesions are visualized, however CT with contrast is not able to provide...').",
+      "priority": 2
+    },
+    {
+      "id": "CE018",
+      "rule": "Extract 'ct' only if followed by anatomical site (e.g., 'torso', 'abdomen', 'hilar') or clinical outcome (e.g., 'revealed thickening', 'showed mass').",
+      "priority": 2
+    },
+    {
+      "id": "CE019",
+      "rule": "Extract 'ldl' only when part of a structured clinical decision point or documentation check (e.g., 'LDL documented?', 'LDL >100', 'LDL = 62') in hospital course or discharge planning sections.",
+      "priority": 2
+    },
+    {
+      "id": "CE020",
+      "rule": "Extract 'cxr' only when it appears in clinical imaging context indicating a diagnostic study, especially when followed by findings (e.g., 'CXR revealed', 'CXR demonstrated'), or in structured sections like 'DIAGNOSED BY' or 'Discharge Labs'.",
+      "priority": 2
+    },
+    {
+      "id": "CE021",
+      "rule": "Skip 'cxr' when it appears in a line with only procedural or device descriptors (e.g., 'CXR (___):', 'PICC line terminating in SVC') and no clinical findings or diagnostic interpretation.",
+      "priority": 2
+    },
+    {
+      "id": "CE022",
+      "rule": "Extract 'cxr' only if it is part of a sentence describing a radiographic result or clinical decision (e.g., 'CXR showed', 'CXR revealed effusion'), not when used as a standalone label in a header or line with no clinical content.",
+      "priority": 2
+    },
+    {
+      "id": "CE023",
+      "rule": "Extract 'normal' only when it directly modifies a measurable clinical finding (e.g., 'size is normal', 'function is normal') in structured sections like TTE, CXR, ECHO, or Admission Labs.",
+      "priority": 2
+    },
+    {
+      "id": "CE024",
+      "rule": "Skip 'normal' when it appears in summary or impression statements (e.g., 'IMPRESSION: Normal global function') or as a standalone descriptor without clinical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE025",
+      "rule": "Extract 'normal' only if it follows a clinical anatomical or functional term (e.g., 'ventricular size is normal', 'LVEF is normal') and is not part of a concluding phrase like 'overall normal'.",
+      "priority": 2
+    },
+    {
+      "id": "CE026",
+      "rule": "Extract 'effusion' only if preceded by 'pericardial' or 'pleural' or followed by clinical management (e.g., 'thoracentesis', 'drainage') or imaging findings (e.g., 'circumferential', 'moderate sized').",
+      "priority": 2
+    },
+    {
+      "id": "CE027",
+      "rule": "Skip 'effusion' when it appears in medication or discharge instruction sections (e.g., 'Discharge Medications', 'Discharge Instructions') unless modified by 'pericardial' or 'pleural'.",
+      "priority": 2
+    },
+    {
+      "id": "CE028",
+      "rule": "Extract 'effusion' only if part of a clinical description with anatomical localization (e.g., 'pericardial effusion', 'R-sided effusion') or associated with a procedure (e.g., 'underwent thoracentesis').",
+      "priority": 2
+    },
+    {
+      "id": "CE029",
+      "rule": "Extract 'r' only when it follows a clinical site descriptor (e.g., 'R distal dorsal arm', 'R knee') and is part of a lesion or anatomical localization in structured or narrative clinical text.",
+      "priority": 2
+    },
+    {
+      "id": "CE030",
+      "rule": "Skip 'r' when it appears as a standalone letter in motor reflex or coordination assessments (e.g., 'R 3', 'R 2') or as part of a numerical scale without anatomical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE031",
+      "rule": "Extract 'r' only if it is part of a structured anatomical descriptor with clinical relevance (e.g., 'R distal dorsal arm/squamous cell carcinoma'), not in isolated or non-descriptive lines.",
+      "priority": 2
+    },
+    {
+      "id": "CE032",
+      "rule": "Extract 'r' only when it follows a clinical anatomical site descriptor (e.g., 'R distal dorsal arm', 'R knee') and is part of a lesion, diagnosis, or localized finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE033",
+      "rule": "Skip 'r' when it appears as a standalone letter in motor reflex, coordination, or neurological assessment lines (e.g., 'R 3', 'R 2') or as a placeholder in structured tables.",
+      "priority": 2
+    },
+    {
+      "id": "CE034",
+      "rule": "Extract 'r' only if it is part of a structured clinical phrase with anatomical localization and clinical intent (e.g., 'R chest/basal cell carcinoma', 'R distal dorsal arm/squamous cell carcinoma').",
       "priority": 2
     }
   ]

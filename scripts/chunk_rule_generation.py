@@ -787,18 +787,14 @@ Rules guidance:
 """
 
 
-def generate_rules_for_group(
+def _build_group_prompt(
     group: ContrastiveGroup,
     existing_rules: list[dict],
-    *,
-    sonnet_model: str = "claude-sonnet-4-6",
-) -> list[dict]:
-    """Generate candidate rules for a contrastive group via Claude Sonnet."""
-    # Build the prompt
+) -> tuple[str, int]:
+    """Build the user prompt for a contrastive group. Returns (prompt, next_id)."""
     lines = [f'SPAN: "{group.span_text}"', ""]
 
     if group.group_type == "contrastive":
-        # Show positive examples (extract it)
         if group.positive_examples:
             lines.append("=== ANNOTATED (extract it) ===")
             for i, ex in enumerate(group.positive_examples):
@@ -813,7 +809,6 @@ def generate_rules_for_group(
                     lines.append(f"  {concept_str}")
                 lines.append("")
 
-        # Show negative examples (skip it)
         if group.negative_examples:
             lines.append("=== NOT ANNOTATED (skip it) ===")
             for i, ex in enumerate(group.negative_examples):
@@ -855,13 +850,15 @@ def generate_rules_for_group(
         lines.append(f"This span (\"{group.span_text}\") is ALWAYS gold-annotated but the model "
                       "never extracts it. Write rules to encourage extraction.")
 
-    # Add existing rules context
-    if existing_rules:
-        lines.append("\nEXISTING RULES (do not duplicate):")
-        for r in existing_rules:
+    # Show at most 15 existing rules to stay within context window.
+    # Prefer showing the most recent rules (likely most relevant).
+    shown_rules = existing_rules[-15:] if len(existing_rules) > 15 else existing_rules
+    if shown_rules:
+        lines.append(f"\nEXISTING RULES ({len(existing_rules)} total, "
+                      f"showing last {len(shown_rules)} — do not duplicate):")
+        for r in shown_rules:
             lines.append(f"  {r['id']}: {r['rule'][:120]}")
 
-    # Compute next ID
     existing_ids = [
         int(m.group())
         for r in existing_rules
@@ -872,13 +869,71 @@ def generate_rules_for_group(
     lines.append(f"\nGenerate 1-3 rules (start IDs from CE{next_id:03d}).")
     lines.append("Return ONLY the JSON object with 'rules' key.")
 
-    user_prompt = "\n".join(lines)
+    return "\n".join(lines), next_id
 
-    try:
-        raw = _run_sonnet(CHUNK_RULE_GEN_SYSTEM, user_prompt, model=sonnet_model)
-    except Exception as e:
-        print(f"    ERROR generating rules: {e}")
-        return []
+
+async def _vllm_rule_gen(
+    user_prompt: str,
+    *,
+    vllm_url: str,
+    model: str,
+    max_context: int = 4096,
+) -> str:
+    """Generate rules via the local vLLM model."""
+    # Rough token estimate: ~3.5 chars/token for clinical text
+    est_input_tokens = (len(CHUNK_RULE_GEN_SYSTEM) + len(user_prompt)) // 3
+    max_tokens = min(1024, max(256, max_context - est_input_tokens - 100))
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": CHUNK_RULE_GEN_SYSTEM},
+            {"role": "user", "content": user_prompt},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": 0.3,
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{vllm_url}/v1/chat/completions", json=payload) as resp:
+            data = await resp.json()
+            if "error" in data:
+                raise RuntimeError(data["error"])
+            return data["choices"][0]["message"].get("content") or ""
+
+
+def generate_rules_for_group(
+    group: ContrastiveGroup,
+    existing_rules: list[dict],
+    *,
+    backend: str = "sonnet",
+    sonnet_model: str = "claude-sonnet-4-6",
+    vllm_url: str = "http://localhost:8000",
+    vllm_model: str = DEFAULT_MODEL,
+    max_context: int = 4096,
+) -> list[dict]:
+    """Generate candidate rules for a contrastive group.
+
+    backend: "sonnet" (Claude API) or "vllm" (local Qwen3 model).
+    """
+    user_prompt, next_id = _build_group_prompt(group, existing_rules)
+
+    if backend == "vllm":
+        try:
+            raw = asyncio.run(
+                _vllm_rule_gen(
+                    user_prompt, vllm_url=vllm_url, model=vllm_model,
+                    max_context=max_context,
+                )
+            )
+        except Exception as e:
+            print(f"    ERROR generating rules via vLLM: {e}")
+            return []
+    else:
+        try:
+            raw = _run_sonnet(CHUNK_RULE_GEN_SYSTEM, user_prompt, model=sonnet_model)
+        except Exception as e:
+            print(f"    ERROR generating rules via Sonnet: {e}")
+            return []
 
     new_rules, _ = _parse_sonnet_rules(raw)
     return new_rules
@@ -1098,6 +1153,15 @@ def main():
     parser.add_argument("--holdout-seed", type=int, default=42)
     parser.add_argument("--sonnet-model", default="claude-sonnet-4-6")
     parser.add_argument(
+        "--rule-gen-backend", default="vllm",
+        choices=["vllm", "sonnet"],
+        help="Backend for rule generation: vllm (local Qwen3) or sonnet (Claude API)",
+    )
+    parser.add_argument("--rounds", type=int, default=1,
+                        help="Number of generate→test iterations over the groups")
+    parser.add_argument("--max-context", type=int, default=4096,
+                        help="Max context window of the vLLM model (for token budgeting)")
+    parser.add_argument(
         "--phase", default="all",
         choices=["extract", "group", "generate", "all"],
         help="Which phase to run",
@@ -1266,8 +1330,14 @@ def main():
     # Phase: Generate (rule generation + testing loop)
     # ------------------------------------------------------------------
     if args.phase in ("generate", "all"):
+        backend = args.rule_gen_backend
+        backend_label = (
+            f"vLLM ({args.model.split('/')[-1]})"
+            if backend == "vllm"
+            else f"Sonnet ({args.sonnet_model})"
+        )
         print(f"\n{'='*70}")
-        print("PHASE 3: RULE GENERATION + TESTING")
+        print(f"PHASE 3: RULE GENERATION + TESTING  [backend: {backend_label}]")
         print(f"{'='*70}")
 
         # Build chunk lookup
@@ -1276,97 +1346,117 @@ def main():
             chunk_lookup[(c.note_id, c.chunk_idx)] = c
 
         accepted_rules = list(rules)
-        n_accepted = 0
-        n_rejected = 0
+        total_accepted = 0
+        total_rejected = 0
 
-        for gi, group in enumerate(groups):
-            if len(accepted_rules) >= args.max_rules:
-                print(f"\n  Reached max rules ({args.max_rules}), stopping.")
-                break
+        for round_idx in range(args.rounds):
+            round_accepted = 0
+            round_rejected = 0
 
-            print(f"\n  {'─'*50}")
-            print(f"  Group {gi + 1}/{len(groups)}: {group.group_type} "
-                  f"\"{group.span_text}\"  "
-                  f"(score={group.priority_score:.0f}, "
-                  f"concepts={group.concept_ids[:3]})")
+            print(f"\n  {'='*60}")
+            print(f"  ROUND {round_idx + 1}/{args.rounds}  "
+                  f"(rules so far: {len(accepted_rules)})")
+            print(f"  {'='*60}")
 
-            # Generate candidate rules
-            print(f"    Generating rules via {args.sonnet_model} ...")
-            t0 = time.time()
-            candidate_rules = generate_rules_for_group(
-                group, accepted_rules, sonnet_model=args.sonnet_model,
-            )
-            print(f"    Generated {len(candidate_rules)} candidates in {time.time() - t0:.1f}s")
+            for gi, group in enumerate(groups):
+                if len(accepted_rules) >= args.max_rules:
+                    print(f"\n  Reached max rules ({args.max_rules}), stopping.")
+                    break
 
-            if not candidate_rules:
-                continue
+                print(f"\n  {'─'*50}")
+                print(f"  [{round_idx + 1}/{args.rounds}] "
+                      f"Group {gi + 1}/{len(groups)}: {group.group_type} "
+                      f"\"{group.span_text}\"  "
+                      f"(score={group.priority_score:.0f}, "
+                      f"concepts={group.concept_ids[:3]})")
 
-            for r in candidate_rules:
-                print(f"      {r.get('id', '?')}: {r.get('rule', '')[:80]}")
-
-            # Find affected chunks
-            affected = [
-                chunk_lookup[key]
-                for key in group.affected_chunk_keys
-                if key in chunk_lookup
-            ]
-            if not affected:
-                print(f"    No affected chunks found, skipping.")
-                continue
-
-            print(f"    Testing on {len(affected)} affected chunks ...")
-
-            # Test each candidate
-            for rule in candidate_rules:
+                # Generate candidate rules
+                print(f"    Generating rules via {backend_label} ...")
                 t0 = time.time()
-                n_fixed, n_broken, fixed_details, broken_details = asyncio.run(
-                    test_candidate_rule(
-                        rule, accepted_rules, affected,
-                        vllm_url=args.vllm_url,
-                        model=args.model,
-                        max_concurrent=args.max_concurrent,
+                candidate_rules = generate_rules_for_group(
+                    group, accepted_rules,
+                    backend=backend,
+                    sonnet_model=args.sonnet_model,
+                    vllm_url=args.vllm_url,
+                    vllm_model=args.model,
+                    max_context=args.max_context,
+                )
+                print(f"    Generated {len(candidate_rules)} candidates "
+                      f"in {time.time() - t0:.1f}s")
+
+                if not candidate_rules:
+                    continue
+
+                for r in candidate_rules:
+                    print(f"      {r.get('id', '?')}: {r.get('rule', '')[:80]}")
+
+                # Find affected chunks
+                affected = [
+                    chunk_lookup[key]
+                    for key in group.affected_chunk_keys
+                    if key in chunk_lookup
+                ]
+                if not affected:
+                    print(f"    No affected chunks found, skipping.")
+                    continue
+
+                print(f"    Testing on {len(affected)} affected chunks ...")
+
+                # Test each candidate
+                for rule in candidate_rules:
+                    t0 = time.time()
+                    n_fixed, n_broken, fixed_details, broken_details = asyncio.run(
+                        test_candidate_rule(
+                            rule, accepted_rules, affected,
+                            vllm_url=args.vllm_url,
+                            model=args.model,
+                            max_concurrent=args.max_concurrent,
+                        )
                     )
+                    net = n_fixed - n_broken
+                    elapsed = time.time() - t0
+                    kept = net >= 1
+
+                    print(f"    {rule.get('id', '?')}: "
+                          f"+{n_fixed} fixed, -{n_broken} broken, net={net}  "
+                          f"{'ACCEPT' if kept else 'REJECT'}  ({elapsed:.1f}s)")
+
+                    log_rule_change(
+                        run_dir, gi, rule,
+                        action="accept" if kept else "reject",
+                        n_fixed=n_fixed, n_broken=n_broken,
+                    )
+
+                    if kept:
+                        accepted_rules.append(rule)
+                        round_accepted += 1
+                    else:
+                        round_rejected += 1
+
+                # Save state after each group
+                save_rules(accepted_rules, args.rules_file)
+                save_state(
+                    run_dir, phase="generate", group_idx=gi,
+                    rules=accepted_rules,
+                    processed_groups=[g.span_text for g in groups[:gi + 1]],
+                    holdout_note_ids=sorted(holdout_ids),
                 )
-                net = n_fixed - n_broken
-                elapsed = time.time() - t0
-                kept = net >= 1
 
-                print(f"    {rule.get('id', '?')}: "
-                      f"+{n_fixed} fixed, -{n_broken} broken, net={net}  "
-                      f"{'ACCEPT' if kept else 'REJECT'}  ({elapsed:.1f}s)")
+            total_accepted += round_accepted
+            total_rejected += round_rejected
+            print(f"\n  Round {round_idx + 1} complete: "
+                  f"+{round_accepted} accepted, -{round_rejected} rejected, "
+                  f"total rules: {len(accepted_rules)}")
 
-                log_rule_change(
-                    run_dir, gi, rule,
-                    action="accept" if kept else "reject",
-                    n_fixed=n_fixed, n_broken=n_broken,
-                )
-
-                if kept:
-                    accepted_rules.append(rule)
-                    n_accepted += 1
-
-                    # Update affected chunks with new extraction results
-                    # (re-index for future delta tests)
-                    # For simplicity, we don't re-index here — the delta
-                    # computation is always against the original baseline.
-
-                else:
-                    n_rejected += 1
-
-            # Save state after each group
-            save_rules(accepted_rules, args.rules_file)
-            save_state(
-                run_dir, phase="generate", group_idx=gi,
-                rules=accepted_rules,
-                processed_groups=[g.span_text for g in groups[:gi + 1]],
-                holdout_note_ids=sorted(holdout_ids),
-            )
+            if round_accepted == 0:
+                print(f"  No rules accepted this round — stopping early.")
+                break
 
         print(f"\n{'='*70}")
         print(f"DONE")
         print(f"{'='*70}")
-        print(f"  Rules accepted: {n_accepted}")
-        print(f"  Rules rejected: {n_rejected}")
+        print(f"  Rules accepted: {total_accepted}")
+        print(f"  Rules rejected: {total_rejected}")
         print(f"  Total rules: {len(accepted_rules)}")
         print(f"  Rules file: {args.rules_file}")
         print(f"  Run dir: {run_dir}")
