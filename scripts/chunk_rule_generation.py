@@ -878,8 +878,15 @@ async def _vllm_rule_gen(
     vllm_url: str,
     model: str,
     max_context: int = 4096,
-) -> str:
-    """Generate rules via the local vLLM model."""
+    n: int = 1,
+    temperature: float = 0.3,
+) -> list[str]:
+    """Generate rules via the local vLLM model.
+
+    Returns a list of N completion strings (one per sample).
+    Uses the OpenAI ``n`` parameter so the prompt is prefilled once
+    and decoded N times — much cheaper than N separate requests.
+    """
     # Rough token estimate: ~3.5 chars/token for clinical text
     est_input_tokens = (len(CHUNK_RULE_GEN_SYSTEM) + len(user_prompt)) // 3
     max_tokens = min(1024, max(256, max_context - est_input_tokens - 100))
@@ -890,7 +897,8 @@ async def _vllm_rule_gen(
             {"role": "user", "content": user_prompt},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.3,
+        "temperature": temperature,
+        "n": n,
         "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
     }
     async with aiohttp.ClientSession() as session:
@@ -898,7 +906,10 @@ async def _vllm_rule_gen(
             data = await resp.json()
             if "error" in data:
                 raise RuntimeError(data["error"])
-            return data["choices"][0]["message"].get("content") or ""
+            return [
+                c["message"].get("content") or ""
+                for c in data["choices"]
+            ]
 
 
 def generate_rules_for_group(
@@ -910,33 +921,52 @@ def generate_rules_for_group(
     vllm_url: str = "http://localhost:8000",
     vllm_model: str = DEFAULT_MODEL,
     max_context: int = 4096,
-) -> list[dict]:
-    """Generate candidate rules for a contrastive group.
+    best_of_n: int = 1,
+) -> list[list[dict]]:
+    """Generate candidate rule sets for a contrastive group.
+
+    Returns a list of rule-sets (each is a list[dict]).  When best_of_n > 1,
+    multiple sets are generated in a single vLLM call (using the ``n`` param)
+    with higher temperature for diversity.  The caller tests each set and
+    keeps only the best-scoring one.
 
     backend: "sonnet" (Claude API) or "vllm" (local Qwen3 model).
     """
     user_prompt, next_id = _build_group_prompt(group, existing_rules)
 
     if backend == "vllm":
+        temperature = 0.8 if best_of_n > 1 else 0.3
         try:
-            raw = asyncio.run(
+            completions = asyncio.run(
                 _vllm_rule_gen(
                     user_prompt, vllm_url=vllm_url, model=vllm_model,
-                    max_context=max_context,
+                    max_context=max_context, n=best_of_n,
+                    temperature=temperature,
                 )
             )
         except Exception as e:
             print(f"    ERROR generating rules via vLLM: {e}")
             return []
+        # Parse each completion into a rule set
+        rule_sets = []
+        for raw in completions:
+            rules, _ = _parse_sonnet_rules(raw)
+            if rules:
+                rule_sets.append(rules)
+        return rule_sets
     else:
-        try:
-            raw = _run_sonnet(CHUNK_RULE_GEN_SYSTEM, user_prompt, model=sonnet_model)
-        except Exception as e:
-            print(f"    ERROR generating rules via Sonnet: {e}")
-            return []
-
-    new_rules, _ = _parse_sonnet_rules(raw)
-    return new_rules
+        # Sonnet: no n parameter, call N times sequentially
+        rule_sets = []
+        for i in range(best_of_n):
+            try:
+                raw = _run_sonnet(CHUNK_RULE_GEN_SYSTEM, user_prompt, model=sonnet_model)
+            except Exception as e:
+                print(f"    ERROR generating rules via Sonnet (sample {i+1}): {e}")
+                continue
+            rules, _ = _parse_sonnet_rules(raw)
+            if rules:
+                rule_sets.append(rules)
+        return rule_sets
 
 
 # ---------------------------------------------------------------------------
@@ -1159,6 +1189,8 @@ def main():
     )
     parser.add_argument("--rounds", type=int, default=1,
                         help="Number of generate→test iterations over the groups")
+    parser.add_argument("--best-of-n", type=int, default=1,
+                        help="Generate N candidate rule sets per group, test all, keep best")
     parser.add_argument("--max-context", type=int, default=4096,
                         help="Max context window of the vLLM model (for token budgeting)")
     parser.add_argument(
@@ -1331,13 +1363,16 @@ def main():
     # ------------------------------------------------------------------
     if args.phase in ("generate", "all"):
         backend = args.rule_gen_backend
+        best_of_n = args.best_of_n
         backend_label = (
             f"vLLM ({args.model.split('/')[-1]})"
             if backend == "vllm"
             else f"Sonnet ({args.sonnet_model})"
         )
+        bon_label = f", best-of-{best_of_n}" if best_of_n > 1 else ""
         print(f"\n{'='*70}")
-        print(f"PHASE 3: RULE GENERATION + TESTING  [backend: {backend_label}]")
+        print(f"PHASE 3: RULE GENERATION + TESTING  "
+              f"[backend: {backend_label}{bon_label}]")
         print(f"{'='*70}")
 
         # Build chunk lookup
@@ -1370,25 +1405,29 @@ def main():
                       f"(score={group.priority_score:.0f}, "
                       f"concepts={group.concept_ids[:3]})")
 
-                # Generate candidate rules
-                print(f"    Generating rules via {backend_label} ...")
+                # Generate candidate rule sets
+                n_label = f"{best_of_n} samples" if best_of_n > 1 else ""
+                print(f"    Generating rules via {backend_label} "
+                      f"{'(' + n_label + ') ' if n_label else ''}...")
                 t0 = time.time()
-                candidate_rules = generate_rules_for_group(
+                rule_sets = generate_rules_for_group(
                     group, accepted_rules,
                     backend=backend,
                     sonnet_model=args.sonnet_model,
                     vllm_url=args.vllm_url,
                     vllm_model=args.model,
                     max_context=args.max_context,
+                    best_of_n=best_of_n,
                 )
-                print(f"    Generated {len(candidate_rules)} candidates "
-                      f"in {time.time() - t0:.1f}s")
+                gen_elapsed = time.time() - t0
+                n_sets = len(rule_sets)
+                total_rules_across = sum(len(rs) for rs in rule_sets)
+                print(f"    Generated {n_sets} rule set(s) "
+                      f"({total_rules_across} rules total) "
+                      f"in {gen_elapsed:.1f}s")
 
-                if not candidate_rules:
+                if not rule_sets:
                     continue
-
-                for r in candidate_rules:
-                    print(f"      {r.get('id', '?')}: {r.get('rule', '')[:80]}")
 
                 # Find affected chunks
                 affected = [
@@ -1400,38 +1439,94 @@ def main():
                     print(f"    No affected chunks found, skipping.")
                     continue
 
-                print(f"    Testing on {len(affected)} affected chunks ...")
+                print(f"    Testing {n_sets} set(s) on "
+                      f"{len(affected)} affected chunks ...")
 
-                # Test each candidate
-                for rule in candidate_rules:
-                    t0 = time.time()
-                    n_fixed, n_broken, fixed_details, broken_details = asyncio.run(
-                        test_candidate_rule(
-                            rule, accepted_rules, affected,
-                            vllm_url=args.vllm_url,
-                            model=args.model,
-                            max_concurrent=args.max_concurrent,
+                # --- Best-of-N: test each rule set, pick the best ---
+                set_scores: list[tuple[int, int, int, list[dict]]] = []
+                # (net, n_fixed, n_broken, rule_set)
+
+                for si, rule_set in enumerate(rule_sets):
+                    set_label = f"set {si+1}/{n_sets}" if n_sets > 1 else ""
+                    if n_sets > 1:
+                        rules_preview = ", ".join(
+                            r.get("id", "?") for r in rule_set
                         )
-                    )
-                    net = n_fixed - n_broken
-                    elapsed = time.time() - t0
-                    kept = net >= 1
+                        print(f"    Testing {set_label} "
+                              f"[{rules_preview}] ...")
 
-                    print(f"    {rule.get('id', '?')}: "
-                          f"+{n_fixed} fixed, -{n_broken} broken, net={net}  "
-                          f"{'ACCEPT' if kept else 'REJECT'}  ({elapsed:.1f}s)")
+                    # Test all rules in this set together by injecting
+                    # them as a group
+                    set_fixed = 0
+                    set_broken = 0
+                    for rule in rule_set:
+                        t0 = time.time()
+                        n_fixed, n_broken, fixed_d, broken_d = asyncio.run(
+                            test_candidate_rule(
+                                rule, accepted_rules, affected,
+                                vllm_url=args.vllm_url,
+                                model=args.model,
+                                max_concurrent=args.max_concurrent,
+                            )
+                        )
+                        net = n_fixed - n_broken
+                        elapsed = time.time() - t0
+                        set_fixed += n_fixed
+                        set_broken += n_broken
+
+                        prefix = f"      [{set_label}] " if n_sets > 1 else "    "
+                        print(f"{prefix}{rule.get('id', '?')}: "
+                              f"+{n_fixed}/-{n_broken} net={net}  "
+                              f"({elapsed:.1f}s)")
+
+                    set_net = set_fixed - set_broken
+                    set_scores.append(
+                        (set_net, set_fixed, set_broken, rule_set)
+                    )
+
+                    if n_sets > 1:
+                        print(f"      {set_label} total: "
+                              f"+{set_fixed}/-{set_broken} "
+                              f"net={set_net}")
+
+                # Pick the best set
+                set_scores.sort(key=lambda x: x[0], reverse=True)
+                best_net, best_fixed, best_broken, best_set = set_scores[0]
+
+                if n_sets > 1:
+                    best_ids = ", ".join(r.get("id", "?") for r in best_set)
+                    print(f"    BEST: [{best_ids}] "
+                          f"net={best_net} "
+                          f"(+{best_fixed}/-{best_broken})")
+                    if n_sets > 1:
+                        worst_net = set_scores[-1][0]
+                        print(f"    (worst net={worst_net}, "
+                              f"spread={best_net - worst_net})")
+
+                # Accept/reject each rule in the best set
+                for rule in best_set:
+                    # Re-test individual rule for its own stats (for logging)
+                    # We already have per-rule stats from above for best_set
+                    # but since we tested independently, use the set-level
+                    # decision: accept the whole set if net >= 1
+                    kept = best_net >= 1
 
                     log_rule_change(
                         run_dir, gi, rule,
                         action="accept" if kept else "reject",
-                        n_fixed=n_fixed, n_broken=n_broken,
+                        n_fixed=best_fixed, n_broken=best_broken,
                     )
 
                     if kept:
                         accepted_rules.append(rule)
                         round_accepted += 1
-                    else:
-                        round_rejected += 1
+
+                if best_net < 1:
+                    round_rejected += len(best_set)
+                    action_str = "REJECT ALL"
+                else:
+                    action_str = f"ACCEPT {len(best_set)} rules"
+                print(f"    → {action_str} (best net={best_net})")
 
                 # Save state after each group
                 save_rules(accepted_rules, args.rules_file)
