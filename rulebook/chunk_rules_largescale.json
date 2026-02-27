@@ -1,0 +1,1834 @@
+{
+  "rules": [
+    {
+      "id": "CE001",
+      "rule": "Extract 'right' only when it is part of a anatomical location description involving brain regions (e.g., 'right inferior parietal', 'right temporal', 'right occipital lobe') or cardiac structures (e.g., 'right ventricular', 'right atrial') with clinical imaging or neurological findings.",
+      "priority": 2
+    },
+    {
+      "id": "CE002",
+      "rule": "Skip 'right' when it appears in the context of imaging modalities (e.g., 'CXR', 'EKG') or as part of a section header (e.g., 'EKG (___):') or lab result context (e.g., 'Right bundle branch block') without anatomical specificity.",
+      "priority": 2
+    },
+    {
+      "id": "CE003",
+      "rule": "Extract 'right' only if it is immediately followed by a anatomical structure (e.g., 'right hilum', 'right ventricular free wall', 'right inferior parietal') and appears in a clinical narrative describing findings (e.g., infarct, abnormality, motion).",
+      "priority": 2
+    },
+    {
+      "id": "CE004",
+      "rule": "Extract 'L' only when it appears as a standalone anatomical laterality marker immediately before a body part or region (e.g., 'L flank pain', 'L side', 'L oophorectomy'), and the context indicates clinical assessment or history of a condition.",
+      "priority": 2
+    },
+    {
+      "id": "CE005",
+      "rule": "Skip 'L' when it appears in motor/sensory exam tables (e.g., 'Delt Bic Tri WrE FFl FE IO IP Quad Ham TA ___') or reflex tables (e.g., 'Bi Tri ___ Pat Ach') where it is part of a structured assessment header or row label.",
+      "priority": 2
+    },
+    {
+      "id": "CE006",
+      "rule": "Skip 'L' when it is part of a section header or label such as 'L Normal (x) Abnormal ()' or 'L ___ years ago' if the text is in a list format with no clinical descriptor of a condition or body part.",
+      "priority": 2
+    },
+    {
+      "id": "CE007",
+      "rule": "Extract 'R' only when it appears as a standalone laterality marker immediately before a body part or region in a structured exam section (e.g., 'R Normal (x) Abnormal ()', 'R distal dorsal arm', 'R foot more edematous'), and only if it is not part of a table header or row with other anatomical terms.",
+      "priority": 2
+    },
+    {
+      "id": "CE008",
+      "rule": "Skip 'R' when it appears in a table header or row that includes other anatomical terms or markers (e.g., 'Bi Tri Pat Ach', 'Delt Bic Tri WrE FFl FE IO IP Quad Ham TA ___'), even if it is followed by a body part.",
+      "priority": 2
+    },
+    {
+      "id": "CE009",
+      "rule": "Skip 'R' when it appears in a section labeled with 'R Normal (x) Abnormal ()' or similar structured format, unless it is immediately followed by a body part or region in a non-table context (e.g., 'R foot more edematous').",
+      "priority": 2
+    },
+    {
+      "id": "CE010",
+      "rule": "Extract 'left' only when it appears as a standalone anatomical laterality marker immediately before a body part or region in a structured list or clinical description (e.g., 'left piriformis syndrome', 'left eye opens', 'left centrum semiovale').",
+      "priority": 2
+    },
+    {
+      "id": "CE011",
+      "rule": "Skip 'left' when it appears in a non-anatomical context such as 'left humerus' in a procedural or follow-up note, or when it is part of a phrase indicating time or sequence (e.g., 'left shift', 'left ___ days', 'left ___ years ago').",
+      "priority": 2
+    },
+    {
+      "id": "CE012",
+      "rule": "Skip 'left' when it appears in a section header or label such as 'Left ___' or 'Left Normal (x) Abnormal ()', unless it is directly followed by a body part or region in a clinical description.",
+      "priority": 2
+    },
+    {
+      "id": "CE013",
+      "rule": "Extract 'pain' only when it appears in a clinical context describing a symptom, such as in History of Present Illness, physical exam, or chief complaint sections, and is followed by descriptors like 'sharp', 'pleuritic', 'worse with', or 'localized to'.",
+      "priority": 2
+    },
+    {
+      "id": "CE014",
+      "rule": "Skip 'pain' when it appears in a sentence describing pain control or resolution, such as 'pain was well-controlled' or 'pain resolved', especially in sections like Hospital Course or Review of Systems.",
+      "priority": 2
+    },
+    {
+      "id": "CE015",
+      "rule": "Skip 'pain' when it appears in a negated or conditional context, such as 'no pain', 'pain not present', or 'pain was not felt to be due to', particularly in diagnostic or assessment statements.",
+      "priority": 2
+    },
+    {
+      "id": "CE016",
+      "rule": "Extract 'normal' only when it is part of a clinical assessment of anatomical structure or function (e.g., 'ventricular function is normal', 'wall motion is normal'), and is immediately followed by a structural or functional descriptor (e.g., 'motion', 'size', 'function', 'effusion') or appears in a structured report section like TTE, ECHO, CXR, or Physical Exam.",
+      "priority": 2
+    },
+    {
+      "id": "CE017",
+      "rule": "Skip 'normal' when it appears in a section header, conclusion, or impression line (e.g., 'IMPRESSION: Normal global and regional biventricular'), or when it is part of a laboratory result format (e.g., 'HYPOCHROM-NORMAL', 'ANISOCYT-1+'), or when it is used in a non-clinical descriptive context such as 'normal appearance' without functional or structural detail.",
+      "priority": 2
+    },
+    {
+      "id": "CE018",
+      "rule": "Skip 'normal' when it is part of a lab value format with hyphenated terms (e.g., 'ANISOCYT-1+', 'MACROCYT-1+', 'POLYCHROM-NORMAL'), or when it follows a label like '___' in a result line (e.g., '___ 09:50PM   HYPOCHROM-NORMAL'), indicating a result field rather than a clinical assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE019",
+      "rule": "Extract 'wbc' only when it appears in a lab value line formatted as 'WBC-<value>' or 'WBC: <value>' with a numeric value immediately following, and the line contains other lab markers like 'RBC', 'Hgb', 'Hct', or 'Plt'.",
+      "priority": 2
+    },
+    {
+      "id": "CE020",
+      "rule": "Skip 'wbc' when it appears in free-text narrative within History of Present Illness or similar sections, especially when followed by 'normal', 'elevated', or 'left shift' without a numeric value or lab format.",
+      "priority": 2
+    },
+    {
+      "id": "CE021",
+      "rule": "Skip 'wbc' when it appears as part of a phrase like 'WBC 13.1' or 'WBC 13' without a hyphen or colon delimiter, and not within a structured lab line containing multiple lab values (e.g., 'RBC: 4.24', 'Hgb: 11.7').",
+      "priority": 2
+    },
+    {
+      "id": "CE022",
+      "rule": "Extract 'ct' only when it appears as part of a structured imaging modality name with a body region, such as 'CT torso', 'CT-torso', 'CT of your head', or 'CT on ___ showed', and is followed by a clinical finding or diagnostic purpose.",
+      "priority": 2
+    },
+    {
+      "id": "CE023",
+      "rule": "Skip 'ct' when it appears in a free-text narrative within section headers like 'Admission Labs', 'Discharge Labs', or 'CONTRAINDICATIONS FOR IV CONTRAST', especially when followed by 'with contrast' or 'prior to admission' without a clinical finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE024",
+      "rule": "Skip 'ct' when it appears in a sentence that only references prior imaging without a new clinical indication, such as 'CT from ___ suggesting this' or 'CT with contrast is not able to provide', especially if the chunk contains no new diagnostic or therapeutic purpose.",
+      "priority": 2
+    },
+    {
+      "id": "CE025",
+      "rule": "Extract 'glucose' only when it appears in a lab value line with a numeric value following a hyphen or colon delimiter (e.g., 'Glucose-158*', 'Glucose: 82'), and the chunk contains other lab values in the same format.",
+      "priority": 2
+    },
+    {
+      "id": "CE026",
+      "rule": "Skip 'glucose' when it appears in free-text narrative such as 'morning glucose 140s-150s' or 'blood sugars improved', even if preceded by a time stamp or section header.",
+      "priority": 2
+    },
+    {
+      "id": "CE027",
+      "rule": "Skip 'glucose' when the chunk contains only non-numeric text around it, such as 'Glucose: 82' with no surrounding lab values or structured format, especially if it appears in a section labeled 'LABORATORY DATA' or similar.",
+      "priority": 2
+    },
+    {
+      "id": "CE028",
+      "rule": "Extract 'pulmonary' only when it appears as a section header followed by a colon and clinical assessment (e.g., 'Pulmonary: The patient remained stable...'), or when part of a pathological diagnosis describing origin (e.g., 'carcinoma of pulmonary origin').",
+      "priority": 2
+    },
+    {
+      "id": "CE029",
+      "rule": "Skip 'pulmonary' when it appears in a phrase like 'from a pulmonary standpoint' or 'pulmonary toilet' unless immediately followed by a clinical assessment or diagnostic term (e.g., 'pulmonary toilet, early ambulation' is not a valid extraction).",
+      "priority": 2
+    },
+    {
+      "id": "CE030",
+      "rule": "Skip 'pulmonary' when it appears in a sentence that only describes monitoring or stability without clinical evaluation (e.g., 'The patient remained stable from a pulmonary standpoint'), unless the sentence includes a diagnostic or functional assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE031",
+      "rule": "Extract 'cta' only when it appears as part of a structured imaging modality name with a body region, such as 'CTA of the chest' or 'CTA head and neck', and is followed by clinical findings or imaging interpretation.",
+      "priority": 2
+    },
+    {
+      "id": "CE032",
+      "rule": "Skip 'cta' when it appears in a free-text narrative without a clinical indication, especially when followed by 'was deferred', 'was unable to undergo', or 'was not performed', indicating non-execution or exclusion.",
+      "priority": 2
+    },
+    {
+      "id": "CE033",
+      "rule": "Skip 'cta' when it appears in a section header or label such as 'CTA HEAD AND NECK ___ (PRELIM)' or 'CTA: No definite vascular abnormalities', unless immediately followed by clinical findings or interpretation of results.",
+      "priority": 2
+    },
+    {
+      "id": "CE034",
+      "rule": "Extract 'stroke' only when it appears in a structured clinical context such as section headers (e.g., 'Discharge Diagnosis: TIA or Stroke'), within a sentence describing a clinical event (e.g., 'new infarct involving the right inferior' or 'workup for stroke'), or in a clinical scale (e.g., 'NIHSS performed... Stroke Scale Score: 9').",
+      "priority": 2
+    },
+    {
+      "id": "CE035",
+      "rule": "Skip 'stroke' when it appears in a free-text narrative within a section header or label such as 'Stroke Service' or 'admitted to the stroke service' unless immediately followed by a clinical finding or assessment (e.g., 'admitted to the stroke service. Upon admission, underlying cause was evaluated').",
+      "priority": 2
+    },
+    {
+      "id": "CE036",
+      "rule": "Extract 'stroke' only when it is part of a clinical diagnosis or assessment phrase such as 'prior stroke with residual hemiparesis' or 'new stroke that was thought to be secondary to another medical cause', but skip when it appears in a phrase like 'right sided heaviness' or 'baseline deficit' without explicit reference to a clinical stroke event.",
+      "priority": 2
+    },
+    {
+      "id": "CE037",
+      "rule": "Extract 'urine' only when it appears as part of a structured lab line with a time stamp and at least one lab parameter (e.g., '___ 10:00PM URINE RBC-4*', '___ 02:46PM URINE WBC-1').",
+      "priority": 2
+    },
+    {
+      "id": "CE038",
+      "rule": "Skip 'urine' when it appears in a free-text line without a time stamp and lab parameters, such as 'URINE Color-Straw' or 'Blood-NEG Nitrite-NEG', especially when not preceded by a time-stamped line.",
+      "priority": 2
+    },
+    {
+      "id": "CE039",
+      "rule": "Skip 'urine' when it appears in section headers or labels like 'URINE CULTURE (Final ___:' or 'MICROBIOLOGY:' unless followed by a time-stamped lab line with parameters.",
+      "priority": 2
+    },
+    {
+      "id": "CE040",
+      "rule": "Extract 'negative' only when it appears in a clinical test or imaging result context with a clear modality or test name preceding it, such as 'U/S negative for DVT' or 'troponins negative', and when followed by a clinical conclusion or assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE041",
+      "rule": "Skip 'negative' when it appears in a free-text narrative or section header without a specific test or modality reference, such as 'negative in ED' or 'negative for DVT' without a preceding test name.",
+      "priority": 2
+    },
+    {
+      "id": "CE042",
+      "rule": "Skip 'negative' when it appears in a line that is part of a labeled test report section (e.g., 'GMS stain for fungal organisms is negative') unless the test name is explicitly linked to a clinical finding or diagnosis.",
+      "priority": 2
+    },
+    {
+      "id": "CE043",
+      "rule": "Extract 'ra' only when it appears as part of a structured oxygen saturation or oxygen therapy notation with a value and unit, such as 'SaO2: 100% RA' or '98% RA' or 'On RA'.",
+      "priority": 2
+    },
+    {
+      "id": "CE044",
+      "rule": "Skip 'ra' when it appears in a free-text narrative or section header without a preceding oxygen saturation value or clinical context, such as 'on RA' in a non-structured sentence or after a medical procedure.",
+      "priority": 2
+    },
+    {
+      "id": "CE045",
+      "rule": "Skip 'ra' when it appears in a line that is part of a lab or imaging report section, such as 'RA' in 'WBC-12 RA' or 'RBC-4 RA' without a clinical oxygenation context.",
+      "priority": 2
+    },
+    {
+      "id": "CE046",
+      "rule": "Extract 'chest' only when it appears in a clinical context with a body region or imaging modality reference, such as 'CTA of the chest', 'portable chest', or 'chest x-ray', and when followed by a clinical finding or imaging result.",
+      "priority": 2
+    },
+    {
+      "id": "CE047",
+      "rule": "Skip 'chest' when it appears in a free-text narrative within a history of present illness or symptom list without a clinical imaging or diagnostic context, especially when paired with symptoms like 'chest pain' or 'chest discomfort' without an imaging or test result.",
+      "priority": 2
+    },
+    {
+      "id": "CE048",
+      "rule": "Skip 'chest' when it appears in a section header or label such as 'Major Surgical or Invasive Procedure:' or 'History of Present Illness:' unless immediately followed by a clinical imaging or diagnostic finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE049",
+      "rule": "Extract '5' only when it appears as a numerical value in a structured motor strength or reflex assessment line (e.g., 'L  5    ___   ___  5   5    5  5     5     5' or 'R  5    ___   ___  5   5    5  5    5     5'), specifically within sections labeled 'Strength:', 'Neurologic:', or '-Cranial Nerves:' and immediately following a muscle group or reflex name (e.g., 'Delt', 'Bic', 'Tri', 'Pat', 'Ach') with consistent spacing and alignment.",
+      "priority": 2
+    },
+    {
+      "id": "CE050",
+      "rule": "Skip '5' when it appears in a line containing 'Bi Tri Pat Ach' (DTR reflex table header), even if followed by 'L  5' or 'R  5', as these are part of a labeled header row and not actual clinical values.",
+      "priority": 2
+    },
+    {
+      "id": "CE051",
+      "rule": "Skip '5' when it appears in a line with '___' as placeholders (e.g., 'L  5    ___   ___  5   5    5  5     5     5') and no preceding or following clinical values, indicating a template or empty row rather than a documented finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE052",
+      "rule": "Extract 'mild' only when it appears in a clinical assessment line describing a physical exam finding, neurological deficit, or symptom severity, such as 'Mild dysarthria' or 'Mild speech' or 'Mild distress'.",
+      "priority": 2
+    },
+    {
+      "id": "CE053",
+      "rule": "Skip 'mild' when it appears in a diagnostic impression or descriptive phrase within a pathology or endoscopy report, such as 'compatible with mild gastritis' or 'mild candidiasis', even if followed by 'biopsy'.",
+      "priority": 2
+    },
+    {
+      "id": "CE054",
+      "rule": "Skip 'mild' when it appears in a radiology or imaging report context, such as 'mild cardiomegaly' or 'mild stenosis', especially when part of a structured line with a modality or vessel name (e.g., 'mild LAD stenosis').",
+      "priority": 2
+    },
+    {
+      "id": "CE055",
+      "rule": "Extract 'mental status' only when it appears as a labeled heading followed by a clinical assessment (e.g., 'Mental Status: Alert, oriented x 3' or 'Mental Status: Intubated, sedated, unresponsive') within a neurologic or discharge condition section.",
+      "priority": 2
+    },
+    {
+      "id": "CE056",
+      "rule": "Skip 'mental status' when it appears in a narrative sentence without a colon or structured format (e.g., 'His mental status was very altered') even if preceded by a clinical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE057",
+      "rule": "Skip 'mental status' when it appears in a line that is part of a section header or label (e.g., 'Neurologic:', 'Discharge Condition:') and not followed by a colon and clinical assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE058",
+      "rule": "Extract 'blood' only when it appears in a free-text narrative context describing a clinical condition or finding, such as 'blood. You were started on antibiotics' or 'blood counts were found to be low'.",
+      "priority": 2
+    },
+    {
+      "id": "CE059",
+      "rule": "Skip 'blood' when it appears in a structured lab or test header line that includes '___ [time] BLOOD' followed by a test name (e.g., '___ 06:40AM BLOOD WBC-4.6') or 'BLOOD [test]: [value]'.",
+      "priority": 2
+    },
+    {
+      "id": "CE060",
+      "rule": "Skip 'blood' when it appears as part of a lab test abbreviation or label in a table or line of structured data, such as 'Blood: 11.8' or 'Plt ___' under a 'BLOOD' header.",
+      "priority": 2
+    },
+    {
+      "id": "CE061",
+      "rule": "Extract 'mcv' only when it appears in a structured lab line with numeric values and standard lab notation (e.g., 'MCV-89', 'MCV: 91'), and when preceded by 'RBC', 'Hgb', 'Hct', or similar lab markers in the same line.",
+      "priority": 2
+    },
+    {
+      "id": "CE062",
+      "rule": "Skip 'mcv' when it appears in a free-text narrative line without numeric values or structured lab formatting, such as 'MCV: 91' in a non-lab context or within a section header like 'Reflexes:' or 'Exam notable for:' without lab data.",
+      "priority": 2
+    },
+    {
+      "id": "CE063",
+      "rule": "Skip 'mcv' when it appears in a line containing only '___ [time] BLOOD' followed by lab abbreviations without numeric values or standard lab formatting (e.g., 'MCV: 91' without a number or with '___' placeholder).",
+      "priority": 2
+    },
+    {
+      "id": "CE064",
+      "rule": "Extract 'elevated' only when it appears in a clinical lab or test result context, followed by a lab value or marker (e.g., 'AST/ALT of 139/42, AP 128, Tbili 0.2' or 'troponins were elevated to 0.21').",
+      "priority": 2
+    },
+    {
+      "id": "CE065",
+      "rule": "Skip 'elevated' when it appears in a narrative mental status or mood description without lab context (e.g., 'denies ... elevated or irritable periods' or 'elevated inflammatory markers' without numeric values).",
+      "priority": 2
+    },
+    {
+      "id": "CE066",
+      "rule": "Skip 'elevated' when it appears in a line with '___' as a placeholder and no numeric values or structured lab data (e.g., 'D-dimer was elevated concerning for underlying inflammatory state').",
+      "priority": 2
+    },
+    {
+      "id": "CE067",
+      "rule": "Extract 'iv' only when it appears as part of a medication administration route in a structured medication line, immediately followed by a medication name (e.g., 'IV Dilaudid', 'IV hydralazine'), and within a section labeled with a clinical category such as 'Neurologic', 'CV', or 'In the ED'.",
+      "priority": 2
+    },
+    {
+      "id": "CE068",
+      "rule": "Skip 'iv' when it appears in a narrative sentence that is not part of a medication order or administration instruction, such as 'placed on IV antibiotics' or 'on IV Coumadin', especially when preceded by 'placed on' or 'will continue IV'.",
+      "priority": 2
+    },
+    {
+      "id": "CE069",
+      "rule": "Skip 'iv' when it appears in a line containing '___' as a placeholder and no medication name or structured order format, such as 'You were placed on IV ___' or 'IV ___ while here'.",
+      "priority": 2
+    },
+    {
+      "id": "CE070",
+      "rule": "Extract 'albumin' only when it appears in a structured lab line with a numeric value and lab test delimiter (e.g., 'Albumin-4.1', 'Albumin: 4.3'), and skip when it appears in narrative text without a numeric value or structured lab format (e.g., 'She received albumin').",
+      "priority": 2
+    },
+    {
+      "id": "CE071",
+      "rule": "Skip 'albumin' when it appears in a line containing '___ [time]' followed by a lab test list with no numeric values or lab delimiters (e.g., '___ 12:17AM BLOOD Albumin-4.1' has value, but '___ 04:55PM BLOOD Albumin' without value should be skipped).",
+      "priority": 2
+    },
+    {
+      "id": "CE072",
+      "rule": "Extract 'albumin' only when it appears in a line with a standard lab delimiter such as '-', ':', or '\u2014' followed by a numeric value (e.g., 'Albumin-4.1', 'Albumin: 4.3'), and skip when it appears in a free-text narrative context without such formatting (e.g., 'She received albumin').",
+      "priority": 2
+    },
+    {
+      "id": "CE073",
+      "rule": "Extract 'inr' only when it appears in a structured lab result line with a numeric value immediately following (e.g., 'INR: 3.4', 'INR 3.7'), and not when it appears in discharge instructions or follow-up planning context (e.g., 'INR checked on ___', 'INR should be drawn as per ___ clinic').",
+      "priority": 2
+    },
+    {
+      "id": "CE074",
+      "rule": "Skip 'inr' when it appears in a sentence that includes 'follow up', 'draw', 'checked', or 'recommended' in the context of scheduling or patient instructions (e.g., 'INR checked on ___', 'recommending a draw on ___'), even if followed by a numeric value.",
+      "priority": 2
+    },
+    {
+      "id": "CE075",
+      "rule": "Extract 'inr' only when it is part of a lab result line that includes standard lab delimiters such as '-', ':', or '\u2014' and is followed by a numeric value (e.g., 'INR-3.4', 'INR: 1.4'), and skip when it appears in free-text narrative without such formatting or numeric context.",
+      "priority": 2
+    },
+    {
+      "id": "CE076",
+      "rule": "Extract 'face' only when it appears in a clinical neurological or physical exam context, specifically within cranial nerve assessments (e.g., 'VII: Face is symmetric...') or in descriptions of focal neurological deficits (e.g., 'numbness in the face', 'weakness in the face') with clinical symptomatology.",
+      "priority": 2
+    },
+    {
+      "id": "CE077",
+      "rule": "Skip 'face' when it appears in a free-text physical exam line that lists body regions without clinical descriptors, such as 'moving all 4 extremities with purpose, face symmetric' \u2014 only extract if paired with abnormal findings or neurological assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE078",
+      "rule": "Skip 'face' when it appears in a line containing '___' as a placeholder and no associated clinical findings or structured exam notation (e.g., 'face ___' or 'face symmetric' without preceding symptom or exam detail).",
+      "priority": 2
+    },
+    {
+      "id": "CE079",
+      "rule": "Extract 'bp' only when it appears in a vitals or physical exam line with a numeric blood pressure value in format 'X/Y' (e.g., 'BP: 134/84'), and preceded by 'T:', 'P:', 'R:', or 'SaO2:' or similar vital signs markers.",
+      "priority": 2
+    },
+    {
+      "id": "CE080",
+      "rule": "Skip 'bp' when it appears in a line that contains '___' as a placeholder, or in a narrative line discussing BP management without a numeric value (e.g., 'allow BP to autoregulate', 'BP controlled').",
+      "priority": 2
+    },
+    {
+      "id": "CE081",
+      "rule": "Skip 'bp' when it appears in a section header or bullet point that is not part of a structured vitals or physical exam line, such as '# Neuro:', '#HYPERTENSION', or in a line with only 'BP' and no following numeric value or vital sign context.",
+      "priority": 2
+    },
+    {
+      "id": "CE082",
+      "rule": "Extract 'cxr' only when it appears as part of a clinical imaging finding or report line that includes a description of radiographic findings (e.g., 'CXR demonstrated', 'CXR revealed', 'CXR was without', 'CXR showed'), and is not preceded by a section placeholder like '___'.",
+      "priority": 2
+    },
+    {
+      "id": "CE083",
+      "rule": "Skip 'cxr' when it appears in a line containing '___' as a placeholder immediately before or after the term, especially when the line is part of a section header or template structure (e.g., 'CXR ___:', '___ CXR:')",
+      "priority": 2
+    },
+    {
+      "id": "CE084",
+      "rule": "Skip 'cxr' when it appears in a line that is part of a structured section header or bullet point list without a clinical finding or imaging result description (e.g., '- CXR', 'CXR ___:')",
+      "priority": 2
+    },
+    {
+      "id": "CE085",
+      "rule": "Extract 'gait' only when it appears in a structured neurologic or physical exam line with a clinical descriptor (e.g., 'Good initiation', 'Narrow-based', 'not tested', 'deferred') and is preceded by a section header like '-DTRs:', 'Neurologic:', or 'Reflexes:'.",
+      "priority": 2
+    },
+    {
+      "id": "CE086",
+      "rule": "Skip 'gait' when it appears in a free-text narrative line that includes 'training', 'therapy', 'home therapy', or 'falls prevention' without clinical exam descriptors, especially in sections like 'Brief Hospital Course' or 'History of Present Illness'.",
+      "priority": 2
+    },
+    {
+      "id": "CE087",
+      "rule": "Skip 'gait' when it appears in a line containing 'denied difficulty with' or 'felt continued' and is not followed by a clinical exam descriptor or structured exam format.",
+      "priority": 2
+    },
+    {
+      "id": "CE088",
+      "rule": "Extract 'pelvic' only when it appears as a section header followed by a clinical finding or imaging result, specifically when preceded by a line with 'Pelvic:' or 'PELVIS:' and followed by a clinical descriptor such as 'no free fluid', 'no adenopathy', or 'performed in ED'.",
+      "priority": 2
+    },
+    {
+      "id": "CE089",
+      "rule": "Skip 'pelvic' when it appears in a line that is part of a structured anatomical listing (e.g., 'No pelvic side-wall or inguinal lymphadenopathy') without a clinical descriptor or imaging result, especially when the line is a continuation of a bulleted list with no new clinical information.",
+      "priority": 2
+    },
+    {
+      "id": "CE090",
+      "rule": "Extract 'pelvic' when it is part of a phrase indicating a clinical exam or imaging modality, such as 'pelvic U/S' or 'pelvic exam', especially when followed by a finding or result; skip when it appears in a generic anatomical list without clinical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE091",
+      "rule": "Extract 'evaluation' only when it appears in a clinical context preceded by a clinical action or condition (e.g., 'neurologic evaluation', 'further outpatient EP evaluation', 'evaluation of bradycardia'), and followed by a clinical finding or plan.",
+      "priority": 2
+    },
+    {
+      "id": "CE092",
+      "rule": "Skip 'evaluation' when it appears in a narrative line that includes 'prior to discharge' or 'follow-up' without a clinical action or plan, especially when paired with 'Physical Therapy' or 'PCP' as in 'PT for evaluation prior to discharge'.",
+      "priority": 2
+    },
+    {
+      "id": "CE093",
+      "rule": "Skip 'evaluation' when it appears in a line containing '___' as a placeholder, or in a free-text line without a clinical descriptor or structured follow-up plan.",
+      "priority": 2
+    },
+    {
+      "id": "CE094",
+      "rule": "Extract 'diet' only when it appears in a line that is part of a structured instruction or clinical plan, specifically when followed by a dietary stage (e.g., 'Stage III diet', 'clear liquid diet', 'soft diet') or a directive to 'advance' or 'resume' diet.",
+      "priority": 2
+    },
+    {
+      "id": "CE095",
+      "rule": "Skip 'diet' when it appears in a narrative line that describes patient status or functional ability (e.g., 'tolerating a stage 3 diet', 'ambulating, voiding without assistance') without a clinical instruction or dietary stage specification.",
+      "priority": 2
+    },
+    {
+      "id": "CE096",
+      "rule": "Extract 'diet' when it appears in a line immediately followed by a clinical directive such as 'do not self advance', 'stay on', or 'resume', especially in discharge instructions or care plans.",
+      "priority": 2
+    },
+    {
+      "id": "CE097",
+      "rule": "Extract 'arteries' only when it appears in a clinical imaging or anatomical description context with anatomical descriptors such as 'anterior and posterior circulation', 'supplying blood to your heart', or 'of the head', and is followed by a clinical finding (e.g., 'no stenosis', 'obstruction', 'normal flow signal').",
+      "priority": 2
+    },
+    {
+      "id": "CE098",
+      "rule": "Skip 'arteries' when it appears in a line containing '___' as a placeholder or in a fragmented anatomical listing (e.g., 'the celiac, SMA and right and left renal arteries originate from the true lumen'), especially when the term is part of a list without a clinical assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE099",
+      "rule": "Skip 'arteries' when it appears in a line that is part of a structured section header or bullet point list (e.g., 'CONTRAINDICATIONS FOR IV CONTRAST') and is not followed by a clinical finding or imaging result.",
+      "priority": 2
+    },
+    {
+      "id": "CE100",
+      "rule": "Extract 'plt' only when it appears as part of a structured hematology lab line with a numeric value immediately following (e.g., 'Plt-123*'), and preceded by a valid lab header line containing 'BLOOD' and a timestamp.",
+      "priority": 2
+    },
+    {
+      "id": "CE101",
+      "rule": "Skip 'plt' when it appears in a line that contains '___' as a placeholder and is not immediately followed by a numeric lab value or lab modifier (e.g., 'Plt ___' with no value or symbol).",
+      "priority": 2
+    },
+    {
+      "id": "CE102",
+      "rule": "Skip 'plt' when it appears in a line that is part of a fragmented or incomplete lab listing where no lab value or modifier follows, and the line is not preceded by a valid lab header (e.g., 'MCV-89 MCH-30.2 MCHC-34.1 RDW-16.3* Plt ___').",
+      "priority": 2
+    },
+    {
+      "id": "CE103",
+      "rule": "Extract 'aspirin' only when followed by a dose (e.g., 'aspirin 81mg', 'aspirin 325mg') or a medication regimen including a dose (e.g., 'aspirin and atorvastatin', 'aspirin + Plavix'). Skip when 'aspirin' appears in a bullet point list without a dose or in a general instruction context (e.g., 'continue to take aspirin') without dosing.",
+      "priority": 2
+    },
+    {
+      "id": "CE104",
+      "rule": "Skip 'aspirin' when it appears in a line that is part of a structured instruction or discharge plan that uses 'continue' or 'will continue' without specifying a dose or regimen (e.g., 'continue to take aspirin', 'will continue on aspirin').",
+      "priority": 2
+    },
+    {
+      "id": "CE105",
+      "rule": "Extract 'aspirin' only when it appears in a clinical context with a specific medication action (e.g., 'started on aspirin', 'placed on aspirin', 'will require aspirin') and is associated with a clinical decision or diagnosis (e.g., stroke, cardiac cath, stents). Skip when 'aspirin' appears in a generic instruction or follow-up line without clinical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE106",
+      "rule": "Extract 'stenosis' only when it appears in a clinical imaging or vascular assessment context, specifically when followed by anatomical descriptors (e.g., 'P1 segment', 'carotid artery', 'vertebral artery') or in proximity to vascular findings like 'occlusion', 'aneurysm', or 'normal flow signal'.",
+      "priority": 2
+    },
+    {
+      "id": "CE107",
+      "rule": "Skip 'stenosis' when it appears in a line containing '___' as a placeholder or in a fragmented sentence without anatomical or imaging context (e.g., '___ stenosis' or 'diffuse mild stenosis') unless immediately followed by a specific vessel name.",
+      "priority": 2
+    },
+    {
+      "id": "CE108",
+      "rule": "Skip 'stenosis' when it appears in a line that is part of a structured section header, bullet list, or free-text narrative without clinical imaging or vascular description (e.g., '___ stenosis' in a placeholder line or 'stenosis' in a discharge plan without anatomical context).",
+      "priority": 2
+    },
+    {
+      "id": "CE109",
+      "rule": "Extract 'imaging' only when it appears as part of a clinical sentence that describes diagnostic test results or findings, specifically when followed by a clinical outcome or anatomical description (e.g., 'imaging showed a new infarct', 'imaging of your abdomen demonstrated').",
+      "priority": 2
+    },
+    {
+      "id": "CE110",
+      "rule": "Skip 'imaging' when it appears in a section header or structured label line that is part of a placeholder or formatting pattern, such as 'IMAGING: ======' or '___ Imaging CHEST', even if followed by a clinical phrase.",
+      "priority": 2
+    },
+    {
+      "id": "CE111",
+      "rule": "Skip 'imaging' when it appears in a line that is part of a fragmented or incomplete listing with no clinical context, such as lines with only 'IMAGING:' followed by a blank or non-clinical label (e.g., 'IMAGING: _________').",
+      "priority": 2
+    },
+    {
+      "id": "CE112",
+      "rule": "Extract 'dilated' only when it appears in a clinical imaging or anatomical description context with a body part or structure immediately preceding it (e.g., 'aortic valve leaflets appear structurally normal with good leaflet excursion and mildly dilated', 'left atrium is mildly dilated').",
+      "priority": 2
+    },
+    {
+      "id": "CE113",
+      "rule": "Skip 'dilated' when it appears in a line that is part of a fragmented or incomplete sentence without a clear anatomical or clinical structure (e.g., 'dilated. No atrial septal defect is seen by 2D or color Doppler') unless followed by a body part or structure.",
+      "priority": 2
+    },
+    {
+      "id": "CE114",
+      "rule": "Skip 'dilated' when it appears in a line that contains '___' as a placeholder or in a structured section header (e.g., 'TTE (___):' context) even if it is followed by a body part.",
+      "priority": 2
+    },
+    {
+      "id": "CE115",
+      "rule": "Extract 'ldh' only when it appears in a structured lab line with a numeric value immediately following, formatted as 'LD(LDH)-[number]*' or 'LD(LDH)-[number]' (e.g., 'LD(LDH)-491*').",
+      "priority": 2
+    },
+    {
+      "id": "CE116",
+      "rule": "Skip 'ldh' when it appears in a narrative sentence that describes a lab value in relation to baseline or prior status, such as 'slightly elevated LDH (her baseline)' or 'LDH elevated in context of prior illness'.",
+      "priority": 2
+    },
+    {
+      "id": "CE117",
+      "rule": "Skip 'ldh' when it appears in a line that contains '___' as a placeholder and is not part of a complete lab value line with a numeric result.",
+      "priority": 2
+    },
+    {
+      "id": "CE118",
+      "rule": "Extract 'pcp' only when it appears in a clinical context with a follow-up instruction or plan, specifically when followed by 'follow up with your PCP', 'follow up with PCP', or 'PCP ___' (with placeholder), and is within a section labeled 'Discharge Instructions', 'History of Present Illness', 'Hospital Course', or 'Brief Hospital Course'.",
+      "priority": 2
+    },
+    {
+      "id": "CE119",
+      "rule": "Skip 'pcp' when it appears in a line that contains '___' as a placeholder and is part of a fragmented or incomplete sentence without a clinical follow-up plan, especially when the line is part of a medication or symptom list with no explicit follow-up directive.",
+      "priority": 2
+    },
+    {
+      "id": "CE120",
+      "rule": "Extract 'pcp' only when it appears in a sentence that includes a clinical action such as 'will be followed with', 'should follow up with', or 'to have further workup of', and is not part of a structured medication list or bullet point with no clinical context.",
+      "priority": 2
+    },
+    {
+      "id": "CE121",
+      "rule": "Extract 'palpable' only when it appears in a clinical physical exam context with a body part or lesion description, specifically when followed by an anatomical descriptor (e.g., 'nodule in LLQ', 'deformity', 'pulses') or a clinical finding (e.g., 'non-tender', 'mobile') within the same sentence or line.",
+      "priority": 2
+    },
+    {
+      "id": "CE122",
+      "rule": "Skip 'palpable' when it appears in a standalone line or as part of a structured section header, bullet list, or formatted table entry (e.g., 'Palpable (x)' in a vascular pulse assessment line), unless directly followed by a clinical descriptor of a physical finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE123",
+      "rule": "Skip 'palpable' when it appears in a line that contains '___' as a placeholder or in a fragmented sentence without a clear clinical descriptor of a physical exam finding (e.g., 'palpable. No edema.')",
+      "priority": 2
+    },
+    {
+      "id": "CE124",
+      "rule": "Extract 'follow-up' when it appears in a clinical context within a sentence that describes a planned future clinical visit or test, especially when followed by a specialty (e.g., 'follow-up with neurology', 'follow-up with orthopedics'), or when part of a structured plan line such as 'follow-up in ___ weeks' or 'follow-up scheduled with ___'.",
+      "priority": 2
+    },
+    {
+      "id": "CE125",
+      "rule": "Skip 'follow-up' when it appears in a standalone line or as part of a placeholder section header such as 'Followup Instructions:' or '___', or when it is embedded in a fragmented or incomplete sentence with '___' as a placeholder, even if the surrounding text suggests a future visit.",
+      "priority": 2
+    },
+    {
+      "id": "CE126",
+      "rule": "Skip 'follow-up' when it appears in a narrative sentence that is purely patient education or discharge instruction (e.g., 'you should see your doctor in ___ few weeks') and is not tied to a specific clinical plan or specialty referral, especially if preceded by 'We recommend that you see...' or 'You will have follow-up in outpatient ___ clinic'.",
+      "priority": 2
+    },
+    {
+      "id": "CE127",
+      "rule": "Extract 'vs' only when it appears as a structured header followed immediately by numeric vital signs (e.g., 'VS: 98.7 118/66 66 16 99RA') in a clinical exam or admission section.",
+      "priority": 2
+    },
+    {
+      "id": "CE128",
+      "rule": "Skip 'vs' when it appears in a line containing '___' as a placeholder or in a fragmented sentence without complete vital sign values (e.g., 'VS: ___ 1655 Temp: 98.1')",
+      "priority": 2
+    },
+    {
+      "id": "CE129",
+      "rule": "Skip 'vs' when it appears in a narrative sentence that describes a past event without current or documented values (e.g., 'initial VS were 98.1 140 132/67') unless followed by a complete numeric vital sign set.",
+      "priority": 2
+    },
+    {
+      "id": "CE130",
+      "rule": "Extract 'follow up' only when it appears in a clinical follow-up instruction with a specific provider name or time frame (e.g., 'follow up with Dr. ___ in 2 weeks' or 'follow up with ___ as scheduled').",
+      "priority": 2
+    },
+    {
+      "id": "CE131",
+      "rule": "Skip 'follow up' when it appears in a line containing '___' as a placeholder or in a fragmented sentence without a clear clinical plan (e.g., 'follow up with ___ for further follow up').",
+      "priority": 2
+    },
+    {
+      "id": "CE132",
+      "rule": "Skip 'follow up' when it appears in a standalone line or as part of a section header such as 'Followup Instructions' or 'Followup in ___'.",
+      "priority": 2
+    },
+    {
+      "id": "CE133",
+      "rule": "Extract 'eyes' only when it appears as a structured header in a physical exam or clinical section, followed by a clinical description of ocular findings (e.g., 'EYES: Anicteric, pupils equally round' or 'Left eye opens, right does not').",
+      "priority": 2
+    },
+    {
+      "id": "CE134",
+      "rule": "Skip 'eyes' when it appears in a narrative or patient education context, especially when part of a sentence describing general postoperative symptoms or patient-reported experience (e.g., 'swelling around your face and eyes' or 'look at my face (eyes, neck, mouth...)').",
+      "priority": 2
+    },
+    {
+      "id": "CE135",
+      "rule": "Skip 'eyes' when it appears in a line that contains '___' as a placeholder or in a fragmented sentence without a complete clinical observation (e.g., 'look at my face (eyes, neck, mouth...) but does not seem to see my face').",
+      "priority": 2
+    },
+    {
+      "id": "CE136",
+      "rule": "Extract 'abnormalities' only when it appears in a clinical findings or imaging report context, immediately preceded by a descriptive modifier (e.g., 'no concerning lytic or sclerotic osseous abnormalities', 'diffusely' or 'in the resection base') and followed by a clinical conclusion or absence of pathology.",
+      "priority": 2
+    },
+    {
+      "id": "CE137",
+      "rule": "Skip 'abnormalities' when it appears in a line that contains '___' as a placeholder, or in a fragmented sentence with no clear clinical context (e.g., 'More confluent abnormalities in the left lung base... ___ suggesting this').",
+      "priority": 2
+    },
+    {
+      "id": "CE138",
+      "rule": "Skip 'abnormalities' when it appears in a section labeled 'Hemodynamics' or 'Fluid Overload' context, especially when paired with terms like 'fluid overload' or 'confluent' in a non-diagnostic, non-imaging narrative.",
+      "priority": 2
+    },
+    {
+      "id": "CE139",
+      "rule": "Extract 'diverticulosis' only when it appears in a clinical imaging or endoscopic report context, specifically within a section labeled 'Colonoscopy', 'Pelvis', or 'Imaging', and when followed by anatomical localization (e.g., 'colon', 'sigmoid', 'left colon') or imaging findings (e.g., 'seen throughout', 'diffuse').",
+      "priority": 2
+    },
+    {
+      "id": "CE140",
+      "rule": "Skip 'diverticulosis' when it appears in a section header line that begins with '#', especially when followed by a clinical condition list (e.g., '#Diverticulosis, GI bleed, acute blood loss anemia') or when the line contains '___' as a placeholder.",
+      "priority": 2
+    },
+    {
+      "id": "CE141",
+      "rule": "Skip 'diverticulosis' when it appears in a narrative sentence that is part of a patient history or hospital course, especially when preceded by 'Patient presented with' or 'CT A/P with contrast showed', indicating a description of presentation or imaging result rather than a confirmed finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE142",
+      "rule": "Extract 'distal' only when it appears in a structured anatomical or imaging description with a clear anatomical reference (e.g., 'distal fragment', 'distal shaft', 'distal humeral shaft') and is followed by a clinical descriptor like 'fragment', 'shaft', or 'vessel'.",
+      "priority": 2
+    },
+    {
+      "id": "CE143",
+      "rule": "Skip 'distal' when it appears in a line containing '___' as a placeholder, especially in fragmented or incomplete sentences (e.g., 'distal ___' or '___ distal') or when part of a lab result or imaging header with missing content.",
+      "priority": 2
+    },
+    {
+      "id": "CE144",
+      "rule": "Skip 'distal' when it appears in a narrative or non-structured context without anatomical or imaging specificity, such as in a sentence describing general fracture displacement without anatomical detail (e.g., 'distal fragment is distracted' in isolation without preceding anatomical reference).",
+      "priority": 2
+    },
+    {
+      "id": "CE145",
+      "rule": "Extract 'ice' only when it appears in a clinical treatment instruction with a specified duration (e.g., '20 minutes at a time') or frequency (e.g., 'up to 5 times daily'), and immediately followed by a treatment action or medication.",
+      "priority": 2
+    },
+    {
+      "id": "CE146",
+      "rule": "Skip 'ice' when it appears in a narrative sentence describing symptom relief or comfort measures (e.g., 'to help with the swelling') without a specific treatment protocol, especially when paired with 'cool or warm washcloth'.",
+      "priority": 2
+    },
+    {
+      "id": "CE147",
+      "rule": "Skip 'ice' when it appears in a line containing '___' as a placeholder, or in a fragmented sentence without a clear clinical action or dosage specification.",
+      "priority": 2
+    },
+    {
+      "id": "CE148",
+      "rule": "Extract 'cranial nerves' only when it appears as a structured header (e.g., 'Cranial Nerves:' or '-Cranial Nerves:') in a neurologic or physical exam section, followed by a clinical assessment or numbered cranial nerve evaluation (e.g., 'I: not tested', 'II: PERRL 4 to 2mm').",
+      "priority": 2
+    },
+    {
+      "id": "CE149",
+      "rule": "Skip 'cranial nerves' when it appears as a standalone line with no subsequent clinical findings or numbered cranial nerve evaluations, especially when followed by a line starting with 'I:' or 'II:' without preceding header formatting.",
+      "priority": 2
+    },
+    {
+      "id": "CE150",
+      "rule": "Skip 'cranial nerves' when it appears in a section labeled 'NEUROLOGICAL EXAMINATION' and is followed by 'I: not tested' on the next line without a preceding header line formatted as 'Cranial Nerves:' or '-Cranial Nerves:'.",
+      "priority": 2
+    },
+    {
+      "id": "CE151",
+      "rule": "Skip extraction of '___' when it appears as a placeholder in a line containing lab values or vitals (e.g., 'Plt ___', '___ PTT-36.3'), especially when followed by a lab test name or numeric value.",
+      "priority": 2
+    },
+    {
+      "id": "CE152",
+      "rule": "Skip extraction of '___' when it appears in a line that starts with a time stamp (e.g., '05:35AM', '06:40AM') and is part of a lab test sequence with other lab values.",
+      "priority": 2
+    },
+    {
+      "id": "CE153",
+      "rule": "Skip extraction of '___' when it appears in a fragmented or incomplete sentence with no clinical meaning, especially when surrounded by other lab test abbreviations (e.g., '___ 07:10AM BLOOD ALT-12') or in a narrative context without semantic content.",
+      "priority": 2
+    },
+    {
+      "id": "CE154",
+      "rule": "Extract 'prednisone' only when it appears in a clinical treatment or medication order context, specifically when followed by a dose (e.g., 'prednisone 60mg', 'prednisone 10mg daily'), a taper plan (e.g., 'taper for 2 weeks'), or a treatment duration (e.g., '60mg for 5 days').",
+      "priority": 2
+    },
+    {
+      "id": "CE155",
+      "rule": "Skip 'prednisone' when it appears in a narrative sentence describing chronic medication use without a current treatment intent, especially when preceded by 'on' and followed by 'at home' or 'home', such as 'on prednisone at home' or 'on prednisone for rheumatoid arthritis'.",
+      "priority": 2
+    },
+    {
+      "id": "CE156",
+      "rule": "Skip 'prednisone' when it appears in a list of chronic conditions or comorbidities, especially when following a condition like 'rheumatoid arthritis' or 'ulcerative colitis' and not associated with a treatment plan or dose.",
+      "priority": 2
+    },
+    {
+      "id": "CE157",
+      "rule": "Extract 'esr' only when it appears in a line with a numeric lab value immediately following, formatted as 'ESR-<number>*' or 'esr-<number>*' (e.g., 'ESR-98*'), indicating a lab result.",
+      "priority": 2
+    },
+    {
+      "id": "CE158",
+      "rule": "Skip 'esr' when it appears in a narrative sentence without a numeric lab value, especially when part of a phrase like 'elevated ESR and CRP' or 'ESR/CRP to evaluate', indicating a clinical assessment rather than a measured result.",
+      "priority": 2
+    },
+    {
+      "id": "CE159",
+      "rule": "Skip 'esr' when it appears in a line containing '___' as a placeholder, especially if the line is incomplete or fragmented (e.g., 'esr ___'), suggesting unstructured or non-validated data.",
+      "priority": 2
+    },
+    {
+      "id": "CE160",
+      "rule": "Extract 't' as SNOMED CT 105723007 (temperature) only when it appears in a vital signs line with a numeric value immediately following (e.g., 'T 98.3', 'T: 97.5'), and the line contains other vital signs markers like 'HR', 'BP', 'RR', or 'O2Sat'.",
+      "priority": 2
+    },
+    {
+      "id": "CE161",
+      "rule": "Skip extraction of 't' when it appears in a line containing 'Rate PR QRS QT/QTc' or 'P QRS T', especially in the context of ECG or cardiac rhythm interpretation, as these are rhythm strip headers and not clinical temperature values.",
+      "priority": 2
+    },
+    {
+      "id": "CE162",
+      "rule": "Skip extraction of 't' when it appears in a line that starts with '___' or contains multiple '___' placeholders, especially if the line is incomplete or part of a fragmented ECG or imaging report format.",
+      "priority": 2
+    },
+    {
+      "id": "CE163",
+      "rule": "Extract 'motor' only when it appears as a structured header followed by a colon and clinical findings (e.g., 'Motor: Normal bulk and tone' or 'Motor: Off sedation'). Skip when 'motor' appears in a line with no colon or structured format, especially if part of a fragmented sentence or clinical description without a header.",
+      "priority": 2
+    },
+    {
+      "id": "CE164",
+      "rule": "Extract 'motor' when it appears as a line starting with '-Motor:' or 'Motor:' followed by a clinical assessment (e.g., 'Motor: Right upper extremity briskly withdraws'). Skip when 'motor' appears in a line that is part of a phrase like 'Motor arm, left: 0' or 'Motor leg, right: 1' unless preceded by a header with a colon.",
+      "priority": 2
+    },
+    {
+      "id": "CE165",
+      "rule": "Skip extraction of 'motor' when it appears in a line that contains only numeric values or abbreviations without a preceding header (e.g., '5a. Motor arm, left: 0'), especially when part of a numbered list without a header line. Only extract when 'motor' is part of a header line with a colon and clinical text.",
+      "priority": 2
+    },
+    {
+      "id": "CE166",
+      "rule": "Extract 'tsh' only when it appears in a line with a numeric lab value immediately following, formatted as 'TSH-<number>' (e.g., 'TSH-2.5', 'TSH-7.9*') and preceded by '___' or a time stamp.",
+      "priority": 2
+    },
+    {
+      "id": "CE167",
+      "rule": "Skip extraction of 'tsh' when it appears in a narrative sentence without a numeric value, especially when part of phrases like 'trend TSH' or 'TSH was found to be elevated'.",
+      "priority": 2
+    },
+    {
+      "id": "CE168",
+      "rule": "Skip extraction of 'tsh' when it appears in a line that contains only 'TSH' followed by a non-numeric value or placeholder (e.g., 'TSH ___', 'TSH at ___'), especially if the line is incomplete or lacks a lab value.",
+      "priority": 2
+    },
+    {
+      "id": "CE169",
+      "rule": "Extract 'surgery' only when it appears as a structured section header followed by a colon (e.g., 'Surgery:') or immediately before a clinical procedure description, such as 'You underwent a surgery called...' or 'underwent surgery to have...'.",
+      "priority": 2
+    },
+    {
+      "id": "CE170",
+      "rule": "Skip extraction of 'surgery' when it appears in a narrative sentence as part of a temporal or post-procedural context, such as '___ days after surgery' or 'after the surgery', especially when preceded by '___' placeholders or used in recovery instructions.",
+      "priority": 2
+    },
+    {
+      "id": "CE171",
+      "rule": "Extract 'surgery' when it appears in a line that contains a clinical procedure name or surgical intervention (e.g., 'craniectomy', 'skull bone placed back'), indicating a specific operative event, even if not preceded by a section header.",
+      "priority": 2
+    },
+    {
+      "id": "CE172",
+      "rule": "Extract 'lisinopril' only when it appears in a medication list line with a dose and frequency (e.g., 'lisinopril 40 mg PO DAILY'), and the line is part of a structured medication section (e.g., 'Preadmission Medication list', 'Discharge Medications', 'Chronic Issues').",
+      "priority": 2
+    },
+    {
+      "id": "CE173",
+      "rule": "Skip extraction of 'lisinopril' when it appears in a narrative sentence describing a medication change (e.g., 'Lisinopril was uptitrated to 20mg') or in a transitional/plan line (e.g., 'Uptitrate lisinopril as tolerated'), even if dose is specified.",
+      "priority": 2
+    },
+    {
+      "id": "CE174",
+      "rule": "Skip extraction of 'lisinopril' when it appears in a line that contains placeholders like '___' or is part of a fragmented instruction (e.g., 'Lisinopril increased from 10mg to 20mg daily') unless immediately preceded by a structured medication section header.",
+      "priority": 2
+    },
+    {
+      "id": "CE175",
+      "rule": "Extract 'ldl' only when it appears in a line with a numeric value immediately following, formatted as 'LDL <number>' or 'LDL=<number>' (e.g., 'LDL = 62', 'LDL 114', 'LDL > 70').",
+      "priority": 2
+    },
+    {
+      "id": "CE176",
+      "rule": "Skip extraction of 'ldl' when it appears in a narrative sentence without a numeric value, especially when followed by a clinical outcome or descriptive phrase (e.g., 'LDL 149. A TTE did not show...').",
+      "priority": 2
+    },
+    {
+      "id": "CE177",
+      "rule": "Skip extraction of 'ldl' when it appears in a line that contains '___' placeholders or fragmented text, especially in context of incomplete lab or medication documentation.",
+      "priority": 2
+    },
+    {
+      "id": "CE178",
+      "rule": "Extract 'blood culture' only when it appears in a line that includes 'Routine (Final ___:' or 'Pending:' immediately after, indicating a structured lab result format (e.g., 'Blood Culture, Routine (Final ___: NO GROWTH').",
+      "priority": 2
+    },
+    {
+      "id": "CE179",
+      "rule": "Skip extraction of 'blood culture' when it appears in a line that contains only 'CULTURE' or 'CULTURE-FINAL' followed by 'no growth' or similar, especially if part of a fragmented or unstructured header (e.g., '___ CULTUREBlood Culture, Routine-PENDING').",
+      "priority": 2
+    },
+    {
+      "id": "CE180",
+      "rule": "Skip extraction of 'blood culture' when it appears in a line that contains '___' placeholders and is not followed by a structured result format such as 'Routine (Final ___:' or 'Pending:' (e.g., '___ CULTUREBlood Culture, Routine-PENDING').",
+      "priority": 2
+    },
+    {
+      "id": "CE181",
+      "rule": "Extract 'mildly thickened' only when it appears in a chunk that contains a valve name (e.g., 'aortic valve', 'mitral valve') immediately before or after the phrase, and is part of a structural assessment of valve leaflets.",
+      "priority": 2
+    },
+    {
+      "id": "CE182",
+      "rule": "Skip extraction of 'mildly thickened' when it appears in a chunk that follows a line containing 'present' or 'is seen' and lacks a direct anatomical reference to a valve (e.g., no mention of 'aortic', 'mitral', or 'valve') in the same chunk.",
+      "priority": 2
+    },
+    {
+      "id": "CE183",
+      "rule": "Skip extraction of 'mildly thickened' when it appears in a chunk that contains only '___' placeholders or fragmented text, especially when the phrase is isolated from clinical context or anatomical specificity.",
+      "priority": 2
+    },
+    {
+      "id": "CE184",
+      "rule": "Extract 'cr' only when it appears in a line with a numeric value immediately following, formatted as 'Cr <number>' or 'cr <number>', and the number is not preceded by a dash or parentheses (e.g., 'Cr 2.7', 'cr 1.8').",
+      "priority": 2
+    },
+    {
+      "id": "CE185",
+      "rule": "Skip extraction of 'cr' when it appears in a line that contains '___' placeholders, especially when part of a fragmented or incomplete lab result (e.g., 'Cr ___', 'Cr 1.5 (baseline ___)').",
+      "priority": 2
+    },
+    {
+      "id": "CE186",
+      "rule": "Skip extraction of 'cr' when it appears in a line that contains a section header such as '# Renal:' or '# ___:' and is followed by a colon and a list of renal parameters, unless a numeric value is directly adjacent (e.g., 'Cr: 1.4' is valid, but 'Cr: baseline 1.4' is not).",
+      "priority": 2
+    },
+    {
+      "id": "CE187",
+      "rule": "Extract 'neg' only when it appears as a value in a urine or blood test line with a standardized format (e.g., 'Nitrite-NEG', 'Protein-NEG', 'Leuks-NEG'), and when the line contains no '___' placeholders or fragmented syntax.",
+      "priority": 2
+    },
+    {
+      "id": "CE188",
+      "rule": "Skip extraction of 'neg' when it appears in a line that contains '___' placeholders, especially when part of a fragmented or incomplete lab result line (e.g., '___ 12:06AM BLOOD Hgb: 12.5 calcHCT: 38').",
+      "priority": 2
+    },
+    {
+      "id": "CE189",
+      "rule": "Skip extraction of 'neg' when it appears in a line that is part of a narrative or header section (e.g., 'Glucose: NEG', 'Ketone: NEG') and is not directly linked to a test name with a hyphenated format (e.g., 'Nitrite-NEG').",
+      "priority": 2
+    },
+    {
+      "id": "CE190",
+      "rule": "Extract 'pelvis' only when it appears in a medical imaging report section (e.g., 'CT Abdomen/Pelvis', 'Imaging Reports:') and is part of a radiological finding or anatomical description, especially when preceded by 'CT', 'MRI', or 'Ultrasound' and followed by anatomical or pathological descriptors (e.g., 'free fluid in the pelvis', 'no pelvic lymphadenopathy').",
+      "priority": 2
+    },
+    {
+      "id": "CE191",
+      "rule": "Skip extraction of 'pelvis' when it appears in a motor/sensory exam or physical assessment section (e.g., 'Pelvis: Normal (x)', 'L Normal (x) Abnormal ()') and is formatted as a checklist item with 'Normal (x)' or 'Abnormal ()' indicators, indicating a clinical exam notation rather than an anatomical imaging finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE192",
+      "rule": "Skip extraction of 'pelvis' when it appears in a line that contains '___' placeholders or fragmented text, especially when part of a header or incomplete sentence (e.g., 'CTA ABD & PELVIS ___', 'TECHNIQUE: MDCT data were acquired through the chest, abdomen and pelvis ___') and not followed by a complete anatomical or pathological finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE193",
+      "rule": "Extract 'cooperative' only when it appears in a physical exam or mental status exam chunk that follows 'General:', 'Psychiatric:', or 'Behavior:', and is not preceded by a section header like 'MENTAL STATUS EXAM:' or 'ATTITUDE:' with no preceding clinical descriptor.",
+      "priority": 2
+    },
+    {
+      "id": "CE194",
+      "rule": "Skip extraction of 'cooperative' when it appears in a line that is part of a header or label section (e.g., 'ATTITUDE: Cooperative', 'BEHAVIOR: No abnormal behaviors') and is not preceded by a clinical descriptor such as 'General:', 'Psychiatric:', or 'Physical Exam:' in the same chunk.",
+      "priority": 2
+    },
+    {
+      "id": "CE195",
+      "rule": "Extract 'cooperative' only when it appears in a chunk that contains 'General:', 'Psychiatric:', or 'Physical Exam:' as a preceding line and is followed by a clinical descriptor like 'NAD', 'awake', or 'pleasant' within the same sentence or line.",
+      "priority": 2
+    },
+    {
+      "id": "CE196",
+      "rule": "Extract 'cbc' only when it appears in a chunk that contains a lab test line with a colon or hyphen delimiter and follows a section header like 'Labs were notable for:', 'Initial labs:', or 'Transitional issues:', and is followed by numeric values or test components (e.g., 'CBC: WBC 11.7, hgb 13.0, plt 288').",
+      "priority": 2
+    },
+    {
+      "id": "CE197",
+      "rule": "Skip extraction of 'cbc' when it appears in a chunk that contains only placeholder text (e.g., '___') or is part of a medication or discharge instruction line (e.g., 'Please check a CBC on ___') without accompanying lab values or structured test formatting.",
+      "priority": 2
+    },
+    {
+      "id": "CE198",
+      "rule": "Skip extraction of 'cbc' when it appears in a line that is part of a medication, discharge, or disposition section and is not followed by any numeric values, test components, or structured lab formatting (e.g., 'CBC on ___' with no lab data).",
+      "priority": 2
+    },
+    {
+      "id": "CE199",
+      "rule": "Extract 'lasix' only when it appears in a line with a numeric dose or administration route (e.g., '40IV lasix', 'lasix 40mg', 'IV lasix') or in a medication list context (e.g., 'started on lasix and aldactone').",
+      "priority": 2
+    },
+    {
+      "id": "CE200",
+      "rule": "Skip extraction of 'lasix' when it appears in a line that contains '___' placeholders or fragmented text, especially when part of a partially rendered sentence (e.g., 'continued Lasix and spironolactone as ___').",
+      "priority": 2
+    },
+    {
+      "id": "CE201",
+      "rule": "Skip extraction of 'lasix' when it appears in a line that is part of a section header or label (e.g., 'Lasix: 40mg IV') or in a non-clinical narrative context with no clinical action or dose.",
+      "priority": 2
+    },
+    {
+      "id": "CE202",
+      "rule": "Extract 'warfarin' only when it appears in a clinical context indicating active use or management of anticoagulation, such as 'warfarin was restarted', 'warfarin (5 mg)', or 'bridged with warfarin'. Skip when it appears in a list of comorbidities or diagnoses (e.g., 'Kawasaki's on warfarin', 'history of Kawasaki's disease on warfarin').",
+      "priority": 2
+    },
+    {
+      "id": "CE203",
+      "rule": "Skip extraction of 'warfarin' when it appears in a line that is part of a section header or label (e.g., 'CHRONIC ISSUES:', 'IMPRESSIONS:') or when it is preceded by a condition or diagnosis name with no active treatment context (e.g., 'Kawasaki's on warfarin').",
+      "priority": 2
+    },
+    {
+      "id": "CE204",
+      "rule": "Extract 'warfarin' only when it appears in a chunk that contains a treatment action verb (e.g., 'was restarted', 'initiated', 'bridged', 'held') or a dose (e.g., 'warfarin (5 mg)'). Skip when it appears in narrative text without therapeutic intent or dosage context.",
+      "priority": 2
+    },
+    {
+      "id": "CE205",
+      "rule": "Extract 'steroids' only when it appears in a clinical context indicating active treatment, tapering, or medication management (e.g., 'tapering your steroids', 'started on hydrocortisone', 'treated with steroids') and is not part of a phrase like 'pulse dose steroids' or 'steroids with apparent improvement' that lacks active management intent.",
+      "priority": 2
+    },
+    {
+      "id": "CE206",
+      "rule": "Skip extraction of 'steroids' when it appears in a chunk that contains 'pulse dose steroids' or 'steroids with apparent initial improvement' and is followed by a clinical outcome (e.g., 'extubated', 'altered mental status') without explicit treatment intent.",
+      "priority": 2
+    },
+    {
+      "id": "CE207",
+      "rule": "Extract 'steroids' only when it appears in a section labeled 'Discharge Instructions', 'Past Medical History', 'History of Present Illness', or 'Brief Hospital Course' and is associated with a treatment action verb (e.g., 'tapering', 'started on', 'treated with') or medication regimen (e.g., 'Prednisone 10mg daily').",
+      "priority": 2
+    },
+    {
+      "id": "CE208",
+      "rule": "Extract 'vascular' only when it appears in a medical imaging or diagnostic test section (e.g., MRA, CTA, MRI, angiography) and is followed by terms like 'occlusion', 'stenosis', 'aneurysm', 'flow signal', or 'abnormality'.",
+      "priority": 2
+    },
+    {
+      "id": "CE209",
+      "rule": "Skip extraction of 'vascular' when it appears in a physical exam or assessment section that includes 'Normal ()' or 'Abnormal (x)' labels, especially when preceded by 'Vascular:' as a header or label.",
+      "priority": 2
+    },
+    {
+      "id": "CE210",
+      "rule": "Skip extraction of 'vascular' when it appears in a line that is part of a structured table or header format (e.g., 'Vascular:' followed by 'R Normal ()' or 'L Abnormal (x)') and not associated with a clinical finding or imaging result.",
+      "priority": 2
+    },
+    {
+      "id": "CE211",
+      "rule": "Extract 'levofloxacin' only when it appears in a chunk that contains a clinical treatment context indicating active administration, such as 'started on', 'discharged on', 'treated with', or 'received', and is not part of a placeholder or fragmented line.",
+      "priority": 2
+    },
+    {
+      "id": "CE212",
+      "rule": "Skip extraction of 'levofloxacin' when it appears in a chunk that contains '___' placeholders or is part of a line with incomplete or broken syntax (e.g., 'discharged on 7 day additional days of Levofloxacin')",
+      "priority": 2
+    },
+    {
+      "id": "CE213",
+      "rule": "Skip extraction of 'levofloxacin' when it appears in a chunk that is part of a medication section header or label (e.g., 'Antibiotics:'), especially if followed by 'narrowed to' or 'discharged on' without clinical action verbs.",
+      "priority": 2
+    },
+    {
+      "id": "CE214",
+      "rule": "Skip extraction of 'plt ___' when it appears in a chunk that contains '___' placeholders immediately after the span, especially in lab result lines with other lab values (e.g., 'Plt ___\\n___ 06:40AM BLOOD Glucose-97')",
+      "priority": 2
+    },
+    {
+      "id": "CE215",
+      "rule": "Skip extraction of 'plt ___' when it appears in a line that is part of a structured lab result block with time-stamped entries (e.g., '___ 07:30AM BLOOD ...') and is followed by other lab values or time markers",
+      "priority": 2
+    },
+    {
+      "id": "CE216",
+      "rule": "Skip extraction of 'plt ___' when it appears in a chunk that contains multiple '___' placeholders in sequence (e.g., 'Plt ___\\n___ 04:59AM BLOOD ...') indicating incomplete or placeholder-filled data",
+      "priority": 2
+    },
+    {
+      "id": "CE217",
+      "rule": "Extract 'hdl' only when it appears as part of a structured lab result line with a numeric value immediately following, formatted as 'HDL-<number>' or 'HDL CHOL-<number>', and within a chunk containing time-stamped lab entries (e.g., '___ 07:10AM BLOOD...').",
+      "priority": 2
+    },
+    {
+      "id": "CE218",
+      "rule": "Skip extraction of 'hdl' when it appears in a chunk that contains '___' placeholders immediately after the span and is part of a narrative or unstructured medical history section (e.g., 'HDL 46, LDL 114, triglycerides 63') without structured lab formatting.",
+      "priority": 2
+    },
+    {
+      "id": "CE219",
+      "rule": "Skip extraction of 'hdl' when it appears in a chunk that is part of a section labeled 'Past Medical History' or 'Discharge Instructions' and is embedded in a sentence describing a patient's chronic condition or lab value history without current test context.",
+      "priority": 2
+    },
+    {
+      "id": "CE220",
+      "rule": "Extract 'protein' only when it appears in a urine lab result line with a value following (e.g., 'Protein-30', 'Protein-NEG', 'Protein-TR') and preceded by 'URINE' or '___ [time] URINE'. Skip if value is missing or not in this format.",
+      "priority": 2
+    },
+    {
+      "id": "CE221",
+      "rule": "Skip extraction of 'protein' when it appears in a chunk that contains 'Protein: NEG' or 'Protein: TR' with a colon delimiter and no dash, especially in non-lab result sections like 'Blood' or 'Discharge Instructions'.",
+      "priority": 2
+    },
+    {
+      "id": "CE222",
+      "rule": "Skip extraction of 'protein' when it appears in a line that is part of a structured table header or formatted block with 'Bi Tri Pat Ach' or similar motor/sensory exam headers, even if value is present.",
+      "priority": 2
+    },
+    {
+      "id": "CE223",
+      "rule": "Extract 'nitrite-neg' only when it appears in a urine lab result line with 'Nitrite-' followed by 'NEG' or 'TR' (e.g., 'Nitrite-NEG'), and the line contains other urine-specific markers like 'Blood-', 'Protein-', 'Glucose-', or 'pH-' in the same chunk.",
+      "priority": 2
+    },
+    {
+      "id": "CE224",
+      "rule": "Skip extraction of 'nitrite-neg' when it appears in a chunk that contains '___' placeholders immediately before or after the span, especially if the surrounding context includes 'Sp ___' or '___' as a line separator, indicating a non-structured or incomplete result.",
+      "priority": 2
+    },
+    {
+      "id": "CE225",
+      "rule": "Skip extraction of 'nitrite-neg' when the chunk contains 'Nitrite-' followed by 'TR' (e.g., 'Nitrite-TR') and no numeric value or clear negative/positive label is present, as this indicates ambiguous or non-standard reporting.",
+      "priority": 2
+    },
+    {
+      "id": "CE226",
+      "rule": "Extract 'glucose-neg' only when it appears in a urine lab result line with 'Glucose-' followed by 'NEG' or 'TR', and the chunk contains 'URINE' in the section or line context.",
+      "priority": 2
+    },
+    {
+      "id": "CE227",
+      "rule": "Skip extraction of 'glucose-neg' when it appears in a chunk that contains '___' placeholders immediately before or after the span, or when the line is part of a fragmented or incomplete result block.",
+      "priority": 2
+    },
+    {
+      "id": "CE228",
+      "rule": "Skip extraction of 'glucose-neg' when the chunk contains 'Glucose-' followed by 'TR' (e.g., 'Glucose-TR') and no numeric value, and the context is not a complete urine result line.",
+      "priority": 2
+    },
+    {
+      "id": "CE229",
+      "rule": "Extract 'clots' only when it appears in a clinical context indicating pathological or diagnostic relevance, such as 'clots in your lungs', 'bright red blood per rectum with clots', or 'demonstrated findings concerning for cancer... clots'. Skip when 'clots' appears in a risk statement like 'at risk for developing blood clots' or 'due to poor heart structure/function' unless followed by diagnostic confirmation.",
+      "priority": 2
+    },
+    {
+      "id": "CE230",
+      "rule": "Extract 'clots' only when it is directly linked to a clinical finding or diagnostic test result (e.g., 'demonstrated clots', 'CT came back normal' after 'clots in your lungs'), and skip when it appears in a sentence describing risk or prophylaxis without confirmed presence (e.g., 'at risk for developing blood clots').",
+      "priority": 2
+    },
+    {
+      "id": "CE231",
+      "rule": "Skip extraction of 'clots' when it appears in a chunk that contains the phrase 'due to poor heart structure/function' or 'at risk for developing blood clots' without subsequent diagnostic confirmation of actual clots.",
+      "priority": 2
+    },
+    {
+      "id": "CE232",
+      "rule": "Extract 'neurology' only when it appears in a chunk that contains a section header like 'Service: NEUROLOGY' or 'Brief Hospital Course' and is followed by a clinical context such as 'follow-up with stroke neurology' or 'seen by neurology who recommended'.",
+      "priority": 2
+    },
+    {
+      "id": "CE233",
+      "rule": "Skip extraction of 'neurology' when it appears in a chunk that contains '___' placeholders immediately after the span or in a line with '___' in the surrounding text, indicating incomplete or placeholder-filled content.",
+      "priority": 2
+    },
+    {
+      "id": "CE234",
+      "rule": "Skip extraction of 'neurology' when it appears in a chunk that contains 'for f/u' or 'follow-up' in the same sentence and is part of a referral or scheduling note (e.g., 'refer to ___ neurology for f/u') without a clinical indication.",
+      "priority": 2
+    },
+    {
+      "id": "CE235",
+      "rule": "Extract 'tylenol' only when it appears in a clinical treatment or medication administration context, specifically when preceded by 'received' or 'was given' and followed by a clinical outcome or timing (e.g., 'received tylenol', 'was given IV vanc and zosyn, tylenol, duonebs')",
+      "priority": 2
+    },
+    {
+      "id": "CE236",
+      "rule": "Skip extraction of 'tylenol' when it appears in a chunk that contains 'We recommend the use of' or 'take non-narcotics (i.e. Tylenol, ibuprofen)' as part of patient instruction or discharge advice, especially when followed by 'for pain' or 'regularly for the first few days'",
+      "priority": 2
+    },
+    {
+      "id": "CE237",
+      "rule": "Skip extraction of 'tylenol' when it appears in a chunk that contains '___' placeholders immediately before or after, indicating incomplete or templated text, such as 'took some Tylenol and fever resolved' with '___' nearby",
+      "priority": 2
+    },
+    {
+      "id": "CE238",
+      "rule": "Extract 'urea n' only when it appears in a lab result line with a timestamp placeholder '___' followed by a time (e.g., '___ 09:59PM') and is part of a sequence containing other lab values like 'GLUCOSE-', 'CREAT-', 'SODIUM-', or 'POTASSIUM-', and is immediately followed by a numeric value with optional '*' (e.g., 'UREA N-10', 'UREA N-26*').",
+      "priority": 2
+    },
+    {
+      "id": "CE239",
+      "rule": "Skip extraction of 'urea n' when it appears in a chunk that contains '___' placeholders immediately before or after the span, unless the chunk also contains a valid lab result sequence with a timestamp and numeric value (e.g., '___ 09:59PM   GLUCOSE-138* UREA N-10 CREAT-0.7').",
+      "priority": 2
+    },
+    {
+      "id": "CE240",
+      "rule": "Skip extraction of 'urea n' when it appears in a chunk that is part of a non-lab section (e.g., 'Labs on Admission', 'DISCHARGE PHYSICAL EXAM') and is not preceded by a lab result header like 'Pertinent Results:', 'LABS:', or 'Labs:', or when the chunk contains only morphological or descriptive terms (e.g., 'POIKILOCY-NORMAL', 'MACROCYT-NORMAL') with no numeric lab values.",
+      "priority": 2
+    },
+    {
+      "id": "CE241",
+      "rule": "Extract 'appear-clear' only when it appears in a urine lab result line with 'APPEAR-Clear' following 'Color-' and preceded by a timestamp placeholder '___' and a time (e.g., '___ 05:40AM URINE Color-Straw Appear-Clear Sp ___').",
+      "priority": 2
+    },
+    {
+      "id": "CE242",
+      "rule": "Skip extraction of 'appear-clear' when the chunk contains '___' placeholders immediately before or after the span and the span is part of a repeated or templated line (e.g., '___ 07:55PM URINE COLOR-Yellow APPEAR-Clear SP ___' repeated twice).",
+      "priority": 2
+    },
+    {
+      "id": "CE243",
+      "rule": "Skip extraction of 'appear-clear' when the chunk contains 'BLOOD-NEG' or 'PROTEIN-NEG' immediately after the span and the line is part of a non-lab section (e.g., 'Pertinent Results:') without a preceding lab result header.",
+      "priority": 2
+    },
+    {
+      "id": "CE244",
+      "rule": "Extract 'pulmonary artery' only when it appears in a chunk that contains 'estimated pulmonary artery systolic pressure' or 'pulmonary artery systolic pressure' as part of a clinical measurement or echocardiogram result.",
+      "priority": 2
+    },
+    {
+      "id": "CE245",
+      "rule": "Skip extraction of 'pulmonary artery' when it appears in a chunk that contains 'mass effect on the right upper lobe pulmonary artery' or similar anatomical description without a clinical measurement or diagnostic context.",
+      "priority": 2
+    },
+    {
+      "id": "CE246",
+      "rule": "Skip extraction of 'pulmonary artery' when it appears in a chunk that contains 'patent' immediately after the span and is part of a structural/vascular description without associated hemodynamic or diagnostic values.",
+      "priority": 2
+    },
+    {
+      "id": "CE247",
+      "rule": "Extract 'ciprofloxacin' only when it appears in a lab culture results section (e.g., 'RESPIRATORY CULTURE', 'URINE CULTURE', 'BLOOD CULTURE') and is followed by an MIC value format (e.g., '2 I', '=>4 R', '<=0.25 S') on the same line.",
+      "priority": 2
+    },
+    {
+      "id": "CE248",
+      "rule": "Skip extraction of 'ciprofloxacin' when it appears in a clinical narrative chunk (e.g., 'History of Present Illness', 'ED notes') and is followed by 'and' or 'which were stopped' or 'at OSH' in the same sentence.",
+      "priority": 2
+    },
+    {
+      "id": "CE249",
+      "rule": "Skip extraction of 'ciprofloxacin' when the chunk contains '___' placeholders immediately before or after the span, or when the span appears in a non-lab context such as 'History of Present Illness' or 'ED notes'.",
+      "priority": 2
+    },
+    {
+      "id": "CE250",
+      "rule": "Extract 'probnp' only when it appears in a lab result line that contains a timestamp placeholder '___' followed by a time (e.g., '___ 04:40PM') and is part of a lab section (e.g., 'Admission Labs', 'Cardiac Labs', 'Labs here') with a numeric value and asterisk (e.g., 'proBNP-4254*').",
+      "priority": 2
+    },
+    {
+      "id": "CE251",
+      "rule": "Skip extraction of 'probnp' when it appears in a narrative or clinical history chunk (e.g., 'History of Present Illness') that contains no lab section markers, no '___' timestamp placeholders, and no numeric lab value format (e.g., 'proBNP 4254').",
+      "priority": 2
+    },
+    {
+      "id": "CE252",
+      "rule": "Skip extraction of 'probnp' when the chunk contains '___' placeholders immediately before or after the span and the span is not followed by a numeric value with an asterisk (e.g., 'proBNP-4254*').",
+      "priority": 2
+    },
+    {
+      "id": "CE253",
+      "rule": "Extract 'ventricular' only when it appears in a chunk that contains clinical or imaging findings related to cardiac function, such as 'filling', 'systolic function', 'outflow obstruction', or 'septal defect', and is not part of a parenthetical or numerical lab value (e.g., '(biplane LVEF = 66 %)')",
+      "priority": 2
+    },
+    {
+      "id": "CE254",
+      "rule": "Skip extraction of 'ventricular' when it appears in a chunk that contains '___' placeholders immediately before or after the span and is part of a lab or imaging result line (e.g., 'ECHO ___:' or 'LVEF = 66 %')",
+      "priority": 2
+    },
+    {
+      "id": "CE255",
+      "rule": "Skip extraction of 'ventricular' when it appears in a chunk that is part of a section labeled 'ECHO ___:' and is followed by 'septal defect' or 'right ventricular chamber size', indicating a non-annotated clinical descriptor",
+      "priority": 2
+    },
+    {
+      "id": "CE256",
+      "rule": "Extract 'lytic' only when it appears in a chunk that contains 'lytic or sclerotic' or 'lytic metastatic' in the same sentence or immediately preceding phrase, and the section is IMPRESSION, FINDINGS, ABDOMEN, or BONE WINDOWS.",
+      "priority": 2
+    },
+    {
+      "id": "CE257",
+      "rule": "Skip extraction of 'lytic' when the chunk contains 'no concerning lytic or sclerotic lesions' or 'no concerning lytic lesions' in a negative finding statement, especially when followed by 'identified' or 'is not seen'.",
+      "priority": 2
+    },
+    {
+      "id": "CE258",
+      "rule": "Skip extraction of 'lytic' when the chunk contains '___' placeholders immediately before or after the span and the context is a lab result or placeholder-filled section, even if 'lytic' appears in a clinical phrase.",
+      "priority": 2
+    },
+    {
+      "id": "CE259",
+      "rule": "Extract 'vital signs' only when it appears in a chunk that contains a colon followed by physiological measurements (e.g., 'T 99.4F, HR 99, BP 143/63, RR 17, O2Sat 99%')",
+      "priority": 2
+    },
+    {
+      "id": "CE260",
+      "rule": "Skip extraction of 'vital signs' when it appears in a chunk that contains the phrase 'were routinely monitored' or 'remained stable from a [system] standpoint' immediately before or after the span",
+      "priority": 2
+    },
+    {
+      "id": "CE261",
+      "rule": "Skip extraction of 'vital signs' when the chunk contains '___' placeholders or incomplete data markers (e.g., 'T ___F, HR ___') around the span",
+      "priority": 2
+    },
+    {
+      "id": "CE262",
+      "rule": "Extract 'aneurysm' only when it appears in a neuroimaging or vascular imaging context (e.g., 'MRA HEAD', 'CT Head/neck', 'angiography of the head', 'MR brain', 'FINDINGS' section) and is followed by 'greater than 3 mm' or 'no evidence of', 'no stenosis or occlusion', or 'normal appearance'.",
+      "priority": 2
+    },
+    {
+      "id": "CE263",
+      "rule": "Skip extraction of 'aneurysm' when it appears in a cardiac imaging or echocardiography context (e.g., 'TTE ___:', 'LVEF <20%', 'basal segments are hypokinetic') even if the clinical context suggests cardiac pathology.",
+      "priority": 2
+    },
+    {
+      "id": "CE264",
+      "rule": "Skip extraction of 'aneurysm' when it appears in a chunk that contains '___' placeholders immediately before or after the span, or when the span is part of a sentence with incomplete or ambiguous phrasing (e.g., 'apical aneurysm' without clear imaging confirmation).",
+      "priority": 2
+    },
+    {
+      "id": "CE265",
+      "rule": "Extract 'unchanged' only when it appears in a clinical exam or physical exam section (e.g., 'DISCHARGE PHYSICAL EXAM') and is followed by a clinical finding or assessment (e.g., 'Exam otherwise unchanged', 'no new abnormalities').",
+      "priority": 2
+    },
+    {
+      "id": "CE266",
+      "rule": "Skip extraction of 'unchanged' when it appears in an imaging or radiology section (e.g., 'Imaging:', 'CXR:', 'CT Head/neck') and is preceded by 'as compared to the previous' or 'prior' and followed by a radiological finding (e.g., 'bilateral airspace opacities and a small right pleural effusion unchanged').",
+      "priority": 2
+    },
+    {
+      "id": "CE267",
+      "rule": "Skip extraction of 'unchanged' when it appears in a chunk that contains '___' placeholders immediately before or after the span and is part of a radiological or imaging report (e.g., 'Effusions, if any, are small bilaterally and unchanged. There is ___').",
+      "priority": 2
+    },
+    {
+      "id": "CE268",
+      "rule": "Extract 'bal' only when it appears in a chunk that contains 'BAL' as part of a clinical test or procedure name (e.g., 'BAL from', 'AFB cx from BAL', 'BAL returned positive') and is followed by a clinical outcome or result.",
+      "priority": 2
+    },
+    {
+      "id": "CE269",
+      "rule": "Skip extraction of 'bal' when it appears in a chunk that contains '___' placeholders immediately before or after and is part of a sentence fragment suggesting incomplete or non-clinical notation (e.g., '___ BAL returned positive', 'future BALs').",
+      "priority": 2
+    },
+    {
+      "id": "CE270",
+      "rule": "Skip extraction of 'bal' when it appears in a chunk that is part of a section labeled 'TRANSITIONAL ISSUES:' and is followed by '___' placeholders or incomplete clinical logic (e.g., 'would require prolonged course. ___ have positive AFB culture on future BALs').",
+      "priority": 2
+    },
+    {
+      "id": "CE271",
+      "rule": "Extract 'sitting' only when it appears in a physical exam or mental status exam context, specifically when followed by 'up' or 'on gurney' or in a phrase like 'sitting up in bed' or 'sitting on gurney'.",
+      "priority": 2
+    },
+    {
+      "id": "CE272",
+      "rule": "Skip extraction of 'sitting' when it appears in a narrative context describing patient activity or behavior, such as 'has been sitting and sleeping on the couch' or 'feeling weak and sustained a fall... sitting on the couch'.",
+      "priority": 2
+    },
+    {
+      "id": "CE273",
+      "rule": "Extract 'sitting' only when it appears immediately before or after a clinical exam section marker like 'MENTAL STATUS EXAM:' or 'PE:' or in a line that includes 'up' or 'in bed' following the word 'sitting'.",
+      "priority": 2
+    },
+    {
+      "id": "CE274",
+      "rule": "Extract 'strokes' only when it appears in a chunk that is part of the 'Discharge Instructions' section and is preceded by 'prevent further' or 'prevent future' and followed by 'risk factors' or 'modifying those risk factors'.",
+      "priority": 2
+    },
+    {
+      "id": "CE275",
+      "rule": "Skip extraction of 'strokes' when it appears in a chunk that contains 'multiple small acute ischemic' or 'secondary to an embolic shower' in the same context, indicating radiological or neurological diagnosis rather than a modifiable risk factor.",
+      "priority": 2
+    },
+    {
+      "id": "CE276",
+      "rule": "Skip extraction of 'strokes' when it appears in a chunk that contains '___' placeholders or incomplete syntax markers (e.g., 'strokes which were thought to be secondary to an embolic shower') indicating potential text truncation or incomplete clinical narrative.",
+      "priority": 2
+    },
+    {
+      "id": "CE277",
+      "rule": "Extract 'p' only when it appears in a physical exam or vitals context, specifically as part of 'P: [value]' in a vitals line (e.g., 'P: 77' in 'Vitals: T: 97.5 P: 77 R: 18').",
+      "priority": 2
+    },
+    {
+      "id": "CE278",
+      "rule": "Skip extraction of 'p' when it appears in a chunk containing 'Rate PR QRS QT/QTc P QRS T' or similar ECG/monitoring header format, especially when followed by numeric placeholders like '___'.",
+      "priority": 2
+    },
+    {
+      "id": "CE279",
+      "rule": "Skip extraction of 'p' when it appears in a chunk that contains 'h/o severe COPD' or 's/p right sided endobronchial coil' in the same line, indicating a procedural or respiratory context.",
+      "priority": 2
+    },
+    {
+      "id": "CE280",
+      "rule": "Extract 'aortic' only when it appears in a clinical imaging or radiology report section (e.g., 'CTA CHEST', 'Pertinent Results', 'TTE (___):') and is followed by a clinical descriptor such as 'root', 'valve', 'dilated', or 'abnormality'.",
+      "priority": 2
+    },
+    {
+      "id": "CE281",
+      "rule": "Skip extraction of 'aortic' when it appears in a chunk that contains '___' placeholders immediately before or after and is part of a fragmented or incomplete sentence (e.g., 'The aortic ___' or '___ aortic valve').",
+      "priority": 2
+    },
+    {
+      "id": "CE282",
+      "rule": "Skip extraction of 'aortic' when it appears in a chunk that is part of a section labeled 'TTE (___):' and is followed by 'valve leaflets' or 'thickened' with no preceding clinical descriptor indicating pathology.",
+      "priority": 2
+    },
+    {
+      "id": "CE283",
+      "rule": "Extract 'right upper lobe' only when it appears in a chunk that contains imaging or radiology terminology such as 'consolidation', 'nodule', 'enhancement', 'volume loss', or 'infiltration' indicating a pathological finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE284",
+      "rule": "Skip extraction of 'right upper lobe' when it appears in a chunk that contains 'bronchus' or 'obstruction' immediately before or after, indicating anatomical structure or airway pathology rather than a lesion or abnormality.",
+      "priority": 2
+    },
+    {
+      "id": "CE285",
+      "rule": "Extract 'right upper lobe' only when it is followed by a clinical descriptor such as 'consolidation', 'nodule', 'volume loss', 'infiltration', or 'enhancement' that implies a radiological abnormality.",
+      "priority": 2
+    },
+    {
+      "id": "CE286",
+      "rule": "Extract 'left ventricular systolic function' only when followed by a parenthetical ejection fraction value in the format '(LVEF X-X%)' or '(LVEF>X%)' within a cardiac imaging or echocardiogram section.",
+      "priority": 2
+    },
+    {
+      "id": "CE287",
+      "rule": "Skip extraction of 'left ventricular systolic function' when it appears in a chunk that contains 'cannot be fully excluded' or similar uncertainty language preceding the phrase, indicating potential non-diagnostic or equivocal assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE288",
+      "rule": "Extract 'left ventricular systolic function' only when it appears in a chunk with a section header indicating echocardiography (e.g., 'ECHO ___:', 'TTE', 'Echo') or cardiac imaging context, and is followed by a clinical assessment such as 'normal' or 'borderline low'.",
+      "priority": 2
+    },
+    {
+      "id": "CE289",
+      "rule": "Extract 'sleeping' only when it appears in a chunk that is part of a section labeled 'More Information About Traumatic Brain Injuries' or 'History of Present Illness', and is followed by a clinical descriptor such as 'due to', 'not sleeping well due to', or 'napping during the day'.",
+      "priority": 2
+    },
+    {
+      "id": "CE290",
+      "rule": "Skip extraction of 'sleeping' when it appears in a chunk that contains 'sitting and sleeping on the couch' or 'sleeping on the couch' as part of a general activity description, especially when not linked to a clinical symptom or condition.",
+      "priority": 2
+    },
+    {
+      "id": "CE291",
+      "rule": "Extract 'sleeping' only when it is part of a phrase indicating disrupted sleep or sleep-related symptomatology, such as 'not sleeping well due to', 'sleeping poorly', or 'difficulty sleeping', and is followed by a clinical context (e.g., pruritus, fatigue, cognitive issues).",
+      "priority": 2
+    },
+    {
+      "id": "CE292",
+      "rule": "Extract 'traumatic' only when it appears in a chunk that contains 'post-traumatic changes' or 'post-traumatic' as a phrase, and is within a clinical impression or imaging section.",
+      "priority": 2
+    },
+    {
+      "id": "CE293",
+      "rule": "Skip extraction of 'traumatic' when it appears in a chunk that contains 'brain injury' or 'headache' in the context of patient education or symptom description, such as 'common symptoms after a traumatic brain injury'.",
+      "priority": 2
+    },
+    {
+      "id": "CE294",
+      "rule": "Extract 'traumatic' only when followed by 'brain injury' or 'changes' in a clinical context (e.g., 'post-traumatic changes'), and the chunk is in a section labeled 'IMPRESSION' or 'Brief Hospital Course'.",
+      "priority": 2
+    },
+    {
+      "id": "CE295",
+      "rule": "Extract 'fluconazole' only when it appears in a chunk that contains a medication list or treatment plan context, such as 'started a ___ day course of' or 'continue to take' immediately before or after the term.",
+      "priority": 2
+    },
+    {
+      "id": "CE296",
+      "rule": "Skip extraction of 'fluconazole' when it appears in a chunk that contains 'discharged on' or 'continued to take' followed by 'for ___ weeks' or 'for two weeks' and is part of a discharge instructions or hospital course section.",
+      "priority": 2
+    },
+    {
+      "id": "CE297",
+      "rule": "Extract 'fluconazole' only when it is part of a medication allergy list or treatment initiation phrase such as 'started a 14 day course of' or 'treated with an antiviral, called valgancyclovir, a medication which you should continue to take for three to six weeks'.",
+      "priority": 2
+    },
+    {
+      "id": "CE298",
+      "rule": "Extract 'ctx' only when it appears in a chunk that contains 'CTX' as a medication abbreviation followed by a dose or route (e.g., 'CTX 1g IV', 'CTX, azithro'), and the section header is not 'DISCHARGE LABS'.",
+      "priority": 2
+    },
+    {
+      "id": "CE299",
+      "rule": "Skip extraction of 'ctx' when it appears in a chunk that contains 'azithro' or 'methylprednisone' in the same sentence, unless 'CTX' is explicitly followed by a dose or route.",
+      "priority": 2
+    },
+    {
+      "id": "CE300",
+      "rule": "Skip extraction of 'ctx' when the chunk is within a section labeled 'DISCHARGE LABS' or contains 'labs revealed' or 'improvement of respiratory status' in the surrounding text.",
+      "priority": 2
+    },
+    {
+      "id": "CE301",
+      "rule": "Extract 'ibuprofen' only when it appears in a chunk that contains a medication allergy list or explicitly lists it as an allergen, e.g., 'all seafood / ibuprofen / bees / acetaminophen'.",
+      "priority": 2
+    },
+    {
+      "id": "CE302",
+      "rule": "Skip extraction of 'ibuprofen' when it appears in a chunk that contains 'non-narcotics (i.e. Tylenol, ibuprofen)' or similar phrasing indicating general medication category advice, especially in post-op or discharge instructions.",
+      "priority": 2
+    },
+    {
+      "id": "CE303",
+      "rule": "Skip extraction of 'ibuprofen' when it appears in a chunk that contains 'discontinued' or 'must not use' in the context of NSAID contraindication, e.g., 'must not use NSAIDS (non-steroidal anti-inflammatory drugs)' followed by 'ibuprofen'.",
+      "priority": 2
+    },
+    {
+      "id": "CE304",
+      "rule": "Extract 'mrsa screen' only when it appears in a chunk that contains 'MRSA SCREEN' followed by 'Final' or 'FINAL' and is part of a report section such as 'FINAL REPORT' or 'Final ___:' with a timestamp or source indication like 'Source: Nasal swab'.",
+      "priority": 2
+    },
+    {
+      "id": "CE305",
+      "rule": "Skip extraction of 'mrsa screen' when it appears in a chunk that contains repeated 'MRSA SCREEN' or 'MRSA SCREEN-FINAL' in a list format with no timestamp, source, or report context, especially when preceded by '{YEAST}' or similar microbiology section markers.",
+      "priority": 2
+    },
+    {
+      "id": "CE306",
+      "rule": "Skip extraction of 'mrsa screen' when it appears in a chunk that is part of a microbiology section and contains multiple lab test entries separated by '___' and formatted as '___ [TEST] [STATUS]-FINAL', such as '___ MRSA SCREEN MRSA SCREEN-FINAL'.",
+      "priority": 2
+    },
+    {
+      "id": "CE307",
+      "rule": "Extract 'leuks-neg' only when it appears in a chunk that contains 'URINE' and is followed by 'RBC' or 'WBC' in the same chunk, indicating a urinalysis context.",
+      "priority": 2
+    },
+    {
+      "id": "CE308",
+      "rule": "Skip extraction of 'leuks-neg' when it appears in a chunk that contains '___ [time] URINE' followed by 'Epi' or 'Bacteri' in the same chunk, indicating a non-urinalysis lab section.",
+      "priority": 2
+    },
+    {
+      "id": "CE309",
+      "rule": "Extract 'leuks-neg' only when it is part of a line that contains 'Leuks-NEG' with no preceding 'Eos' or 'RBC' in the same chunk, and the line is preceded by 'pH-' or 'Glucose-' in the same line.",
+      "priority": 2
+    },
+    {
+      "id": "CE310",
+      "rule": "Extract 'ecg' only when it appears in a chunk that contains 'ECG' followed by a clinical interpretation or rhythm description (e.g., 'Afib with RBBB', 'Sinus tachycardia', 'Sinus rhythm at upper limits of normal rate').",
+      "priority": 2
+    },
+    {
+      "id": "CE311",
+      "rule": "Skip extraction of 'ecg' when it appears in a chunk that contains 'ECG ___:' or 'ECG ___:' followed by a section label or heading (e.g., 'ECG ___: Sinus rhythm'), indicating a placeholder or section header.",
+      "priority": 2
+    },
+    {
+      "id": "CE312",
+      "rule": "Skip extraction of 'ecg' when it appears in a chunk that contains 'ECG' as part of a section label like '___ Cardiovascular ECG' or 'ECG ___:' with no subsequent clinical findings or interpretation.",
+      "priority": 2
+    },
+    {
+      "id": "CE313",
+      "rule": "Extract 'mr' only when it appears in a chunk that contains 'MR' followed by 'decreased' or 'improved' in the context of echocardiographic findings (e.g., 'the degree of MR seen has decreased').",
+      "priority": 2
+    },
+    {
+      "id": "CE314",
+      "rule": "Skip extraction of 'mr' when it appears in a chunk that contains 'MR images were obtained' or 'COMPARISON: Outside hospital MR from' \u2014 these refer to magnetic resonance imaging, not mitral regurgitation.",
+      "priority": 2
+    },
+    {
+      "id": "CE315",
+      "rule": "Skip extraction of 'mr' when it appears in a chunk that contains 'MR' as part of a section label such as 'Pertinent Results' or 'TECHNIQUE: MR images were obtained'.",
+      "priority": 2
+    },
+    {
+      "id": "CE316",
+      "rule": "Extract 'bronchus' only when it appears in a chunk that contains 'bronchus intermedius' or 'posterior bronchus' in the same sentence, indicating anatomical specificity.",
+      "priority": 2
+    },
+    {
+      "id": "CE317",
+      "rule": "Skip extraction of 'bronchus' when it appears in a chunk that contains 'mass with marked narrowing of the right upper lobe bronchus' without additional anatomical descriptors like 'intermedius' or 'posterior'.",
+      "priority": 2
+    },
+    {
+      "id": "CE318",
+      "rule": "Skip extraction of 'bronchus' when it appears in a chunk that is part of a 'Past Oncology History' section and is preceded by 'mass with marked narrowing of the right upper lobe'.",
+      "priority": 2
+    },
+    {
+      "id": "CE319",
+      "rule": "Extract 'nose' only when it appears in a chunk within the 'Physical Exam' section and is part of a phrase describing motor or sensory testing, such as 'finger to nose' or 'bilaterally'.",
+      "priority": 2
+    },
+    {
+      "id": "CE320",
+      "rule": "Skip extraction of 'nose' when it appears in a chunk that contains 'eyes, neck, mouth, nose...' followed by a verb like 'see' or 'do not seem' indicating a test or observation in progress, especially if part of a cognitive or visual field assessment.",
+      "priority": 2
+    },
+    {
+      "id": "CE321",
+      "rule": "Extract 'nose' only when it appears in a chunk that contains 'Head, Eyes, Ears, Nose Throat' or 'HENT' as a section header and is followed by a physical finding or abnormality.",
+      "priority": 2
+    },
+    {
+      "id": "CE322",
+      "rule": "Extract 'cancer' only when it appears in a chunk within the 'Family History' section or immediately after 'mother with' or 'father with' or 'niece with' or 'sister with' or 'uncle with' or 'grandparent with'.",
+      "priority": 2
+    },
+    {
+      "id": "CE323",
+      "rule": "Skip extraction of 'cancer' when it appears in a chunk that contains 'metastasis' or 'suspicious focus' or 'deposit' in the same context, indicating a clinical diagnosis rather than a family history.",
+      "priority": 2
+    },
+    {
+      "id": "CE324",
+      "rule": "Skip extraction of 'cancer' when it appears in a chunk that contains 'denies family history of' followed by 'GYN cancer', 'breast cancer', 'colon cancer', or similar specific cancer types.",
+      "priority": 2
+    },
+    {
+      "id": "CE325",
+      "rule": "Extract 'o2 delivery: ra' only when it appears in a chunk that contains 'O2 delivery: Ra' in lowercase and is immediately preceded by 'O2 sat:' or 'O2 sat: ___%' with no intervening text.",
+      "priority": 2
+    },
+    {
+      "id": "CE326",
+      "rule": "Skip extraction of 'o2 delivery: ra' when it appears in a chunk that contains 'O2 delivery: Ra' as part of a continuous line with 'General:', 'HEENT:', or 'Neck:' following it, indicating it is part of a physical exam section header or body.",
+      "priority": 2
+    },
+    {
+      "id": "CE327",
+      "rule": "Skip extraction of 'o2 delivery: ra' when it appears in a chunk that contains 'O2 delivery: Ra' immediately after 'RR: ___' or 'HR: ___' with no intervening section break or label.",
+      "priority": 2
+    },
+    {
+      "id": "CE328",
+      "rule": "Extract 'mouth' only when it appears in a chunk that contains clinical symptoms related to neurological or seizure activity, such as 'mouth foaming', 'loss of ability to speak words from your mouth', or 'drooping of one side of the face'.",
+      "priority": 2
+    },
+    {
+      "id": "CE329",
+      "rule": "Skip extraction of 'mouth' when it appears in a chunk that contains 'eyes, neck, mouth, nose...' followed by a verb like 'see' or 'do', indicating a motor/sensory exam listing.",
+      "priority": 2
+    },
+    {
+      "id": "CE330",
+      "rule": "Skip extraction of 'mouth' when it appears in a chunk that is part of a 'Cranial Nerves' section and is listed alongside other anatomical structures in a non-clinical enumeration (e.g., 'eyes, neck, mouth, nose...').",
+      "priority": 2
+    },
+    {
+      "id": "CE331",
+      "rule": "Extract 'temperature' only when it appears in a chunk that contains 'sensory' or 'sensory exam' and is part of a phrase listing modalities such as 'pinprick, light touch, vibration, and temperature'.",
+      "priority": 2
+    },
+    {
+      "id": "CE332",
+      "rule": "Skip extraction of 'temperature' when it appears in a chunk that contains 'Bi Tri ___ Pat Ach' (DTR reflex table header) or is part of a reflex table with row labels like 'L' and 'R' and numeric values.",
+      "priority": 2
+    },
+    {
+      "id": "CE333",
+      "rule": "Skip extraction of 'temperature' when it appears in a chunk that is part of a 'Reflexes' section and is followed by a line starting with '-Reflexes:' or a table header like 'Bi Tri ___ Pat Ach'.",
+      "priority": 2
+    },
+    {
+      "id": "CE334",
+      "rule": "Extract 'tramadol' only when it appears in a chunk that contains 'Allergies:' or 'Attending:' as a preceding label or within a section header like 'Service: SURGERY' or 'Chief Complaint:'",
+      "priority": 2
+    },
+    {
+      "id": "CE335",
+      "rule": "Skip extraction of 'tramadol' when it appears in a chunk that contains 'home' and is part of a phrase describing a medication regimen such as 'home [drug], continued' or 'continued home [drug]'",
+      "priority": 2
+    },
+    {
+      "id": "CE336",
+      "rule": "Skip extraction of 'tramadol' when it appears in a chunk that contains a section marker like '#Anxiety:', '#Obstructive Sleep Apnea:', or '#OA of the R knee:' followed by 'Continued home' or 'Continued' and a medication list",
+      "priority": 2
+    },
+    {
+      "id": "CE337",
+      "rule": "Extract 'therapy' only when it appears in a chunk that contains 'Physical Therapy was consulted' or 'home therapy was appropriate' and is followed by clinical goals like 'falls prevention', 'gait training', or 'conditioning'.",
+      "priority": 2
+    },
+    {
+      "id": "CE338",
+      "rule": "Skip extraction of 'therapy' when it appears in a chunk that contains 'psychiatry follow-up and therapy' as part of a medication or discharge plan section, especially when preceded by a numbered list or medication label.",
+      "priority": 2
+    },
+    {
+      "id": "CE339",
+      "rule": "Skip extraction of 'therapy' when it appears in a chunk that contains 'therapy' as part of a phrase immediately after a numbered medication list (e.g., '1. Aspirin...', '2. Clonazepam...') or in a line starting with '- recommend'.",
+      "priority": 2
+    },
+    {
+      "id": "CE340",
+      "rule": "Extract 'nebs' only when it appears in a chunk that contains 'nebs' immediately after a medication or treatment context such as 'received nebs', 'nebs, 125 mg methylpred', or 'nebs were continued', and is followed by a clinical outcome or vital sign change (e.g., 'improved', 'SBP 220', 'stable').",
+      "priority": 2
+    },
+    {
+      "id": "CE341",
+      "rule": "Skip extraction of 'nebs' when it appears in a chunk that contains 'nebs were continued' or 'nebs' as part of a medication continuation list (e.g., 'Montelukast and nebs were continued') in a section labeled with a diagnosis header like '#COPD', '#Schizoaffective disorder', or similar, especially if no treatment effect or clinical change is noted.",
+      "priority": 2
+    },
+    {
+      "id": "CE342",
+      "rule": "Skip extraction of 'nebs' when it appears in a chunk that contains 'nebs' as part of a list following a section marker like '#COPD:', '#Anxiety:', or '#Hyponatremia:', and is not associated with a treatment response, vital sign, or medication effect.",
+      "priority": 2
+    },
+    {
+      "id": "CE343",
+      "rule": "Extract 'ct head w/o contrast' only when it appears in a chunk that contains 'CT head w/o contrast was' followed by a clinical finding or impression (e.g., 'was unremarkable', 'showed no acute process').",
+      "priority": 2
+    },
+    {
+      "id": "CE344",
+      "rule": "Skip extraction of 'ct head w/o contrast' when it appears in a chunk that contains a section header like 'FINDINGS:', 'IMPRESSION:', or 'Pertinent Results:' followed by a colon and a blank line or placeholder (e.g., 'CT HEAD w/o CONTRAST ___:').",
+      "priority": 2
+    },
+    {
+      "id": "CE345",
+      "rule": "Skip extraction of 'ct head w/o contrast' when it appears in a chunk that contains 'CT HEAD W/O CONTRAST' in all caps followed by a colon and a section header like 'IMPRESSION:' or 'FINDINGS:' with no preceding clinical narrative.",
+      "priority": 2
+    },
+    {
+      "id": "CE346",
+      "rule": "Extract 'low' only when it appears in a chunk that contains a lab value format with a trailing asterisk (e.g., 'PLT SMR-VERY LOW', 'HGB-8.0*', 'RBC-2.25*#') and is immediately preceded by a lab test name with a hyphenated value pattern.",
+      "priority": 2
+    },
+    {
+      "id": "CE347",
+      "rule": "Skip extraction of 'low' when it appears in a chunk that contains 'reticulocyte count was found to be low' or similar phrasing describing a clinical assessment or interpretation.",
+      "priority": 2
+    },
+    {
+      "id": "CE348",
+      "rule": "Skip extraction of 'low' when it appears in a chunk that contains 'low at' followed by a number (e.g., 'low at 0.9') and is part of a narrative description of lab results.",
+      "priority": 2
+    },
+    {
+      "id": "CE349",
+      "rule": "Extract 'r side' only when it appears in a chunk that contains 'Physical Exam:' or 'Neurologic:' as a preceding section label and is followed by a clinical descriptor like 'due to pain', 'normal strength', or 'lying on her'.",
+      "priority": 2
+    },
+    {
+      "id": "CE350",
+      "rule": "Skip extraction of 'r side' when it appears in a chunk that contains 'stroke cards' or 'scene' as part of a narrative about visual perception or description, indicating non-clinical usage.",
+      "priority": 2
+    },
+    {
+      "id": "CE351",
+      "rule": "Skip extraction of 'r side' when it appears in a chunk that contains '___' as a placeholder and is followed by 'strength on left side' or similar motor exam phrasing, indicating it's part of a template or incomplete note.",
+      "priority": 2
+    },
+    {
+      "id": "CE352",
+      "rule": "Extract 'esrd' only when it appears in a chunk that contains 'ESRD' in uppercase or 'ESRD' immediately followed by 'on HD' or 'on hemodialysis'.",
+      "priority": 2
+    },
+    {
+      "id": "CE353",
+      "rule": "Skip extraction of 'esrd' when it appears in a chunk that contains 'ESRD' as part of a phrase immediately after a section header like 'History of Present Illness:' or 'Past Medical History:' without subsequent clinical context such as 'on HD' or 'likely DM'.",
+      "priority": 2
+    },
+    {
+      "id": "CE354",
+      "rule": "Skip extraction of 'esrd' when it appears in a chunk that contains 'ESRD' in lowercase and is followed by a placeholder like '___' or 's/p IVC filter' with no clinical modifier or treatment context.",
+      "priority": 2
+    },
+    {
+      "id": "CE355",
+      "rule": "Extract 'tb' only when it appears in a chunk that contains 'no TB' or 'TB' as part of a negated or clinical symptom list (e.g., 'no auras, no gastric rising, no rhythmic shaking, no TB, and no incontinence')",
+      "priority": 2
+    },
+    {
+      "id": "CE356",
+      "rule": "Skip extraction of 'tb' when it appears in a chunk that contains 'NAAT' or 'conventional culture' in the surrounding text, indicating a lab test context rather than a clinical symptom",
+      "priority": 2
+    },
+    {
+      "id": "CE357",
+      "rule": "Skip extraction of 'tb' when it appears in a chunk that contains 'TB' in all caps followed by 'or other mycobacterial infection' or 'This TB', indicating a test result or follow-up context",
+      "priority": 2
+    },
+    {
+      "id": "CE358",
+      "rule": "Extract 'derm' only when it appears in a chunk that contains a section header 'DISCHARGE EXAM:' or 'Physical Exam:' and is followed by a colon and space, e.g., 'DERM: Warm and well perfused'.",
+      "priority": 2
+    },
+    {
+      "id": "CE359",
+      "rule": "Skip extraction of 'derm' when it appears in a chunk that contains a section header like 'Past Medical History:', 'Social History:', or 'Family History:', or when it is part of a bullet point list with no colon after 'Derm:' (e.g., '*Derm: Vitiligo').",
+      "priority": 2
+    },
+    {
+      "id": "CE360",
+      "rule": "Skip extraction of 'derm' when it appears in a chunk that contains 'Derm:' followed by a newline and no subsequent clinical descriptor (e.g., 'Derm: Vitiligo' with no further text), indicating it is a standalone condition rather than a physical exam finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE361",
+      "rule": "Extract 'tremor' only when it appears in a chunk that contains 'No adventitious movements, such as tremor, noted' or similar negated clinical observation pattern with 'no' or 'noted' immediately before or after the term.",
+      "priority": 2
+    },
+    {
+      "id": "CE362",
+      "rule": "Skip extraction of 'tremor' when it appears in a chunk that contains 'DTRs:' as a section header or 'DTR reflex table' in the surrounding text, as these are motor reflex assessment sections where 'tremor' is not a clinical finding.",
+      "priority": 2
+    },
+    {
+      "id": "CE363",
+      "rule": "Skip extraction of 'tremor' when it appears in a chunk that contains 'tremor, no dysdiadochokinesia noted' or similar phrase with 'no' immediately following 'tremor', indicating absence rather than presence of the sign.",
+      "priority": 2
+    },
+    {
+      "id": "CE364",
+      "rule": "Extract 'cta head and neck' only when it appears in a chunk that contains a section header 'IMAGING:' or 'IMAGING REPORT:' immediately before it.",
+      "priority": 2
+    },
+    {
+      "id": "CE365",
+      "rule": "Skip extraction of 'cta head and neck' when it appears in a chunk that contains '___' as a placeholder and is followed by a newline and a subsequent section header like 'DIAGNOSTICS' or 'Pertinent Results:'.",
+      "priority": 2
+    },
+    {
+      "id": "CE366",
+      "rule": "Skip extraction of 'cta head and neck' when it appears in a chunk that contains '___ CTA HEAD AND NECK' with all caps and preceded by '___' and a newline, indicating a template placeholder.",
+      "priority": 2
+    }
+  ]
+}

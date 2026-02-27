@@ -1,0 +1,150 @@
+{
+  "new_mappings": {
+    "AAO x 3": "alert and oriented times three",
+    "c/d/i": "clean dry intact",
+    "c/c/e": "cyanosis clubbing edema",
+    "+pp": "positive peripheral pulses",
+    "OLT": "orthotopic liver transplantation",
+    "TEE": "transesophageal echocardiography"
+  },
+
+  "mapping_corrections": {
+    "pancreatic rest": {
+      "current": "Ectopic pancreas",
+      "correct": "rest of pancreas for therapeutic purposes",
+      "notes": "Therapeutic intervention, not anatomical anomaly"
+    },
+    "Laparoscopic": {
+      "current": "Unknown",
+      "correct": "laparoscopic surgical approach",
+      "notes": "Adjective describing surgical technique"
+    }
+  },
+
+  "new_g_rules": [
+    {
+      "id": "G10",
+      "rule": "In discharge instructions sections, common activities and self-care terms should be interpreted as patient education or functional activity education procedures rather than literal actions.",
+      "stages": ["stage_2_search", "stage_3_select"],
+      "examples": ["shower", "ambulate", "drink fluids", "avoid lifting"]
+    },
+    {
+      "id": "G11",
+      "rule": "Slash-separated abbreviations should be expanded by interpreting each component individually, particularly common in physical examination documentation for negated findings.",
+      "stages": ["stage_2_search"],
+      "examples": ["c/c/e", "c/d/i", "s/p"]
+    },
+    {
+      "id": "G12",
+      "rule": "Clinical status phrases describing patient function or condition should map to appropriate clinical findings that represent the overall state rather than individual components.",
+      "stages": ["stage_2_search", "stage_3_select"],
+      "examples": ["hemodynamically stable", "voided without problem", "pain well controlled"]
+    }
+  ],
+
+  "new_structured_rules": [
+    {
+      "rule_id": "R13",
+      "concept_type": "Single_Letter_Clinical_Finding",
+      "stage_1_span": {
+        "label": "Single_Letter_Clinical_Finding",
+        "description": "Single letters used as clinical abbreviations, particularly in physical exam sections, often representing clinical signs or findings"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand single-letter abbreviations to full clinical terms based on medical context and section. Common mappings: c→cyanosis, e→edema, d→drainage"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select clinical finding concepts that match the standard medical interpretation of the abbreviation in its context",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R14",
+      "concept_type": "Compound_Abbreviation_Pattern",
+      "stage_1_span": {
+        "label": "Compound_Abbreviation_Pattern",
+        "description": "Multiple abbreviations or clinical terms separated by slashes, representing a series of related findings or observations"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Expand each component of slash-separated abbreviations individually, then search for concepts representing each expanded term"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "For each component, select the appropriate clinical finding or observation concept",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": []
+      }
+    },
+    {
+      "rule_id": "R15",
+      "concept_type": "Therapeutic_Rest_Restriction",
+      "stage_1_span": {
+        "label": "Therapeutic_Rest_Restriction",
+        "description": "Terms indicating therapeutic rest, restriction, or reduced function of organs or body systems for healing purposes"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for therapeutic interventions or regimes involving rest or restriction of the specified organ/system"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select regime/therapy or procedure concepts representing therapeutic interventions over anatomical structure concepts",
+        "preferred_hierarchy": "regime/therapy",
+        "reject_hierarchies": ["body structure", "morphologic abnormality"]
+      }
+    },
+    {
+      "rule_id": "R16",
+      "concept_type": "Clinical_Status_Assessment",
+      "stage_1_span": {
+        "label": "Clinical_Status_Assessment",
+        "description": "Multi-word phrases describing overall patient status, stability, or functional state"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for clinical findings that represent the overall status or state described by the phrase"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Prefer finding concepts that capture the complete clinical state over partial matches",
+        "preferred_hierarchy": "finding",
+        "reject_hierarchies": ["procedure"]
+      }
+    },
+    {
+      "rule_id": "R17",
+      "concept_type": "Patient_Activity_Instruction",
+      "stage_1_span": {
+        "label": "Patient_Activity_Instruction",
+        "description": "Instructions for patient activities or self-care in discharge instructions sections"
+      },
+      "stage_2_search": {
+        "filtering_logic": null,
+        "intent_translation": "Search for patient education or functional activity education procedures related to the instructed activity"
+      },
+      "stage_3_select": {
+        "disambiguation_logic": "Select education or training procedure concepts over literal activity findings",
+        "preferred_hierarchy": "procedure",
+        "reject_hierarchies": ["finding"]
+      }
+    }
+  ],
+
+  "section_specific_guidance": {
+    "Physical Exam": {
+      "abbreviation_density": "high",
+      "common_patterns": ["single letters", "compound abbreviations", "system-specific acronyms"],
+      "disambiguation_hints": ["Prefer examination procedures for section headers", "Prefer findings for results"]
+    },
+    "Discharge Instructions": {
+      "focus": "patient education",
+      "common_patterns": ["activity instructions", "self-care guidance", "follow-up directions"],
+      "disambiguation_hints": ["Interpret activities as education procedures", "Map restrictions to functional education"]
+    },
+    "Brief Hospital Course": {
+      "temporal_context": "important",
+      "common_patterns": ["treatment responses", "clinical status changes", "procedure outcomes"],
+      "disambiguation_hints": ["Consider temporal progression", "Link interventions to outcomes"]
+    }
+  }
+}

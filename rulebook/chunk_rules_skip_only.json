@@ -1,0 +1,114 @@
+{
+  "rules": [
+    {
+      "id": "NR001",
+      "rule": "Do not annotate abbreviations or lab values (e.g., INR, Plt, R, BLOOD) when they appear in structured lab or vitals sections without clinical context indicating a condition.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR002",
+      "rule": "Do not annotate section headers (e.g., FINDINGS, Strength, Orthostatics) or table labels (e.g., Pat Ach, L, R) that are part of structured formatting.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR003",
+      "rule": "Do not annotate lab value fragments that appear within a list of multiple values separated by spaces or newlines, especially when part of a larger block of lab results without explicit labeling.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR004",
+      "rule": "Do not annotate abbreviated lab test names followed by a value (e.g., 'Mg-2.0', 'K-4.4') when they appear in a parenthetical or inline list within a larger result block.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR005",
+      "rule": "Do not annotate abbreviations or lab test names (e.g., WBC, Hgb, Plt, Na, K) when they appear in lab result sections or as part of blood test headers.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR006",
+      "rule": "Do not annotate medication dosing regimens (e.g., 'NPH 25 Units Breakfast', 'Prednisone 10mg daily') unless they are explicitly listed in a dedicated 'medication list' section.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR007",
+      "rule": "Skip annotations for imaging sequence terms (e.g., T1, T2, STIR, sagittal, axial) when listed in the technique or protocol section of imaging reports.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR008",
+      "rule": "Do not annotate generic section headers (e.g., FINDINGS, Pertinent Results, Imaging) or labels like 'test', 'report', 'comparison' when they appear in context.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR009",
+      "rule": "Do not annotate 'normal' or 'abnormal' when used as part of a checkbox or status indicator (e.g., 'Normal (x)', 'Abnormal ()') in structured physical exam templates.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR010",
+      "rule": "Skip annotating phrases like 'clear and coherent', 'alert and interactive', or 'no rebound/guarding' when they appear in standardized discharge condition or mental status sections, especially if formatted as bullet points or in templates.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR011",
+      "rule": "Do not annotate empty or placeholder fields denoted by underscores (e.g., '___', '___', '___') within clinical notes, especially when they appear in structured templates or incomplete entries.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR012",
+      "rule": "Do not annotate standalone numbers that appear as part of a vital signs or neurological exam table row, especially when aligned with other numerical values in a structured format.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR013",
+      "rule": "Do not annotate numbers that appear in a structured format such as a table or grid (e.g., 'L 5 ___ ___ 5 5 5 5 5 5') unless they are part of a validated clinical scale or diagnosis.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR014",
+      "rule": "Skip vital sign spans that are embedded within narrative text without clear labeling (e.g., 'T 98.4, HR 66, BP 171/90') unless preceded by a structured header like 'Vitals:' or 'VS:'.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR015",
+      "rule": "Skip spans where vital signs are listed without identifiers (e.g., '97.8 66 136/68 18 98%') unless the values are clearly labeled with abbreviations like T, HR, BP, RR.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    }
+  ],
+  "metadata": {
+    "source": "chunk_rules_negative_only.json",
+    "selection": "2-3 best per category, skip-only rules",
+    "total_rules": 15
+  }
+}

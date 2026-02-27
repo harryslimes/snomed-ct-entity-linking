@@ -1,0 +1,309 @@
+{
+  "rules": [
+    {
+      "id": "R001",
+      "rule": "Always anchor search terms on the annotated span itself. Never substitute or derive terms from surrounding clinical context (adjacent procedures, diagnoses, or section content). Surrounding context provides disambiguation only, not replacement terms.",
+      "priority": 1,
+      "applies_to": {}
+    },
+    {
+      "id": "R002",
+      "rule": "Negated, normal, and absent findings \u2192 affirmative SNOMED concepts: (a) Negated ('non-X', 'no X') \u2192 positive equivalents: 'non-distended' \u2192 'normal abdominal contour'. (b) Normal qualifiers (intact, WNL) \u2192 'normal [structure/function] finding'; lab \u2192 'within reference range'. (c) Absence phrases ('unremarkable') \u2192 'no abnormality detected', 'normal finding'. (d) Physical-exam negatives ('without R/R/W', 'CTA without findings') \u2192 'no rales rhonchi wheeze', 'clear to auscultation'. Never generate disorder concepts for absent or normal findings.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R003",
+      "rule": "Lab spans \u2192 procedure concepts. Abbreviations: Hgb/Hbg/Hb \u2192 'measurement of total hemoglobin concentration'; WBC \u2192 'white blood cell count'; Plt \u2192 'platelet count'; Na \u2192 'serum sodium measurement'; K \u2192 'potassium measurement'; Cr \u2192 'creatinine measurement'; BUN \u2192 'blood urea nitrogen measurement'; INR \u2192 'INR measurement'; CBC \u2192 'complete blood count'; BMP/CMP \u2192 'metabolic panel'. Always generate 'measurement of [full analyte name]' alongside abbreviations.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          15220000,
+          252275004,
+          74040009,
+          122869004
+        ]
+      }
+    },
+    {
+      "id": "R004",
+      "rule": "Discharge instruction annotations: (a) Header span \u2192 'discharge instruction', 'discharge education', 'inpatient visit with instructions at discharge'. (b) Education triggers ('educated', 'counseled', 'given instructions') \u2192 'patient education', 'patient counseling'; drug imperatives ('continue X', 'MUST NOT STOP X') \u2192 'recommendation to continue drug treatment', 'medication adherence instruction'. (c) 'Return to ED', 'go to ER if', 'seek emergency care if' \u2192 'emergency treatment education', 'education about emergency signs'. Gold concepts are procedural acts.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          84635008,
+          86181006,
+          409073007,
+          18629005,
+          420227002
+        ],
+        "sections": [
+          "discharge instructions"
+        ]
+      }
+    },
+    {
+      "id": "R005",
+      "rule": "Organ-system labels ('CARDIAC', 'RESPIRATORY', 'NEURO', 'GI', 'PULM') as standalone spans in physical exam, HPI, PMH, or ROS \u2192 generate 'examination of [full system]', '[system] physical examination', '[system] disorder'. When followed by 'work-up', 'evaluation', or 'assessment' \u2192 also '[system] investigation'. CARDIAC \u2192 also 'cardiovascular physical examination', 'disorder of cardiovascular system', 'heart structure'. 'Pulm' \u2192 'examination of respiratory system'. Anchor on span label, not surrounding diagnoses.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          5880005,
+          49601007,
+          284366008,
+          399210005
+        ],
+        "sections": [
+          "physical exam",
+          "history of present illness"
+        ]
+      }
+    },
+    {
+      "id": "R006",
+      "rule": "Cardiovascular findings in physical exam: (a) Numeric pulse grades (1+, 2+, 3+) \u2192 combine with vessel name and laterality; 2+ = normal. Generate '[side] [vessel] pulse present', 'normal [vessel] pulse'. Never search grade alone. (b) Rhythm descriptors ('regular rhythm') \u2192 'finding of regularity of heart rhythm', 'regular heart rhythm'. (c) 'Irregular rhythm'/'irregularly irregular' \u2192 'irregular heart beat', 'irregularly irregular rhythm'. Do NOT generate disorder terms. Always include 'heart'; do not apply to family history.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          301157002,
+          12146004,
+          301112006,
+          361136003
+        ],
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "R007",
+      "rule": "In the Allergies section, listed items are allergens. Generate 'allergic reaction caused by [item]', '[item] allergy', 'hypersensitivity to [item]'. Do NOT generate only the substance name or administration procedures \u2014 the gold concept is an allergic reaction disorder, not the substance itself.",
+      "priority": 1,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          419076005
+        ],
+        "sections": [
+          "allergies"
+        ]
+      }
+    },
+    {
+      "id": "R008",
+      "rule": "SNOMED-preferred forms for colloquialisms, misspellings, and synonyms: 'CVA' \u2192 'stroke'; 'MI' \u2192 'myocardial infarction'; 'CHF' \u2192 'congestive heart failure'; 'ultrasound of [X]' \u2192 'ultrasonography of [X]'; 'echo' \u2192 'echocardiography'; 'body ache/aches' \u2192 'generalized aches and pains'; 'bracheocephalic' (vascular context) \u2192 also 'brachial artery'; 'septic arthritis' \u2192 'bacterial arthritis', 'infective arthritis', 'bacterial joint infection' (SNOMED: 'septic' in joint context = 'bacterial'). Always include SNOMED preferred synonym alongside colloquial form.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R009",
+      "rule": "State and positional descriptors \u2192 SNOMED finding concepts, not procedures: (a) 'Anesthesia' as service/agent \u2192 'under anesthesia', 'anesthetic finding'. 'Post-operative'/'postoperative' \u2192 'postprocedural state finding', 'status post surgery'; prefer disorder terms in complication contexts. (b) Sustained rest posture ('lying in bed', 'sitting on couch', 'reclining') \u2192 'recumbent position', 'semi-recumbent position', 'body position'. Do NOT default to sedentary lifestyle; target positional finding hierarchy.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          365406008,
+          128926000,
+          102538003
+        ]
+      }
+    },
+    {
+      "id": "R010",
+      "rule": "Anatomical spans \u2192 SNOMED body-structure concepts: (a) Named structures \u2192 'structure of [anatomy]'; generic terms ('tissue', 'fluid', 'wall') \u2192 'body [term] structure'; joint movements in PE \u2192 performing structure; imaging landmarks \u2192 constituent bones. (b) Adjective-only spans ('facial', 'bilateral [body part]') \u2192 noun form; do NOT apply to noun spans ('graft', 'edema'). (c) 'groin' \u2192 'inguinal region'; 'armpit' \u2192 'axilla'; 'kneecap' \u2192 'patella'. Laterality prefix \u2192 lateralized SNOMED form. Avoid functional substitutions.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          91723000
+        ]
+      }
+    },
+    {
+      "id": "R011",
+      "rule": "Multi-component span annotation: (a) Single qualifier spans ('irregular', 'elevated', 'rapid') alone \u2192 extract nearest clinical entity: 'irregular heartbeat' near rhythm/rate. Partial table headers ('HEART') \u2192 infer full concept from adjacent headers: 'heart rate finding'. Never search qualifiers alone or generate body-structure terms for measurement headers. (b) Physical activity triggers ('short walks', 'climbing stairs', 'minimal exertion') \u2192 '[symptom] on exertion', 'exertional [symptom]'. (c) Sputum descriptors in productive cough context \u2192 'productive cough with [descriptor] sputum'. Preserve trigger and symptom together.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R012",
+      "rule": "'Leave', 'left', or departure verbs in narrative sections describing patient refusal of care (declining services, refusing prescriptions, 'CYA' language) \u2192 generate 'left against medical advice', 'against medical advice', 'AMA discharge', 'patient refusal'. Context of patient actively rejecting care overrides the literal verb meaning.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          305058001
+        ]
+      }
+    },
+    {
+      "id": "R013",
+      "rule": "Patient state findings \u2014 context disambiguation: (a) Functional assessment headers \u2192 'physical functional dependency', 'functional status', 'activity limitation'. (b) Diet tolerance \u2192 'tolerating normal diet', 'tolerating diet'. (c) 'Drink' in danger-sign list \u2192 'unable to drink', 'finding related to ability to drink'; no hydration procedures. (d) 'Drink'/'last drink' in alcohol history \u2192 'drinking episode', 'alcohol drinking behavior'. (e) 'Sexual activity' in discharge instructions \u2192 'finding relating to sexual activity', 'finding of frequency of sexual activity'.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          105719004,
+          1144522003,
+          364779005,
+          228273003,
+          285058000
+        ]
+      }
+    },
+    {
+      "id": "R014",
+      "rule": "Surgical specialty names ('Hand Surgery', 'Orthopedics', 'Neurosurgery') in context of follow-up, outpatient visit, or consultation \u2192 generate 'referral to [specialty] service', 'referral to [specialty]', '[specialty] consultation referral'. The concept is the REFERRAL act, not the surgical procedure.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          306180006
+        ]
+      }
+    },
+    {
+      "id": "R015",
+      "rule": "Radiology/imaging annotations in results sections: (a) Standalone modality qualifiers ('Portable', 'AP', 'PA', 'Lateral', 'Upright') \u2192 '[qualifier] plain X-ray', '[qualifier] radiograph'. Do NOT derive terms from adjacent non-imaging text. (b) 'Stranding' (fat stranding, pericholecystic) in imaging reports \u2192 'fat stranding', 'edema', 'soft tissue edema', 'inflammatory change'. Do not use bare 'stranding' as SNOMED search term.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          168537006
+        ],
+        "sections": [
+          "pertinent results"
+        ]
+      }
+    },
+    {
+      "id": "R016",
+      "rule": "Procedure-verb annotations: (a) 'Instructions'/'instructed to'/'given instructions' for patient guidance \u2192 'patient education', 'education procedure', 'recommendation to'. Map to education/recommendation procedures. (b) 'Worked up'/'workup'/'work-up'/'further workup' \u2192 'evaluation procedure', 'diagnostic evaluation', 'clinical evaluation'. Do NOT generate education concepts for workup terms, nor scheduling/administrative concepts for instruction terms.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          409073007,
+          128927009
+        ]
+      }
+    },
+    {
+      "id": "R017",
+      "rule": "Skin and wound findings in exam or ROS: (a) 'Skin changes' or '[body site] changes' \u2192 'skin appearance abnormal', 'abnormal skin appearance', 'skin finding'; include 'abnormal' in at least one term. (b) 'Yellowing of skin/eyes' \u2192 'yellow discoloration of skin', 'yellow skin', AND 'jaundice'/'icterus'; include both color-description and diagnostic forms. (c) 'Clean dry and intact'/'CDI' at surgical sites \u2192 'wound healing well', 'wound healing finding', 'healing wound'. Map CDI to wound-healing finding, not individual descriptors.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          106076001,
+          3253007,
+          298005009
+        ]
+      }
+    },
+    {
+      "id": "R018",
+      "rule": "Pathology invasion qualifier spans ('venous', 'perineural', 'LVI', 'lymphovascular') within cancer PMH/history \u2192 generate '[type] invasion by tumor', 'venous large vessel invasion', 'tumor invasion finding', '[type] invasion present'. Do NOT substitute surrounding symptoms (melena, bleeding). Span text must dominate (R001 applies).",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          373379001,
+          372286000
+        ]
+      }
+    },
+    {
+      "id": "R019",
+      "rule": "Pathogen-antigen lab result spans ('CRYPTOCOCCAL ANTIGEN', '[pathogen] ANTIGEN') \u2192 generate '[pathogen] species antigen assay', '[pathogen] antigen assay', 'detection of [pathogen] antigen'. For fungal pathogens also include 'fungal antigen assay'. Prefer assay/procedure form, not disorder.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          122434007
+        ]
+      }
+    },
+    {
+      "id": "R020",
+      "rule": "Monitoring/management verb spans ('monitored', 'assessed', 'managed') \u2192 (a) ALWAYS generate 'monitoring procedure' as the FIRST generic term; (b) then specific: '[object] monitoring', '[object] assessment procedure'; (c) Target regime/therapy class, NOT finding ('monitoring status' is wrong hierarchy). Past-tense verbs = completed monitoring procedure.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          243120004,
+          119270007,
+          268509003
+        ]
+      }
+    },
+    {
+      "id": "R021",
+      "rule": "Mobility aid device spans ('walker', 'cane', 'rollator', 'walking frame') in activity status or discharge context \u2192 generate 'zimmer frame', 'uses zimmer frame', 'walking frame', 'walking aid use', 'ambulatory with walking aid'. SNOMED preferred term for walker/walking frame is 'zimmer frame' \u2014 always include it.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          365112008,
+          116329008
+        ]
+      }
+    },
+    {
+      "id": "R022",
+      "rule": "Procedure colloquial/abbreviation mappings: (a) 'Cath' in vascular/cardiac context \u2192 'cardiac catheterization', 'coronary catheterization', 'catheterization of heart'. Derive terms from annotated span only (R001 applies). (b) 'Funduscopic exam', 'fundus examination', 'ophthalmoscopic exam' \u2192 primary term 'ophthalmoscopy'; also 'direct ophthalmoscopy', 'examination of optic fundus', 'retinal examination'. SNOMED preferred is 'ophthalmoscopy', not 'fundus examination'. Apply in any section.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          45211000,
+          118797008,
+          32750006,
+          274798009
+        ]
+      }
+    },
+    {
+      "id": "R023",
+      "rule": "'Graft' span in physical exam when context includes 'thrill', 'bruit', upper-extremity vascular description, or renal/dialysis reference \u2192 generate 'arteriovenous graft', 'AV graft', 'vascular access graft', 'hemodialysis graft'. Use 'transplant structure' ONLY when a specific transplanted organ is explicitly named. Prioritise morphologic abnormality hierarchy.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          312288001
+        ],
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "R024",
+      "rule": "State and resolution qualifier spans: (a) Oncology/treatment context ('remission', 'relapse', 'recurrence'): combine with disease type: '[cancer type] in remission', 'acute leukemia in remission', 'disease in remission', 'clinical remission'. (b) General improvement phrases ('[symptom] improved', 'resolved', 'better'): generate 'resolution of [symptom]', 'improvement of [symptom]', '[symptom] absent', 'sensation of [symptom] reduced'. Always combine entity with state qualifier; never generate bare symptom name alone.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R025",
+      "rule": "Drug/medication spans in clinical context: (a) Drug name in recommendation/instruction context \u2192 also generate 'administration of [drug class]', 'drug administration', 'administration of drug or medicament'. E.g., 'Tylenol' \u2192 'administration of analgesic'; retain drug name terms alongside. (b) Route-of-administration spans ('Oral', 'IV', 'PO', 'IM', 'SQ', 'SC', 'sublingual', 'topical') \u2192 'administration via [full route name] route', '[route] route of administration'. Do NOT generate dosage-form terms; target administration route procedure, not formulation.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          18629005,
+          1285247007
+        ]
+      }
+    },
+    {
+      "id": "R026",
+      "rule": "Generic categorical term generation: (a) Clinical condition/diagnosis spans ('thrombocytopenia', 'neuropathy') \u2192 also generate SNOMED disorder-preferred form: 'thrombocytopenic disorder', 'leukopenic disorder'; include base term and common descriptors ('low platelets'). (b) Single-word observation-property spans ('color', 'shape', 'texture', 'consistency') in HPI/exam \u2192 generate '[span] finding', 'finding of [span]' as categorical term alongside any context-specific terms.",
+      "priority": 3,
+      "applies_to": {}
+    },
+    {
+      "id": "R027",
+      "rule": "Spans 'within normal limits', 'WNL', 'within reference range', 'normal range' in labs/results context \u2192 generate 'measurement finding within reference range', 'laboratory result within normal limits', 'result within reference range'. Do NOT generate modality-specific normals (e.g., 'ECG normal', 'hemoglobin within reference range') \u2014 keep terms generic and categorical.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          118245000
+        ]
+      }
+    },
+    {
+      "id": "R028",
+      "rule": "Non-compliance/adherence spans ('non compliance', 'non-compliance', 'noncompliance', 'non-adherence') in medication/treatment context \u2192 generate 'drug compliance poor', 'medication non-compliance', 'poor drug compliance', 'non-adherence to medication', 'drugs total non-compliance'. Anchor to the medication domain; avoid generic 'noncompliance in general'.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          414059009
+        ]
+      }
+    }
+  ]
+}

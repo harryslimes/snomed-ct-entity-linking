@@ -1,0 +1,226 @@
+{
+  "rules": [
+    {
+      "id": "R001",
+      "rule": "Select the concept most specifically supported by the span and its immediate context. Do not infer detail absent from the text; if a child concept adds specificity not entailed by the span, prefer the parent concept. When genuinely uncertain between parent and child after applying all other rules, default to the broader parent concept.",
+      "priority": 2,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R002",
+      "rule": "When a negative finding has a dedicated concept, prefer the negative/absent form. When no negative form exists, annotate the positive concept \u2014 negation does not prevent annotation.",
+      "priority": 2,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R003",
+      "rule": "When candidates span multiple SNOMED hierarchies, use context to pick the right one. Default tie-break order: Procedure > Finding > Body structure.",
+      "priority": 2,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R004",
+      "rule": "Only consider context from the previous, current, and next sentence when disambiguating. Do not use distant parts of the note to over-specify a concept.",
+      "priority": 2,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R005",
+      "rule": "For physical objects (devices, catheters, implants), prefer the 'in situ' finding if context describes presence, or the procedure if context describes insertion/removal. Physical object hierarchy is out of scope.",
+      "priority": 2,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R006",
+      "rule": "Structured section headings are not annotations and should be ignored.",
+      "priority": 1,
+      "stage": "select",
+      "applies_when": {}
+    },
+    {
+      "id": "R007",
+      "rule": "Always expand the abbreviation to its canonical clinical meaning FIRST \u2014 this anchors ALL generated search terms. Context may indicate which valid expansion to prefer but CANNOT replace the abbreviation's meaning with unrelated surrounding text. If any generated term is unrelated to any known expansion of the span, reject and regenerate. The span is a self-contained clinical token; never substitute it with content drawn from adjacent sentences.",
+      "priority": 1,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R008",
+      "rule": "When an abbreviation is ambiguous across clinical domains, generate search terms for ALL major expansions. Never omit an expansion because context favors another; always include imaging/radiology expansions when applicable. For abbreviations that map to concepts at multiple levels of specificity, generate terms at each level of specificity. Breadth over precision at the search stage.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R009",
+      "rule": "When a span encodes a composite negation across multiple findings (slash or comma notation) or is a standalone result-modifier abbreviation not tied to a named analyte, generate the universal normalcy or abnormality finding concept as the primary search term. Do not generate individual per-finding negations for composite spans; do not append adjacent analyte names for standalone modifier spans.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R010",
+      "rule": "Preserve all quality, state, and modifier terms in every generated search term; never strip qualifiers during expansion. For Latin-root or technical expressions describing a normal clinical state, also generate a plain-English 'normal [body part or system]' equivalent. Always pair technical normal-state terms with their plain-English equivalents.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R011",
+      "rule": "In results or laboratory sections, generate '[substance] measurement, blood' and '[substance] level' as primary search terms for analyte abbreviations. Do not limit to the substance name, ion form, or disorder concept; the indexed concept is typically the measurement procedure.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "pertinent results",
+          "laboratory",
+          "labs",
+          "lab results"
+        ]
+      }
+    },
+    {
+      "id": "R012",
+      "rule": "For anatomical identifier spans (chambers, valves, vertebral levels, leads), generate body structure terms as the primary output; do not redirect to pathological findings or procedures. For body-system or region acronyms labeling a physical exam component, generate 'examination of [system]' and '[system] physical examination' procedure terms alongside the anatomical structure term; do not generate examination findings or results.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R013",
+      "rule": "In physical exam, preserve the semantic category of each span: abbreviations modified by laterality qualifiers map to clinical observation/finding terms (not procedure or device); composite abbreviations encoding a specific clinical domain (motor function, vital signs, etc.) must map only to that domain's hierarchy and must not conflate distinct clinical categories.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "physical exam",
+          "physical examination"
+        ]
+      }
+    },
+    {
+      "id": "R014",
+      "rule": "In physical exam, when a span represents a reported measurement value, generate 'finding of [measurement]' as the primary term rather than procedure-oriented expansions. When a span carries a present/normal or absent/abnormal suffix, generate '[finding] present', 'normal [finding]', or '[finding] absent'/'not detected' accordingly. Never use 'positive' or 'negative' as standalone modifiers.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "physical exam",
+          "physical examination"
+        ]
+      }
+    },
+    {
+      "id": "R015",
+      "rule": "When a span expands to a specific therapeutic agent, protocol, or named regimen, append the broader treatment-category term as an additional search term. For spans encoding multi-component management, generate '[component] management' for each component. When section context supports a clinical management interpretation, prefer that over drug or substance expansions.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R016",
+      "rule": "When a span encodes a pathogen, virus, or infectious-agent abbreviation, generate the primary infection diagnosis first. Do not generate oncologic, malignancy, or complication terms unless those qualifiers appear explicitly within the span itself.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "history of present illness",
+          "past medical history"
+        ]
+      }
+    },
+    {
+      "id": "R017",
+      "rule": "In results, findings, plan, or consultation sections, when a short uppercase abbreviation is ambiguous between categories: prefer specialty/service terms over laboratory analyte terms; prefer disease/disorder terms over anatomical structure terms as primary output. Use the deprioritized category as secondary search terms.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "pertinent results",
+          "results",
+          "findings",
+          "assessment and plan",
+          "plan",
+          "consultation"
+        ]
+      }
+    },
+    {
+      "id": "R018",
+      "rule": "When an abbreviation encodes a bodily substance combined with an anatomical route qualifier, generate the canonical symptom or finding name for that combination as the primary search term. Do not expand to unrelated organ systems.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "chief complaint"
+        ]
+      }
+    },
+    {
+      "id": "R019",
+      "rule": "Never generate search terms that merely restate or paraphrase the section header. The span always refers to a clinical entity distinct from its enclosing section. If candidate terms describe the section rather than a clinical concept, discard them and re-expand the abbreviation independently.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {}
+    },
+    {
+      "id": "R020",
+      "rule": "For cytogenetic or chromosomal spans encoding numeric anomalies (monosomy, trisomy, deletion), expand using standard nomenclature. Include chromosomal arm qualifiers where inferable. Generate both '[anomaly] chromosome [N]' and '[anomaly] [N][arm]' forms.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "pertinent results",
+          "results",
+          "findings",
+          "genetics"
+        ]
+      }
+    },
+    {
+      "id": "R021",
+      "rule": "For directional positional region abbreviations indicating an anatomical quadrant or zone, expand to the full positional qualifier combined with the body region name. When pain, tenderness, or discomfort context is present, also generate the corresponding symptom-qualified finding term. Never redirect positional region abbreviations to unrelated anatomical systems.",
+      "priority": 2,
+      "stage": "search",
+      "applies_when": {
+        "sections": [
+          "physical exam",
+          "history of present illness"
+        ]
+      }
+    },
+    {
+      "id": "R023",
+      "replaces": null,
+      "stage": "search",
+      "priority": 2,
+      "rule": "When a span prefixes a procedure abbreviation with a numeric count or vessel-count modifier (e.g., '3v', '2-vessel', 'triple'), generate search terms in ALL notation styles: multiplicative suffix ('x 3'), spelled-out multiplier ('triple', 'double', 'quadruple'), and the unmodified procedure name. Index entries commonly use 'x N' notation rather than descriptive vessel-count forms."
+    },
+    {
+      "id": "R024",
+      "replaces": null,
+      "stage": "search",
+      "priority": 2,
+      "rule": "When a span begins with 'p', 'post-', or a slash-temporal prefix modifying a therapy or procedure abbreviation, prioritize post-procedural management and care terms: '[therapy] care', '[therapy] management'. These temporal-modifier spans often index as regime/therapy or management concepts rather than as the base procedure itself."
+    },
+    {
+      "id": "R025",
+      "replaces": null,
+      "stage": "search",
+      "priority": 2,
+      "rule": "When an abbreviation begins with a qualifier letter specifying procedure or event type (T=therapeutic, E=elective, S=spontaneous, I=induced), include that qualifier word in EVERY generated search term. Never generate the unqualified form or a different qualifier type as the primary term; omitting the qualifier retrieves the wrong concept subtype."
+    },
+    {
+      "id": "R027",
+      "replaces": null,
+      "stage": "search",
+      "priority": 2,
+      "rule": "For surgical or procedural abbreviations, generate the canonical procedure name WITHOUT site-specific anatomical qualifiers (laterality, specific joint, specific bone) as the PRIMARY search term. Over-specification to a site narrows retrieval to child concepts and misses the canonical procedure-hierarchy entry. Site-specific forms may be added as secondary terms only."
+    }
+  ]
+}

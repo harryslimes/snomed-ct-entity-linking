@@ -1,0 +1,132 @@
+{
+  "rules": [
+    {
+      "id": "N001",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate document section headers and structural labels: words like 'Admission', 'Discharge', 'Discharge Disposition', 'Discharge Diagnosis', 'Discharge Condition', 'Followup Instructions', etc. These are administrative/organizational text, not clinical observations or findings.",
+      "examples": [
+        "Admission",
+        "Discharge",
+        "Discharge:"
+      ]
+    },
+    {
+      "id": "N002",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate field-label words followed by colons that serve as form prompts or section identifiers, not clinical concepts. These include demographic and structural labels like 'Birth:', 'Sex:', 'Allergies:', 'Procedure:', 'Illness:'. The colon signals a label, not a clinical assertion.",
+      "examples": [
+        "Birth:",
+        "Sex:",
+        "Allergies:",
+        "Illness:",
+        "Procedure:"
+      ]
+    },
+    {
+      "id": "N003",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate generic English words used in narrative or connecting context that happen to match SNOMED concepts. Words like 'man', 'woman', 'admitted', 'presented', 'noted', 'seen', 'found', 'developed' in narrative flow are not clinical findings. They must be performing a clinical descriptive role, not a grammatical/narrative one.",
+      "examples": [
+        "man",
+        "admitted"
+      ]
+    },
+    {
+      "id": "N004",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate compound section header phrases as partial phrase matches. If a multi-word phrase like 'Physical Exam:', 'Incision Care:', or 'Pain Management:' is a section title, do not annotate the whole phrase or sub-spans of it. Section titles organize the document, they are not clinical assertions.",
+      "examples": [
+        "Physical Exam:",
+        "Incision Care:"
+      ]
+    },
+    {
+      "id": "N005",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate isolated clinical modifiers or adjectives ('Surgical', 'Medical', 'Invasive') when they modify non-clinical nouns in administrative phrases like 'Surgical Service', 'Medical History', or 'Invasive Procedure' used as section headers. The modifier alone does not represent a clinical concept.",
+      "examples": [
+        "Surgical",
+        "Medical"
+      ]
+    },
+    {
+      "id": "N006",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate 'discharge' or 'discharged' when used as administrative transition language (e.g., 'time of discharge', 'was discharged home', 'Discharge Date'). Only annotate if part of a clinical concept like 'discharge plan' (planning procedure) or wound 'drainage/discharge' (finding).",
+      "examples": [
+        "discharge,",
+        "discharged",
+        "Discharge"
+      ]
+    },
+    {
+      "id": "N007",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate isolated drug names appearing in structured medication lists (e.g., 'Medications on Admission' or 'Discharge Medications' sections) when listed as line items without therapeutic context. Drug names in narrative describing active treatment (e.g., 'received heparin') MAY be annotated as therapy.",
+      "examples": [
+        "oxycodone"
+      ]
+    },
+    {
+      "id": "N008",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate 'follow-up' when used as a generic scheduling/administrative term (e.g., 'follow-up instructions', 'follow-up appointment'). Only annotate when it asserts an arranged clinical event, e.g., 'follow-up with your surgeon' conveying a concrete care plan.",
+      "examples": [
+        "follow-up"
+      ]
+    },
+    {
+      "id": "N009",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate the word 'SURGERY' or a specialty name when it identifies the treating service or department (e.g., 'Service: SURGERY'). These are administrative assignments, not clinical procedures or findings.",
+      "examples": [
+        "SURGERY"
+      ]
+    },
+    {
+      "id": "N010",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate narrative/temporal connector words that happen to have SNOMED matches: 'resulting', 'initially', 'scheduled', 'prior', 'brief', 'elective', 'regular'. These serve grammatical roles in sentences and are not standalone clinical concepts. Only annotate if part of a recognized multi-word clinical term.",
+      "examples": [
+        "resulting",
+        "initially",
+        "scheduled",
+        "prior"
+      ]
+    },
+    {
+      "id": "N011",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate sub-spans of multi-word clinical terms independently if the parent term is already annotated. For example, do not separately annotate 'pancreatic' from 'pancreatic necrosis', or 'laparoscopic' from 'laparoscopic cholecystectomy', unless the sub-span itself represents a distinct clinical concept in context.",
+      "examples": [
+        "pancreatic",
+        "laparoscopic",
+        "biliary"
+      ]
+    },
+    {
+      "id": "N012",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate demographic identifiers like patient age, gender words ('man', 'woman', 'male', 'female', 'M', 'F') when used in demographic fields or introductory narrative (e.g., '___ year old man'). These are patient descriptors, not clinical findings.",
+      "examples": [
+        "man",
+        "M",
+        "woman",
+        "female"
+      ]
+    }
+  ],
+  "observations": "Key patterns: (1) The pipeline over-annotates section headers and field labels \u2014 these are pervasive FPs. (2) Administrative words ('admission', 'discharge', 'admitted', 'discharged') appear repeatedly and should almost never be annotated in their structural roles. (3) Isolated words in structured medication lists are treated differently from the same drugs mentioned in clinical narrative as therapy. (4) Family history conditions ARE correctly annotated in this note \u2014 the pipeline should still annotate clinical concepts in family history sections, just with appropriate context attribution. (5) Physical exam abbreviations (VS, NAD, RRR, CTAB, c/e) ARE annotated as clinical findings, so abbreviations in exam context should not be filtered out. (6) The boundary between annotatable 'discharge plan' and non-annotatable 'discharge' is context-dependent \u2014 the word must participate in a clinical concept, not just mark an administrative event."
+}

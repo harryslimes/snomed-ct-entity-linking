@@ -1,0 +1,87 @@
+{
+  "rules": [
+    {
+      "id": "CE019",
+      "rule": "Extract 'wbc' only when it appears in a lab value line formatted as 'WBC-<value>' or 'WBC: <value>' with a numeric value immediately following, and the line contains other lab markers like 'RBC', 'Hgb', 'Hct', or 'Plt'.",
+      "priority": 2
+    },
+    {
+      "id": "CE020",
+      "rule": "Skip 'wbc' when it appears in free-text narrative within History of Present Illness or similar sections, especially when followed by 'normal', 'elevated', or 'left shift' without a numeric value or lab format.",
+      "priority": 2
+    },
+    {
+      "id": "CE021",
+      "rule": "Skip 'wbc' when it appears as part of a phrase like 'WBC 13.1' or 'WBC 13' without a hyphen or colon delimiter, and not within a structured lab line containing multiple lab values (e.g., 'RBC: 4.24', 'Hgb: 11.7').",
+      "priority": 2
+    },
+    {
+      "id": "CE061",
+      "rule": "Extract 'mcv' only when it appears in a structured lab line with numeric values and standard lab notation (e.g., 'MCV-89', 'MCV: 91'), and when preceded by 'RBC', 'Hgb', 'Hct', or similar lab markers in the same line.",
+      "priority": 2
+    },
+    {
+      "id": "CE062",
+      "rule": "Skip 'mcv' when it appears in a free-text narrative line without numeric values or structured lab formatting, such as 'MCV: 91' in a non-lab context or within a section header like 'Reflexes:' or 'Exam notable for:' without lab data.",
+      "priority": 2
+    },
+    {
+      "id": "CE063",
+      "rule": "Skip 'mcv' when it appears in a line containing only '___ [time] BLOOD' followed by lab abbreviations without numeric values or standard lab formatting (e.g., 'MCV: 91' without a number or with '___' placeholder).",
+      "priority": 2
+    },
+    {
+      "id": "CE058",
+      "rule": "Extract 'blood' only when it appears in a free-text narrative context describing a clinical condition or finding, such as 'blood. You were started on antibiotics' or 'blood counts were found to be low'.",
+      "priority": 2
+    },
+    {
+      "id": "CE059",
+      "rule": "Skip 'blood' when it appears in a structured lab or test header line that includes '___ [time] BLOOD' followed by a test name (e.g., '___ 06:40AM BLOOD WBC-4.6') or 'BLOOD [test]: [value]'.",
+      "priority": 2
+    },
+    {
+      "id": "CE060",
+      "rule": "Skip 'blood' when it appears as part of a lab test abbreviation or label in a table or line of structured data, such as 'Blood: 11.8' or 'Plt ___' under a 'BLOOD' header.",
+      "priority": 2
+    },
+    {
+      "id": "CE151",
+      "rule": "Skip extraction of '___' when it appears as a placeholder in a line containing lab values or vitals (e.g., 'Plt ___', '___ PTT-36.3'), especially when followed by a lab test name or numeric value.",
+      "priority": 2
+    },
+    {
+      "id": "CE152",
+      "rule": "Skip extraction of '___' when it appears in a line that starts with a time stamp (e.g., '05:35AM', '06:40AM') and is part of a lab test sequence with other lab values.",
+      "priority": 2
+    },
+    {
+      "id": "CE153",
+      "rule": "Skip extraction of '___' when it appears in a fragmented or incomplete sentence with no clinical meaning, especially when surrounded by other lab test abbreviations (e.g., '___ 07:10AM BLOOD ALT-12') or in a narrative context without semantic content.",
+      "priority": 2
+    }
+  ],
+  "metadata": {
+    "source": "chunk_rules_largescale.json",
+    "selection": "top 4 groups by net score (ratio >= 3.0)",
+    "groups": {
+      "6 (wbc)": {
+        "net": 1395,
+        "ratio": "8.5x"
+      },
+      "23 (mcv)": {
+        "net": 1050,
+        "ratio": "12.7x"
+      },
+      "22 (blood)": {
+        "net": 831,
+        "ratio": "17.3x"
+      },
+      "84 (___)": {
+        "net": 819,
+        "ratio": "46.5x"
+      }
+    },
+    "total_rules": 12
+  }
+}

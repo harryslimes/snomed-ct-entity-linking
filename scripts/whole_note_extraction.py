@@ -37,32 +37,9 @@ SPLIT_DIR = REPO_ROOT / "data" / "old-challenge-split"
 DEFAULT_MODEL = "/workspaces/snomed-ct-entity-linking/models/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit"
 
 EXTRACTION_SYSTEM = """\
-You are a clinical NLP agent. Given a section of a clinical discharge note, \
-identify ALL spans of text that represent annotatable SNOMED CT clinical concepts.
-
-Annotatable concepts include: diagnoses, procedures, findings, body structures, \
-medications (in therapeutic context), lab tests, devices, and clinical observations.
-
-DO NOT extract:
-- Section headers or structural labels (e.g., 'Admission', 'Discharge Diagnosis:')
-- Field labels followed by colons ('Birth:', 'Sex:', 'Allergies:')
-- Generic narrative verbs ('admitted', 'presented', 'noted', 'treated', 'followed')
-- Demographic words ('man', 'woman', 'male', 'female')
-- Temporal connectors ('initially', 'prior', 'resulting', 'scheduled')
-- Administrative disposition values ('Home', 'Rehab')
-- Drug names in medication lists (just inventory items, not therapeutic references)
-- Dosing/route/frequency components ('PO', 'BID', 'Q3H', 'tablet', 'Disp', 'Refills')
-- Isolated severity qualifiers ('severe', 'mild', 'moderate')
-- Consent/risk vocabulary ('risks', 'benefits', 'outcomes', 'alternatives')
-- Workflow status words ('pending', 'collected', 'sent', 'ordered')
-- Follow-up as scheduling language (only if it asserts a concrete clinical event)
-
-EXCEPTION: 'discussion' IS a valid SNOMED procedure — always extract it.
-
-For each span, provide the EXACT text as it appears in the note.
-
-Respond with ONLY a JSON object:
-{"spans": ["exact span text 1", "exact span text 2", ...]}\
+You are a clinical NLP span extractor. You will be given a chunk of a clinical \
+discharge note bracketed by rules. Extract SNOMED CT concept spans and return \
+ONLY a JSON object: {"spans": ["exact span 1", "exact span 2", ...]}\
 """
 
 

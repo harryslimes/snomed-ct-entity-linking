@@ -1,0 +1,762 @@
+{
+  "rules": [
+    {
+      "id": "NR001",
+      "rule": "Do not annotate abbreviations or lab values (e.g., INR, Plt, R, BLOOD) when they appear in structured lab or vitals sections without clinical context indicating a condition.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR002",
+      "rule": "Skip annotating medication names (e.g., Lovenox, Coumadin, metoprolol) when they appear in instructions, discharge plans, or medication lists without explicit mention of a clinical indication or diagnosis.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR003",
+      "rule": "Do not annotate anatomical or descriptive terms (e.g., bilateral, chest, pain) when used in procedural or symptom descriptions without association to a diagnosed condition.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR004",
+      "rule": "Skip annotating drug names (e.g., cefepime, MEROPENEM, Keppra) when listed in antibiotic susceptibility or culture results without clinical context of use or indication.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR005",
+      "rule": "Do not annotate section headers (e.g., FINDINGS, Strength, Orthostatics) or table labels (e.g., Pat Ach, L, R) that are part of structured formatting.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR006",
+      "rule": "Skip annotating general medical terms (e.g., anemia, acute, vomiting) when used in review of systems, past medical history, or brief summaries without diagnostic confirmation.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR007",
+      "rule": "Do not annotate abbreviations like ED, NC/AT, or TSH when they appear in clinical notes as part of standardized notation or section headers.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR008",
+      "rule": "Do not annotate abbreviations or lab test codes (e.g., INR, Plt, R, BLOOD) when they appear in structured lab or exam section headers or tables.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR009",
+      "rule": "Skip annotating medication names (e.g., Lovenox, Coumadin, metoprolol) when they appear in patient instructions, discharge plans, or medication reconciliation sections.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR010",
+      "rule": "Do not annotate anatomical or physiological terms (e.g., bilateral, chest, pain) when used in clinical context within history, exam, or symptom lists.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR011",
+      "rule": "Skip annotating drug names (e.g., cefepime, MEROPENEM, Keppra) when listed in antimicrobial susceptibility reports or culture results.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR012",
+      "rule": "Do not annotate clinical findings or descriptors (e.g., FINDINGS, Pat Ach, L) when they appear in structured exam or test result tables.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR013",
+      "rule": "Skip annotating general medical terms (e.g., anemia, acute, vomiting) when used in review of systems, past medical history, or summary statements.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR014",
+      "rule": "Do not annotate abbreviations like 'NC/AT' or 'ED' when they appear in physical exam or section headers as part of standard clinical notation.",
+      "priority": 2,
+      "category": "general",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR015",
+      "rule": "Do not annotate lab value fragments that appear within a list of multiple values separated by spaces or newlines, especially when part of a larger block of lab results without explicit labeling.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR016",
+      "rule": "Skip any span that is part of a continuous sequence of lab values (e.g., Na-135 K-4.4 Cl-94) without a clear delimiter or standalone context.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR017",
+      "rule": "Do not annotate abbreviated lab test names followed by a value (e.g., 'Mg-2.0', 'K-4.4') when they appear in a parenthetical or inline list within a larger result block.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR018",
+      "rule": "Skip any lab value fragment that is embedded within a larger text block with no distinct section header or clear lab test name formatting.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR019",
+      "rule": "Do not annotate values that are part of a compound label such as 'AbsBaso-0.03' or 'BASOS-0.3' when they are listed as components of a cell differential or derived parameter.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR020",
+      "rule": "Skip any span that appears in a line with multiple lab values separated by spaces or tabs, especially when no explicit test name or unit is present.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR021",
+      "rule": "Do not annotate lab value fragments that are preceded or followed by non-lab text such as '___' or 'PM' without a clear lab test name or section header.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR022",
+      "rule": "Do not annotate lab value fragments that appear within a sequence of other lab values enclosed in brackets or parentheses without explicit clinical context indicating a result.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR023",
+      "rule": "Skip annotations for lab value fragments that are part of a continuous line of values separated by spaces or underscores, especially when no clear lab test name precedes the value.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR024",
+      "rule": "Do not annotate lab value fragments that are embedded within multi-value lines where the format is 'Abbreviation-Value' without a preceding test name or section header indicating a result.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR025",
+      "rule": "Skip any span that is enclosed in square brackets and followed by a timestamp or section label, indicating it is part of a batched or grouped lab result.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR026",
+      "rule": "Do not annotate lab value fragments that appear immediately after a section header (e.g., '___ 06:00AM') and are part of a repeated or aligned columnar format.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR027",
+      "rule": "Skip annotations for lab values that are part of a non-numeric or non-lab context, such as 'AbsBaso-0.03' or 'BASOS-0.3' when they follow a list of cell counts without a clear test name.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR028",
+      "rule": "Do not annotate values that are part of a merged or concatenated string like 'Na-135 K-3.9' unless separated by a clear delimiter and context.",
+      "priority": 2,
+      "category": "lab_value_fragments",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR029",
+      "rule": "Do not annotate abbreviations or lab test names (e.g., WBC, Hgb, Plt, Na, K) when they appear in lab result sections or as part of blood test headers.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR030",
+      "rule": "Skip annotating terms like 'follow-up', 'follow-up appointments', 'medications', or 'new symptoms' when they appear in discharge instructions or patient education sections, unless explicitly part of a medication list.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR031",
+      "rule": "Do not annotate medical procedures, equipment, or devices (e.g., 'chest tube', 'wheelchair', 'O2 requirement') when mentioned in clinical context outside of a formal medication list.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR032",
+      "rule": "Skip annotating medication names (e.g., Lovenox, Ativan, Verapamil) when they appear in narrative text describing treatment plans or patient history, not in a structured medication list.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR033",
+      "rule": "Do not annotate medication dosing regimens (e.g., 'NPH 25 Units Breakfast', 'Prednisone 10mg daily') unless they are explicitly listed in a dedicated 'medication list' section.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR034",
+      "rule": "Skip annotating clinical findings or physical exam results (e.g., 'S1/S2', 'AT/NC', 'grade I varices') when they appear in exam or results sections, not in medication lists.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR035",
+      "rule": "Do not annotate non-medication terms like 'pain', 'effusion', 'CT', 'BLOOD' when they are part of lab or imaging result headers or narrative descriptions.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR036",
+      "rule": "Do not annotate abbreviations or lab test codes (e.g., WBC, Hgb, Plt, Na, K) when they appear in lab result sections or as part of structured lab data.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR037",
+      "rule": "Skip annotating terms like 'follow-up', 'follow-up appointments', 'follow-up instructions' when they appear in discharge instructions or follow-up sections, unless explicitly referring to a medication.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR038",
+      "rule": "Do not annotate medical procedures, equipment, or devices (e.g., 'chest tube', 'wheelchair', 'O2 requirement') when mentioned in clinical context outside of medication lists.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR039",
+      "rule": "Skip terms like 'pain', 'new symptoms', 'effusion', 'varices' when used in diagnostic or physical exam context, not as part of medication orders.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR040",
+      "rule": "Do not annotate medication names (e.g., Lovenox, Ativan, Prednisone) when they appear in narrative descriptions, not in formal medication list sections.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR041",
+      "rule": "Skip annotating structured medication dosing formats (e.g., 'NPH 25 Units Breakfast', 'Ipratropium Bromide Neb 1 NEB IH Q6H') unless explicitly listed in a medication order section.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR042",
+      "rule": "Do not annotate section headers (e.g., 'Pertinent Results', 'Discharge Labs', 'Discharge Instructions') or labels like 'AT/NC', 'S1/S2' that are not medication items.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR043",
+      "rule": "Skip terms such as 'medications', 'new medications', 'meds' when used generically in narrative or instruction sections, not as part of a formal medication list.",
+      "priority": 2,
+      "category": "medication_list_items",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR044",
+      "rule": "Do not annotate abbreviations or test codes (e.g., BLOOD, URINE, Plt, T1, T2, MR) when they appear as part of a lab or imaging test header or within a structured results block.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR045",
+      "rule": "Skip annotations for values or results (e.g., Blood-NEG, Nitrite-NEG, Glucose-NEG, Bilirub-NEG) that follow a test name and are part of a result string in the Pertinent Results section.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR046",
+      "rule": "Do not annotate anatomical terms (e.g., distal fragment, aortic) when they appear in the context of imaging or lab findings descriptions, especially if they are not clinical entities being assessed.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR047",
+      "rule": "Skip annotations for imaging sequence terms (e.g., T1, T2, STIR, sagittal, axial) when listed in the technique or protocol section of imaging reports.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR048",
+      "rule": "Do not annotate drug combinations (e.g., vanc/piperacillin-tazobactam) or test names (e.g., AFB cx) when used in the context of treatment or test history, not as clinical findings.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR049",
+      "rule": "Skip annotations for structured result fields (e.g., COLOR-Yellow, SP, APPEAR-Clear) that are part of a formatted lab or urine test result line.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR050",
+      "rule": "Do not annotate generic section headers (e.g., FINDINGS, Pertinent Results, Imaging) or labels like 'test', 'report', 'comparison' when they appear in context.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR051",
+      "rule": "Skip annotations for abbreviations or acronyms (e.g., P, T, estGFR, UROBILNGN) when they appear in structured lab result lines without clinical context.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR052",
+      "rule": "Do not annotate abbreviations or lab test codes (e.g., BLOOD, URINE, Plt, T1, T2, P, T) when they appear as part of a lab result line with values or modifiers.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR053",
+      "rule": "Skip annotating test result values (e.g., Blood-NEG, Nitrite-NEG, Glucose-NEG, Bilirub-NEG) that follow a test name and are part of a lab result string.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR054",
+      "rule": "Do not annotate imaging sequence terms like T1, T2, STIR, MR, or sagittal when they appear in technical descriptions of imaging protocols.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR055",
+      "rule": "Skip annotating section headers such as 'FINDINGS', 'Pertinent Results', or 'IMAGING' when they appear as standalone labels or within context of structured data sections.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR056",
+      "rule": "Do not annotate abbreviations like 'SP', 'COLOR-Yellow', 'Appear-Clear', or 'UROBILNGN-NEG' when they are part of a lab result line with associated test names.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR057",
+      "rule": "Skip annotating drug combinations (e.g., vanc/piperacillin-tazobactam) or test names (e.g., AFB cx) when they appear in clinical narrative or medication history context.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR058",
+      "rule": "Do not annotate terms like 'estGFR-Using this' or 'SED RATE-Test' when they are part of a lab result line with procedural or test status indicators.",
+      "priority": 2,
+      "category": "imaging_context",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR059",
+      "rule": "Do not annotate 'normal' or 'abnormal' when used as part of a checkbox or status indicator (e.g., 'Normal (x)', 'Abnormal ()') in structured physical exam templates.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR060",
+      "rule": "Skip annotating phrases like 'clear and coherent', 'alert and interactive', or 'no rebound/guarding' when they appear in standardized discharge condition or mental status sections, especially if formatted as bullet points or in templates.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR061",
+      "rule": "Do not annotate text that is part of a labeled header or section title (e.g., 'Mental Status: Clear and coherent.', 'R Normal (x)') unless it describes a clinical finding in free text.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR062",
+      "rule": "Skip any span that is enclosed in square brackets [ ] and appears to be a placeholder or formatting artifact in a clinical note.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR063",
+      "rule": "Do not annotate clinical descriptors (e.g., 'nontender', 'soft', 'no hepatosplenomegaly') when they are part of a structured checklist or template with consistent formatting and no free-text context.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR064",
+      "rule": "Skip annotations for phrases that are repeated across multiple sections (e.g., 'normal' in both 'Pertinent Results' and 'Impression') if they are not clinically meaningful in context.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR065",
+      "rule": "Do not annotate 'normal' or similar neutral descriptors when they appear in structured templates or checklist-style formatting (e.g., 'Normal (x)', 'Abnormal ()') within physical exam sections.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR066",
+      "rule": "Skip annotations of phrases like 'clear and coherent', 'alert and interactive', or 'no rebound/guarding' when embedded in standardized discharge condition or physical exam boilerplate text, especially if preceded by section headers like 'Discharge Condition' or 'Physical Exam'.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR067",
+      "rule": "Do not annotate any text that appears in a labeled checklist format (e.g., 'L Normal (x)  Abnormal ()   Comments:') unless explicitly describing a clinical finding with clinical context.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR068",
+      "rule": "Skip annotations of phrases that are part of a standardized template or form field (e.g., 'Mental Status: Clear and coherent.') when found in non-clinical or administrative sections like 'Discharge Diagnosis' or 'Discharge Disposition'.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR069",
+      "rule": "Do not annotate structured phrases such as 'nontender to palpation', 'no rebound or guarding', or 'normal stride' when they appear in bulleted or tabulated exam sections without clinical context or abnormality indicators.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR070",
+      "rule": "Avoid annotating any text that is part of a repeated or redundant template block (e.g., multiple 'Normal (x)' lines) in physical exam or musculoskeletal sections, especially when used for navigation or formatting.",
+      "priority": 2,
+      "category": "physical_exam_boilerplate",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR071",
+      "rule": "Do not annotate empty or placeholder fields denoted by underscores (e.g., '___', '___', '___') within clinical notes, especially when they appear in structured templates or incomplete entries.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR072",
+      "rule": "Skip any span containing '___' that appears as a placeholder in a clinical section header or within a list item, particularly when the text is incomplete or syntactically broken.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR073",
+      "rule": "Do not annotate text segments where '___' is used to indicate missing or omitted data in a clinical result or procedure, such as 'CT on ___ showed...' or 'Procedure Date of ___'.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR074",
+      "rule": "Skip any annotation where '___' appears in a clinical note as part of a templated or auto-filled field, especially when the surrounding context suggests the field was not manually completed.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR075",
+      "rule": "Do not annotate spans that consist solely of a placeholder like '___' or '___' when they occur in isolation or as part of a sentence fragment with no clinical content.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR076",
+      "rule": "Skip any text where '___' is used to denote a missing name, date, or location (e.g., 'Dr. ___', 'in ___ clinic', 'on ___') unless the actual value is later provided in the same note.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR077",
+      "rule": "Do not annotate spans containing only underscores (___) or placeholder text used for formatting or missing data.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR078",
+      "rule": "Skip any span that appears within bracketed sections (e.g., [text]) indicating placeholders or incomplete content.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR079",
+      "rule": "Do not annotate text that is part of a sentence fragment or incomplete phrase, especially when followed by '___' or similar placeholder markers.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR080",
+      "rule": "Skip any span that contains '___' immediately after a medical term or lab value, indicating a missing or omitted result.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR081",
+      "rule": "Do not annotate placeholders like '___' when they appear in clinical note templates or structured fields (e.g., 'Dr. ___', 'in ___ clinic').",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR082",
+      "rule": "Skip any span where the placeholder is used to indicate a missing date, name, or location in follow-up or procedure notes.",
+      "priority": 2,
+      "category": "placeholder_patterns",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR083",
+      "rule": "Do not annotate standalone numbers that appear as part of a vital signs or neurological exam table row, especially when aligned with other numerical values in a structured format.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR084",
+      "rule": "Skip standalone numbers that are part of a sequence or list within a clinical section (e.g., DTRs, cranial nerve exams, or lab values) unless explicitly linked to a clinical finding or diagnosis.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR085",
+      "rule": "Do not annotate numbers that appear as part of a measurement or lab value context (e.g., 'hgb 13.0', 'bicarb 33') unless they are part of a named clinical entity or SNOMED concept.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR086",
+      "rule": "Skip standalone numbers that are embedded within a sentence describing a patient\u2019s self-report or cognitive task (e.g., '750... wait, no, 7') unless they represent a documented cognitive deficit.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR087",
+      "rule": "Do not annotate numbers that appear in a structured format such as a table or grid (e.g., 'L 5 ___ ___ 5 5 5 5 5 5') unless they are part of a validated clinical scale or diagnosis.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR088",
+      "rule": "Skip numbers that are part of a medication or contrast dose (e.g., 'Contrast: OMNIPAQUE Amt: 80') unless the dose is explicitly linked to a clinical condition or treatment.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR089",
+      "rule": "Do not annotate standalone numbers that appear in structured clinical tables or rows of numerical data, such as reflex scores, vital signs, or lab values in tabular format.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR090",
+      "rule": "Skip standalone numbers that are part of a sequence of vitals (e.g., HR, BP, RR, O2 sat) listed in a line with other vital signs, especially when preceded by a colon or comma.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR091",
+      "rule": "Do not annotate numbers that appear as part of a larger numerical expression (e.g., 750... wait, no, 7) where the number is embedded in a verbal calculation or self-correction.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR092",
+      "rule": "Skip standalone numbers that are part of a clinical scoring system (e.g., DTRs, coordination scores, reflexes) when presented in a row of numbers with no associated clinical descriptor.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR093",
+      "rule": "Do not annotate numbers that are part of a larger clinical measurement or value (e.g., 0.9, 1.0, 8.5) when they appear in a lab or lab-derived result context, unless explicitly linked to a clinical condition.",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR094",
+      "rule": "Skip standalone numbers that are embedded in a sentence fragment or narrative where the number is part of a thought process, self-correction, or verbal calculation (e.g., '750... wait, no, 7').",
+      "priority": 2,
+      "category": "standalone_numbers",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR095",
+      "rule": "Do not annotate vital sign values when they appear in non-clinical sections such as Family History, Social History, or Review of Systems.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR096",
+      "rule": "Skip vital sign spans that are embedded within narrative text without clear labeling (e.g., 'T 98.4, HR 66, BP 171/90') unless preceded by a structured header like 'Vitals:' or 'VS:'.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR097",
+      "rule": "Do not annotate vital sign values that are part of a parenthetical or parenthetical-like range (e.g., 'HR 108 (92-108)') unless the value is explicitly listed as a current measurement.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR098",
+      "rule": "Skip spans where vital signs are listed without identifiers (e.g., '97.8 66 136/68 18 98%') unless the values are clearly labeled with abbreviations like T, HR, BP, RR.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR099",
+      "rule": "Do not annotate vital sign values that appear in sections labeled 'Physical Exam' or 'Exam' unless the values are explicitly marked as 'Vitals' or 'VS'.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR100",
+      "rule": "Skip vital sign spans that are part of a list or table embedded in narrative text without clear section headers such as 'Vitals:', 'VS:', or 'Initial vitals:'.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR101",
+      "rule": "Do not annotate vital sign values that appear in non-clinical sections such as Family History, Social History, or Review of Systems, unless explicitly part of a documented vital signs section.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR102",
+      "rule": "Skip vital sign spans that are embedded within narrative descriptions or appear as part of a list without clear vital signs header or structured format.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR103",
+      "rule": "Do not annotate vital sign values that are presented in parentheses or as ranges (e.g., HR 108 (92-108)) unless they are explicitly labeled as current or measured values.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR104",
+      "rule": "Skip spans where vital signs are listed without identifiers (e.g., '98.4, 133/87, HR 119') unless preceded by clear labels like 'Vitals:' or 'VS:'.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR105",
+      "rule": "Do not annotate vital sign values that are part of a device or monitoring description (e.g., 'O2 stat probe on right second finger') even if they resemble vitals.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    },
+    {
+      "id": "NR106",
+      "rule": "Skip vital sign spans that appear in text marked as discharge or follow-up notes without explicit vital signs section headers.",
+      "priority": 2,
+      "category": "vital_sign_values",
+      "source": "qwen_negative_gen"
+    }
+  ],
+  "metadata": {
+    "source_index": "/workspaces/snomed-ct-entity-linking/scripts/chunk_rule_runs/20260224T115559Z/extraction_index.json",
+    "total_fps": 4769,
+    "categories": {
+      "general": 2588,
+      "placeholder_patterns": 133,
+      "physical_exam_boilerplate": 186,
+      "standalone_numbers": 105,
+      "vital_sign_values": 104,
+      "lab_value_fragments": 961,
+      "imaging_context": 306,
+      "medication_list_items": 386
+    },
+    "model": "/workspaces/snomed-ct-entity-linking/models/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit",
+    "n_samples": 2
+  }
+}

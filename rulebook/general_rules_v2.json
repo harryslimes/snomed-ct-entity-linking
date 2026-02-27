@@ -1,0 +1,309 @@
+{
+  "rules": [
+    {
+      "id": "R001",
+      "rule": "Always anchor search terms on the annotated span text itself. Use surrounding context ONLY for disambiguation, never as replacement terms. DO NOT annotate spans that are purely structural: section headers ('Admission', 'Discharge Diagnosis'), field labels followed by colons ('Birth:', 'Sex:', 'Allergies:'), or administrative transition language ('was discharged home', 'time of discharge'). Only annotate 'discharge' if it denotes a clinical concept (wound discharge, discharge plan).",
+      "priority": 1,
+      "applies_to": {}
+    },
+    {
+      "id": "R002",
+      "rule": "Negated, normal, and absent findings map to affirmative SNOMED concepts. 'non-distended' -> 'normal abdominal contour'; 'intact'/'WNL' -> 'normal [structure] finding'; 'unremarkable' -> 'no abnormality detected'; 'without R/R/W' -> 'no rales rhonchi wheeze'. DO NOT generate disorder concepts for absent or normal findings. SKIP bare negation words ('no', 'without', 'denies') that are grammatical connectors without an attached clinical entity.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R003",
+      "rule": "Lab abbreviations map to procedure concepts: Hgb/Hb -> 'measurement of hemoglobin'; WBC -> 'white blood cell count'; Plt -> 'platelet count'; Na -> 'serum sodium measurement'; K -> 'potassium measurement'; Cr -> 'creatinine measurement'; BUN -> 'blood urea nitrogen measurement'; INR -> 'INR measurement'; CBC -> 'complete blood count'; BMP/CMP -> 'metabolic panel'. Always generate 'measurement of [full analyte]'. DO NOT annotate the numeric result value itself or units (e.g., '7.2', 'mg/dL').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          15220000,
+          252275004,
+          74040009,
+          122869004
+        ]
+      }
+    },
+    {
+      "id": "R004",
+      "rule": "Discharge instruction spans: header -> 'discharge instruction'; education triggers ('educated', 'counseled') -> 'patient education'; drug imperatives ('continue X') -> 'recommendation to continue drug treatment'; 'Return to ED' -> 'emergency treatment education'. Gold concepts are procedural acts. DO NOT annotate administrative boilerplate ('please call if', 'your next appointment') or scheduling phrases. SKIP isolated follow-up scheduling language.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          84635008,
+          86181006,
+          409073007,
+          18629005,
+          420227002
+        ],
+        "sections": [
+          "discharge instructions"
+        ]
+      }
+    },
+    {
+      "id": "R005",
+      "rule": "Organ-system labels ('CARDIAC', 'RESPIRATORY', 'NEURO', 'GI', 'PULM') as standalone spans -> 'examination of [system]', '[system] physical examination', '[system] disorder'. With 'work-up'/'evaluation' -> also '[system] investigation'. DO NOT annotate isolated clinical modifiers ('Surgical', 'Medical', 'Invasive') that modify administrative nouns ('Surgical Service', 'Medical History'). SKIP specialty names used as department identifiers ('Service: SURGERY') -- see R014 for referral context.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          5880005,
+          49601007,
+          284366008,
+          399210005
+        ],
+        "sections": [
+          "physical exam",
+          "history of present illness"
+        ]
+      }
+    },
+    {
+      "id": "R006",
+      "rule": "Cardiovascular PE findings: pulse grades (1+, 2+, 3+) -> combine with vessel and laterality: '[side] [vessel] pulse present'. Rhythm descriptors -> 'finding of regularity of heart rhythm'. 'Irregular rhythm' -> 'irregular heart beat'. Always include 'heart'. DO NOT generate disorder terms for normal rhythm findings. DO NOT annotate isolated severity qualifiers ('mild', 'moderate') that modify an adjacent annotated finding -- they are not standalone concepts.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          301157002,
+          12146004,
+          301112006,
+          361136003
+        ],
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "R007",
+      "rule": "In the Allergies section, listed items are allergens -> 'allergic reaction caused by [item]', '[item] allergy', 'hypersensitivity to [item]'. DO NOT generate only the substance name or administration procedures. DO NOT annotate the section header 'Allergies:' itself. The gold concept is the allergic reaction disorder, not the substance.",
+      "priority": 1,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          419076005
+        ],
+        "sections": [
+          "allergies"
+        ]
+      }
+    },
+    {
+      "id": "R008",
+      "rule": "Map colloquialisms to SNOMED preferred forms: 'CVA' -> 'stroke'; 'MI' -> 'myocardial infarction'; 'CHF' -> 'congestive heart failure'; 'echo' -> 'echocardiography'; 'body aches' -> 'generalized aches and pains'; 'septic arthritis' -> 'bacterial arthritis', 'infective arthritis'. Always include SNOMED preferred synonym alongside the colloquial form. DO NOT annotate isolated abbreviations that are ambiguous without clinical context (e.g., 'pt' as patient, not procedure).",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R009",
+      "rule": "State and positional descriptors map to finding concepts, not procedures. 'Anesthesia' (as service) -> 'under anesthesia'; 'post-operative' -> 'postprocedural state finding'. Sustained postures ('lying in bed') -> 'recumbent position', 'body position'. DO NOT default to 'sedentary lifestyle'. SKIP when these words serve as narrative connectors ('post' as temporal preposition, 'operative' as isolated adjective modifying an administrative noun).",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          365406008,
+          128926000,
+          102538003
+        ]
+      }
+    },
+    {
+      "id": "R010",
+      "rule": "Anatomical spans -> body-structure concepts: named structures -> 'structure of [anatomy]'; generic terms ('tissue', 'fluid') -> 'body [term] structure'; adjective-only spans ('facial') -> noun form. 'groin' -> 'inguinal region'; 'armpit' -> 'axilla'. Laterality prefix -> lateralized SNOMED form. DO NOT apply adjective-to-noun conversion to noun spans ('graft', 'edema'). SKIP anatomy words used metaphorically or in non-clinical context.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          91723000
+        ]
+      }
+    },
+    {
+      "id": "R011",
+      "rule": "Multi-component span handling: single qualifiers ('irregular', 'elevated') -> extract nearest clinical entity ('irregular heartbeat'). Partial headers ('HEART') -> infer full concept ('heart rate finding'). Physical activity triggers -> '[symptom] on exertion'. Sputum descriptors in cough context -> 'productive cough with [descriptor] sputum'. DO NOT search qualifiers alone. SKIP isolated severity/size qualifiers ('severe', 'large', 'mild', 'moderate', 'small') when modifying an adjacent annotated term.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R012",
+      "rule": "'Leave'/'left'/departure verbs describing patient refusal of care -> 'left against medical advice', 'AMA discharge', 'patient refusal'. Context of actively rejecting care overrides literal verb meaning. DO NOT annotate 'left' when used as directional laterality ('left arm') or as past tense of routine departure ('patient left the facility' without refusal context).",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          305058001
+        ]
+      }
+    },
+    {
+      "id": "R013",
+      "rule": "Patient state findings -- context disambiguation: functional assessment -> 'functional status', 'activity limitation'; diet tolerance -> 'tolerating normal diet'; 'drink' in danger signs -> 'unable to drink'; 'drink' in alcohol history -> 'alcohol drinking behavior'; 'sexual activity' in instructions -> 'finding relating to sexual activity'. DO NOT annotate these words when used as generic narrative verbs ('patient drinks water', 'they developed').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          105719004,
+          1144522003,
+          364779005,
+          228273003,
+          285058000
+        ]
+      }
+    },
+    {
+      "id": "R014",
+      "rule": "Specialty names ('Hand Surgery', 'Orthopedics', 'Neurosurgery') in follow-up/consultation context -> 'referral to [specialty] service', '[specialty] consultation referral'. The concept is the REFERRAL act, not the procedure. DO NOT annotate specialty names when identifying treating service/department ('Service: SURGERY', 'admitted to Cardiology'). SKIP 'SURGERY' as a standalone administrative label.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          306180006
+        ]
+      }
+    },
+    {
+      "id": "R015",
+      "rule": "Radiology/imaging in results: standalone modality qualifiers ('Portable', 'AP', 'PA', 'Lateral') -> '[qualifier] plain X-ray'. 'Stranding' (fat stranding, pericholecystic) -> 'fat stranding', 'soft tissue edema'. DO NOT derive terms from adjacent non-imaging text. DO NOT use bare 'stranding' as search term. SKIP imaging report boilerplate ('IMPRESSION:', 'FINDINGS:', 'COMPARISON:').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          168537006
+        ],
+        "sections": [
+          "pertinent results"
+        ]
+      }
+    },
+    {
+      "id": "R016",
+      "rule": "Procedure-verb annotations: 'instructions'/'instructed to' -> 'patient education'; 'workup'/'work-up' -> 'evaluation procedure', 'diagnostic evaluation'. DO NOT generate education concepts for workup terms or scheduling concepts for instruction terms. SKIP these verbs when used as pure narrative connectors ('was instructed' in passive administrative voice without educational content).",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          409073007,
+          128927009
+        ]
+      }
+    },
+    {
+      "id": "R017",
+      "rule": "Skin and wound findings: 'skin changes' -> 'skin appearance abnormal'; 'yellowing of skin' -> 'yellow discoloration of skin' AND 'jaundice'; 'clean dry and intact'/'CDI' -> 'wound healing well', 'wound healing finding'. Include 'abnormal' in at least one term for skin changes. DO NOT annotate 'intact' alone as a standalone concept when it is a generic descriptor in physical exam ('cranial nerves intact').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          106076001,
+          3253007,
+          298005009
+        ]
+      }
+    },
+    {
+      "id": "R018",
+      "rule": "Pathology invasion qualifiers ('venous', 'perineural', 'LVI', 'lymphovascular') in cancer context -> '[type] invasion by tumor', 'tumor invasion finding'. Span text must dominate (R001 applies). DO NOT substitute surrounding symptoms (melena, bleeding). SKIP these words when used in non-oncology vascular or neurological contexts ('venous access', 'perineural block').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          373379001,
+          372286000
+        ]
+      }
+    },
+    {
+      "id": "R019",
+      "rule": "Pathogen-antigen lab spans ('CRYPTOCOCCAL ANTIGEN') -> '[pathogen] antigen assay', 'detection of [pathogen] antigen'. For fungal pathogens also include 'fungal antigen assay'. Prefer assay/procedure form, not disorder. DO NOT annotate the pathogen name alone if it appears as a standalone isolate without 'antigen' context.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          122434007
+        ]
+      }
+    },
+    {
+      "id": "R020",
+      "rule": "Monitoring/management verbs ('monitored', 'assessed', 'managed') -> FIRST generate 'monitoring procedure', then '[object] monitoring'. Target regime/therapy class, NOT finding hierarchy. Past-tense = completed procedure. DO NOT annotate 'monitored'/'assessed' when used as generic narrative verbs without a specific clinical object ('was assessed and found to be stable' -- annotate the finding, not the verb).",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          243120004,
+          119270007,
+          268509003
+        ]
+      }
+    },
+    {
+      "id": "R021",
+      "rule": "Mobility aids ('walker', 'cane', 'rollator') in activity/discharge context -> 'zimmer frame', 'walking aid use', 'ambulatory with walking aid'. SNOMED preferred for walker is 'zimmer frame' -- always include it. DO NOT annotate generic furniture ('chair', 'bed') unless explicitly used as medical device context ('hospital bed', 'wheelchair').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          365112008,
+          116329008
+        ]
+      }
+    },
+    {
+      "id": "R022",
+      "rule": "Procedure abbreviation mappings: 'cath' (cardiac/vascular) -> 'cardiac catheterization', 'catheterization of heart'; 'funduscopic exam' -> 'ophthalmoscopy', 'examination of optic fundus'. SNOMED preferred is 'ophthalmoscopy', not 'fundus examination'. DO NOT annotate 'cath' when referring to urinary catheter in non-cardiac context -- generate 'urinary catheterization' instead.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          45211000,
+          118797008,
+          32750006,
+          274798009
+        ]
+      }
+    },
+    {
+      "id": "R023",
+      "rule": "'Graft' in PE with context of thrill/bruit/dialysis/vascular -> 'arteriovenous graft', 'AV graft', 'hemodialysis graft'. Use 'transplant structure' ONLY when a specific transplanted organ is named. DO NOT annotate 'graft' when it appears as part of a compound section header or surgical procedure name already annotated as a parent span.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          312288001
+        ],
+        "sections": [
+          "physical exam"
+        ]
+      }
+    },
+    {
+      "id": "R024",
+      "rule": "State and resolution qualifiers: oncology context ('remission', 'relapse') -> '[cancer type] in remission', 'disease in remission'; improvement phrases ('improved', 'resolved') -> 'resolution of [symptom]', 'improvement of [symptom]'. Always combine entity with qualifier; never generate bare symptom alone. DO NOT annotate 'improved'/'resolved' as standalone narrative words -- they require an attached clinical entity.",
+      "priority": 2,
+      "applies_to": {}
+    },
+    {
+      "id": "R025",
+      "rule": "Drug/medication spans in narrative clinical context: drug name in recommendation -> also 'administration of [drug class]', 'drug administration'; route spans ('Oral', 'IV', 'PO') -> 'administration via [route] route'. DO NOT annotate isolated drug names in structured medication lists (Medications on Admission, Discharge Medications) that are inventory line items. DO NOT annotate dosing/frequency components ('BID', 'Q3H', 'PRN', 'Disp', 'Refills').",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          18629005,
+          1285247007
+        ]
+      }
+    },
+    {
+      "id": "R026",
+      "rule": "Generic categorical terms: clinical conditions ('thrombocytopenia') -> also SNOMED disorder form ('thrombocytopenic disorder', 'low platelets'); single-word observation properties ('color', 'shape') in HPI/exam -> '[span] finding'. DO NOT annotate generic English words in narrative context that coincidentally match SNOMED ('developed', 'noted', 'found'). SKIP informed-consent vocabulary ('risks', 'benefits', 'outcomes', 'alternatives') in decision-discussion context.",
+      "priority": 3,
+      "applies_to": {}
+    },
+    {
+      "id": "R027",
+      "rule": "'Within normal limits'/'WNL'/'within reference range' in lab context -> 'measurement finding within reference range', 'laboratory result within normal limits'. Keep terms generic. DO NOT generate modality-specific normals ('ECG normal'). SKIP isolated result status words ('pending', 'collected', 'sent', 'ordered') that describe workflow state, not clinical findings.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          118245000
+        ]
+      }
+    },
+    {
+      "id": "R028",
+      "rule": "Non-compliance spans ('non compliance', 'non-adherence') in medication context -> 'drug compliance poor', 'medication non-compliance', 'non-adherence to medication'. Anchor to medication domain. DO NOT annotate generic 'noncompliance' without medication/treatment context. SKIP if the span is part of a consent discussion about risks of non-compliance.",
+      "priority": 2,
+      "applies_to": {
+        "ancestor_concept_ids": [
+          414059009
+        ]
+      }
+    }
+  ]
+}

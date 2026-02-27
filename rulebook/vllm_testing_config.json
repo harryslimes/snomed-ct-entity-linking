@@ -1,0 +1,8 @@
+{
+  "context_before": 200,
+  "context_after": 0,
+  "reasoning_effort": "none",
+  "vllm_model": "/workspaces/snomed-ct-entity-linking/models/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit'",
+  "vllm_url": "http://localhost:8000",
+  "concurrency": 0
+}

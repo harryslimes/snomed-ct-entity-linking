@@ -1,0 +1,60 @@
+{
+  "rules": [
+    {
+      "id": "R001",
+      "stage": "select",
+      "priority": 1,
+      "rule": "Select the most specific concept that is FULLY entailed by the span and its immediate context. Do not infer detail not present in the text. If a child concept adds detail not supported by the span, prefer the parent.",
+      "applies_when": {}
+    },
+    {
+      "id": "R002",
+      "stage": "select",
+      "priority": 2,
+      "rule": "When a negative finding has a dedicated SNOMED concept, prefer the negative/absent form. When no negative form exists, annotate the positive concept \u2014 negation does not prevent annotation.",
+      "applies_when": {}
+    },
+    {
+      "id": "R003",
+      "stage": "select",
+      "priority": 2,
+      "rule": "When candidates span multiple SNOMED hierarchies, use context to pick the right one. Default tie-break order: Procedure > Finding > Body structure.",
+      "applies_when": {}
+    },
+    {
+      "id": "R004",
+      "stage": "select",
+      "priority": 2,
+      "rule": "Only consider context from the previous, current, and next sentence when disambiguating. Do not use distant parts of the note to over-specify a concept.",
+      "applies_when": {}
+    },
+    {
+      "id": "R005",
+      "stage": "select",
+      "priority": 2,
+      "rule": "For physical objects (devices, catheters, implants), prefer the 'in situ' finding if the context describes presence, or the procedure if the context describes insertion/removal. Physical object hierarchy is out of scope.",
+      "applies_when": {}
+    },
+    {
+      "id": "R006",
+      "stage": "select",
+      "priority": 1,
+      "rule": "Structured section headings are not annotations and should be ignored.",
+      "applies_when": {}
+    },
+    {
+      "id": "R007",
+      "stage": "both",
+      "priority": 2,
+      "rule": "Expand abbreviations to their canonical meaning in the given section context before generating search terms. The section header is the strongest disambiguation signal for overloaded abbreviations.",
+      "applies_when": {}
+    },
+    {
+      "id": "R008",
+      "stage": "select",
+      "priority": 3,
+      "rule": "When uncertain between a parent and child concept after applying all other rules, prefer the parent (broader) concept.",
+      "applies_when": {}
+    }
+  ]
+}

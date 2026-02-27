@@ -1,0 +1,126 @@
+{
+  "rules": [
+    {
+      "id": "N001",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate document section headers, structural labels, or compound header phrases. This includes: 'Admission', 'Discharge', 'Discharge Disposition', 'Discharge Diagnosis', 'Physical Exam:', 'Incision Care:', 'Pain Management:'. Do not annotate the whole phrase or any sub-spans of section titles. These organize the document, they are not clinical assertions.",
+      "examples": [
+        "Admission",
+        "Discharge",
+        "Discharge:",
+        "Physical Exam:",
+        "Incision Care:"
+      ]
+    },
+    {
+      "id": "N002",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate field-label words followed by colons that serve as form prompts or section identifiers: 'Birth:', 'Sex:', 'Allergies:', 'Procedure:', 'Illness:'. The colon signals a label, not a clinical assertion. Also applies to date/time labels ('Date:', 'Time:').",
+      "examples": [
+        "Birth:",
+        "Sex:",
+        "Allergies:",
+        "Illness:",
+        "Procedure:"
+      ]
+    },
+    {
+      "id": "N003",
+      "type": "negative",
+      "priority": 1,
+      "rule": "Do NOT annotate generic narrative words, demographic identifiers, or temporal connectors that coincidentally match SNOMED concepts. This includes: (a) Narrative verbs: 'admitted', 'presented', 'noted', 'seen', 'found', 'developed'. (b) Demographics: 'man', 'woman', 'male', 'female', 'M', 'F', patient age. (c) Temporal connectors: 'resulting', 'initially', 'scheduled', 'prior', 'brief', 'elective', 'regular'. Only annotate if performing a clinical descriptive role, not a grammatical one.",
+      "examples": [
+        "man",
+        "woman",
+        "admitted",
+        "M",
+        "female",
+        "initially",
+        "prior"
+      ]
+    },
+    {
+      "id": "N004",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate 'discharge'/'discharged' as administrative transition language ('was discharged home', 'Discharge Date'). Only annotate if part of a clinical concept: wound 'discharge' (finding), 'discharge plan' (procedure). The administrative use far outnumbers clinical use in discharge notes.",
+      "examples": [
+        "discharge",
+        "discharged",
+        "Discharge"
+      ]
+    },
+    {
+      "id": "N005",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate isolated drug names in structured medication lists (Medications on Admission, Discharge Medications) that appear as inventory line items. Also skip ALL non-drug-name components: dose values ('100 mg'), route codes ('PO', 'IV'), frequency codes ('BID', 'Q3H', 'PRN'), formulation words ('tablet', 'capsule'), and dispensing instructions ('Disp', 'Refills'). Drug names in narrative describing active treatment ('started on heparin', 'received vancomycin') or therapeutic decisions ('continue aspirin') MAY be annotated.",
+      "examples": [
+        "oxycodone",
+        "PO",
+        "BID",
+        "Q3H:PRN",
+        "Disp"
+      ]
+    },
+    {
+      "id": "N006",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate 'follow-up' as a generic scheduling term ('follow-up instructions', 'follow-up appointment'). Only annotate when it asserts a concrete arranged clinical event ('follow-up with your surgeon' conveying a care plan).",
+      "examples": [
+        "follow-up"
+      ]
+    },
+    {
+      "id": "N007",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate clinical-workflow verbs used as narrative connectors: 'treated', 'followed', 'received', 'tolerated', 'resumed', 'continued', 'avoided', 'completed', 'arrived', 'returned', 'underwent'. These describe what was done but are not themselves annotatable. EXCEPTION: 'discussion' IS a real SNOMED procedure (Discussion (procedure), 223482009) -- always annotate 'discussion' when it appears in clinical context (e.g., 'discussion with family', 'goals of care discussion').",
+      "examples": [
+        "treated",
+        "followed",
+        "received",
+        "tolerated",
+        "underwent"
+      ]
+    },
+    {
+      "id": "N008",
+      "type": "negative",
+      "priority": 2,
+      "rule": "Do NOT annotate administrative disposition values in discharge fields: 'Home', 'Rehab', 'Extended Care Facility', 'SNF', 'Expired' when appearing as Discharge Disposition values. These are logistical placements, not clinical findings or procedures.",
+      "examples": [
+        "Home",
+        "Rehab",
+        "Extended Care Facility"
+      ]
+    },
+    {
+      "id": "N009",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate result/workflow status words: 'pending', 'collected', 'sent', 'ordered', 'in progress', 'preliminary' when describing administrative status of tests or reports ('Pathology: Pending'). These are workflow states, not clinical findings.",
+      "examples": [
+        "Pending",
+        "collected",
+        "sent",
+        "ordered"
+      ]
+    },
+    {
+      "id": "N010",
+      "type": "negative",
+      "priority": 3,
+      "rule": "Do NOT annotate informed-consent and risk-discussion vocabulary in narrative about clinical decision-making: 'risks', 'benefits', 'outcomes', 'alternatives', 'options', 'complications' in phrases like 'discussion of all risks, benefits and possible outcomes'. These are consent-process language, not clinical findings.",
+      "examples": [
+        "risks",
+        "benefits",
+        "outcomes",
+        "alternatives"
+      ]
+    }
+  ]
+}

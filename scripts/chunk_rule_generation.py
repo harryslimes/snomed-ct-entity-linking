@@ -210,44 +210,42 @@ def get_word_boundary_context(
 # ---------------------------------------------------------------------------
 
 def build_sandwich_prompt(chunk_text: str, rules_block: str) -> str:
-    """Build sandwich prompt: rules → note → rules reminder → output instructions."""
-    return f"""\
+    """Build sandwich prompt: rules → note → rules reminder → output format."""
+    rules_section = f"""\
 === ANNOTATION RULES ===
-Annotatable concepts include: diagnoses, procedures, findings, body structures, \
-medications (in therapeutic context), lab tests, devices, and clinical observations.
+EXTRACT these SNOMED CT concept spans:
+- Diagnoses and diseases (e.g., 'atrial fibrillation', 'pneumonia')
+- Procedures (e.g., 'Cardiac catheterization', 'intubation', 'discussion')
+- Clinical findings and exam terms (e.g., 'RRR', 'CTAB', 'NAD', 'tenderness')
+- Body structures (e.g., 'left ventricle', 'abdomen')
+- Lab tests and abbreviations (e.g., 'WBC', 'Hgb', 'Plt', 'creatinine')
+- Medications in therapeutic context (e.g., 'started on heparin drip')
+- Devices (e.g., 'pacemaker', 'stent', 'ventilator')
 
 DO NOT extract:
-- Section headers or structural labels (e.g., 'Admission', 'Discharge Diagnosis:')
-- Field labels followed by colons ('Birth:', 'Sex:', 'Allergies:')
-- Generic narrative verbs ('admitted', 'presented', 'noted', 'treated', 'followed')
-- Demographic words ('man', 'woman', 'male', 'female')
-- Temporal connectors ('initially', 'prior', 'resulting', 'scheduled')
-- Administrative disposition values ('Home', 'Rehab')
-- Drug names in medication lists (just inventory items, not therapeutic references)
-- Dosing/route/frequency components ('PO', 'BID', 'Q3H', 'tablet', 'Disp', 'Refills')
+- Section headers or field labels ('Admission Date:', 'Discharge Diagnosis:', 'Allergies:')
+- Narrative verbs ('admitted', 'presented', 'noted', 'treated', 'tolerated')
+- Demographics ('man', 'woman', 'year old', 'male', 'female')
+- Temporal words ('initially', 'prior', 'subsequently', 'scheduled')
+- Admin/disposition ('Home', 'Rehab', 'Extended Care Facility')
+- Drug names that are just inventory items in a medication list (not therapeutic references)
+- Dosing/route/frequency ('PO', 'BID', 'Q3H', 'tablet', 'Sig:', 'Disp:', 'Refills:')
 - Isolated severity qualifiers ('severe', 'mild', 'moderate')
-- Consent/risk vocabulary ('risks', 'benefits', 'outcomes', 'alternatives')
-- Workflow status words ('pending', 'collected', 'sent', 'ordered')
-- Follow-up as scheduling language (only if it asserts a concrete clinical event)
+- Consent/risk/workflow words ('risks', 'benefits', 'pending', 'ordered')
+{rules_block}=== END RULES ==="""
 
-EXCEPTION: 'discussion' IS a valid SNOMED procedure — always extract it.
-{rules_block}
-=== END RULES ===
+    return f"""\
+{rules_section}
 
 === NOTE TEXT ===
 {chunk_text}
 === END NOTE TEXT ===
 
-=== RULES REMINDER ===
-IMPORTANT: Re-read the rules above before answering. You MUST:
-- Copy each span EXACTLY as it appears in the note — character-for-character, including capitalisation
-- DO NOT paraphrase, normalise, or combine spans
-- DO NOT include section headers, narrative verbs, demographics, admin text, medication list items, dosing components, or severity qualifiers
-- DO include: diagnoses, procedures, findings, body structures, lab tests/abbreviations (VS, GEN, CV, PULM, ABD, EXTR, RRR, CTAB, NAD, etc.), devices, observations
-- 'discussion' IS always annotatable
-=== END REMINDER ===
+=== REMINDER ===
+{rules_section}
 
-Respond with ONLY a JSON object: {{"spans": ["exact span 1", "exact span 2", ...]}}"""
+Copy each span EXACTLY as it appears — character-for-character, including capitalisation.
+Respond with ONLY: {{"spans": ["exact span 1", "exact span 2", ...]}}"""
 
 
 # ---------------------------------------------------------------------------
@@ -262,18 +260,23 @@ async def _extract_chunk(
     rules_block: str,
     chunk_idx: int,
     semaphore: asyncio.Semaphore,
+    max_context: int = 8192,
 ) -> list[str]:
     """Send a single chunk to vLLM and parse extracted spans."""
     prompt = build_sandwich_prompt(chunk_text, rules_block)
+    # Fixed max_tokens: 1024 is plenty for extracting spans from a ~134-char
+    # chunk. With ~6.5K input tokens and 1K output, total ~7.5K fits in 8K.
+    max_tokens = 1024
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": EXTRACTION_SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "max_tokens": 2048,
+        "max_tokens": max_tokens,
         "temperature": 0.0,
         "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        "chat_template_kwargs": {"enable_thinking": False},  # llama.cpp compat
     }
 
     async with semaphore:
@@ -351,6 +354,7 @@ async def build_extraction_index(
     context_chars: int = 50,
     max_concurrent: int = 32,
     checkpoint_dir: Path | None = None,
+    max_context: int = 8192,
 ) -> list[ChunkInfo]:
     """Run chunked extraction on selected notes and build per-chunk index.
 
@@ -437,7 +441,7 @@ async def build_extraction_index(
                 tasks.append(
                     _extract_chunk(
                         session, url, model, chunk_text, rules_block,
-                        chunk_idx, semaphore,
+                        chunk_idx, semaphore, max_context=max_context,
                     )
                 )
 
@@ -908,6 +912,7 @@ async def _vllm_rule_gen(
         "temperature": temperature,
         "n": n,
         "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        "chat_template_kwargs": {"enable_thinking": False},  # llama.cpp compat
     }
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{vllm_url}/v1/chat/completions", json=payload) as resp:
@@ -1284,6 +1289,34 @@ def main():
         run_dir = create_run_dir(args)
     print(f"  Run directory: {run_dir}")
 
+    # Save note selection metadata for provenance
+    note_meta = []
+    for nid in selected_notes:
+        n_ann = len(ann_df[ann_df["note_id"] == nid])
+        n_concepts = ann_df[ann_df["note_id"] == nid]["concept_id"].nunique()
+        row = notes_df[notes_df["note_id"] == nid]
+        n_chars = len(row.iloc[0]["text"]) if not row.empty else 0
+        note_meta.append({
+            "note_id": nid,
+            "n_annotations": n_ann,
+            "n_concepts": n_concepts,
+            "n_chars": n_chars,
+            "est_chunks": n_chars // args.window_chars,
+        })
+    selection_info = {
+        "selected_notes": note_meta,
+        "holdout_note_ids": sorted(holdout_ids),
+        "total_notes_in_corpus": len(all_note_ids),
+        "total_available": len(available_ids),
+        "selection_method": "greedy_set_cover",
+        "focus_rare": args.focus_rare,
+        "max_notes": args.max_notes,
+    }
+    (run_dir / "note_selection.json").write_text(
+        json.dumps(selection_info, indent=2)
+    )
+    print(f"  Note selection metadata saved to {run_dir / 'note_selection.json'}")
+
     # ------------------------------------------------------------------
     # Phase: Extract
     # ------------------------------------------------------------------
@@ -1302,6 +1335,7 @@ def main():
                 context_chars=args.context_chars,
                 max_concurrent=args.max_concurrent,
                 checkpoint_dir=run_dir,
+                max_context=args.max_context,
             )
         )
 
