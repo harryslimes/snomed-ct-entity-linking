@@ -40,9 +40,9 @@ TAG_TO_CLASS = {
 # ---------------------------------------------------------------------------
 
 ENTITY_DESCRIPTIONS = {
-    "medical finding, symptom, or disease": "Clinical findings, symptoms, disorders, diseases, diagnoses, and abnormal observations",
-    "procedure": "Medical procedures, surgeries, therapies, laboratory tests, diagnostic tests, and clinical assessments",
-    "anatomical body part": "Body structures, organs, anatomical regions, and morphologic abnormalities",
+    "medical finding, symptom, or disease": "Clinical findings, diagnoses, disorders, symptoms, and signs",
+    "procedure": "Medical procedures, surgeries, therapies, and treatments",
+    "anatomical body part": "Body structures, anatomical parts, and morphologic features",
 }
 
 ALL_ENTITY_TYPES = list(ENTITY_DESCRIPTIONS.keys())
