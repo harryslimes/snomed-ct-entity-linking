@@ -25,23 +25,17 @@ from gliner2 import GLiNER2
 # ---------------------------------------------------------------------------
 
 ENTITY_TYPES = [
-    "physical examination and assessment",
-    "symptom, infection, or disease",
-    "laboratory or diagnostic test",
-    "acute finding or vital change",
-    "pain, neurological, or localized finding",
-    "anatomy, vital sign, or chronic condition",
+    "medical finding, symptom, or disease",
+    "procedure",
+    "anatomical body part",
 ]
 
 ALL_ENTITY_TYPES = ENTITY_TYPES
 
 ENTITY_DESCRIPTIONS = {
-    "physical examination and assessment": "Physical exam procedures, review of systems, mental status, orientation, and general clinical assessments",
-    "symptom, infection, or disease": "Symptoms, infections, respiratory and cardiac conditions, diseases, diagnoses, and clinical course terms",
-    "laboratory or diagnostic test": "Blood tests, chemistry panels, urinalysis, CBC, troponins, and diagnostic test measurements",
-    "acute finding or vital change": "Acute clinical findings, decompensation, edema, shortness of breath, respiratory distress, and acute care markers",
-    "pain, neurological, or localized finding": "Pain complaints, neurological findings, sensory and motor deficits, abdominal findings, and localized physical findings",
-    "anatomy, vital sign, or chronic condition": "Body structures, organs, vital sign measurements, chronic diseases, and ongoing medical conditions",
+    "medical finding, symptom, or disease": "Clinical findings, symptoms, disorders, diseases, diagnoses, and abnormal observations",
+    "procedure": "Medical procedures, surgeries, therapies, laboratory tests, diagnostic tests, and clinical assessments",
+    "anatomical body part": "Body structures, organs, anatomical regions, and morphologic abnormalities",
 }
 
 
@@ -286,7 +280,7 @@ def main():
     test_ann["start"] = test_ann["start"].astype(int)
     test_ann["end"] = test_ann["end"].astype(int)
 
-    # Map gold annotations to 6-class
+    # Map gold annotations to 3-class
     test_ann["cls"] = test_ann["concept_id"].apply(
         lambda cid: map_concept_to_fine_class(int(cid), sctid_to_tag)
     )

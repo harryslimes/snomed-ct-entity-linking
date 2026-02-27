@@ -36,58 +36,15 @@ TAG_TO_CLASS = {
 }
 
 # ---------------------------------------------------------------------------
-# Fine-grained 6-class mapping (v14+, data-driven clusters)
+# 3-class entity descriptions (matching SNOMED semantic tag categories)
 # ---------------------------------------------------------------------------
 
-FINE_ENTITY_DESCRIPTIONS = {
-    "physical examination and assessment": "Physical exam procedures, review of systems, mental status, orientation, and general clinical assessments",
-    "symptom, infection, or disease": "Symptoms, infections, respiratory and cardiac conditions, diseases, diagnoses, and clinical course terms",
-    "laboratory or diagnostic test": "Blood tests, chemistry panels, urinalysis, CBC, troponins, and diagnostic test measurements",
-    "acute finding or vital change": "Acute clinical findings, decompensation, edema, shortness of breath, respiratory distress, and acute care markers",
-    "pain, neurological, or localized finding": "Pain complaints, neurological findings, sensory and motor deficits, abdominal findings, and localized physical findings",
-    "anatomy, vital sign, or chronic condition": "Body structures, organs, vital sign measurements, chronic diseases, and ongoing medical conditions",
+ENTITY_DESCRIPTIONS = {
+    "medical finding, symptom, or disease": "Clinical findings, symptoms, disorders, diseases, diagnoses, and abnormal observations",
+    "procedure": "Medical procedures, surgeries, therapies, laboratory tests, diagnostic tests, and clinical assessments",
+    "anatomical body part": "Body structures, organs, anatomical regions, and morphologic abnormalities",
 }
 
-# Keywords in SNOMED FSN (lowercased) that trigger sub-class assignment.
-# Checked in order — first match wins.
-_FINDING_FSN_RULES: list[tuple[str, list[str]]] = [
-    ("physical examination and assessment", [
-        "oriented", "alert", "mental status", "consciousness",
-        "level of consciousness",
-    ]),
-    ("acute finding or vital change", [
-        "acute", "decompensation", "edema", "dyspnea",
-        "shortness of breath", "respiratory failure", "distress",
-        "exacerbation", "crisis", "shock",
-    ]),
-    ("pain, neurological, or localized finding", [
-        "pain", "headache", "ache", "neuralgia", "neurologic",
-        "neuropath", "paresis", "paralysis", "weakness", "numbness",
-        "tingling", "sensory", "reflex", "abdominal", "tender",
-    ]),
-    ("anatomy, vital sign, or chronic condition", [
-        "chronic", "diabetes", "hypertens", "hyperlipid",
-        "atheroscl", "obesity",
-    ]),
-    # default → "symptom, infection, or disease"
-]
-
-_PROCEDURE_FSN_RULES: list[tuple[str, list[str]]] = [
-    ("physical examination and assessment", [
-        "examination", " exam", "assessment", "review of",
-    ]),
-    ("laboratory or diagnostic test", [
-        "measurement", " count", " level", "assay", " test",
-        "determination", "analysis", " ratio",
-    ]),
-    ("anatomy, vital sign, or chronic condition", [
-        "blood pressure", "pulse", "heart rate",
-        "temperature measurement", "vital sign",
-    ]),
-    # default → "symptom, infection, or disease" (surgery, imaging, therapy)
-]
-
-ENTITY_DESCRIPTIONS = FINE_ENTITY_DESCRIPTIONS
 ALL_ENTITY_TYPES = list(ENTITY_DESCRIPTIONS.keys())
 
 # ---------------------------------------------------------------------------
@@ -236,10 +193,8 @@ def load_sctid_to_tag(
 ) -> dict[int, str]:
     """Load sctid_to_tag from SNOMED RF2 files using the recall_analysis loader.
 
-    Returns sctid_to_tag dict. Also populates module-level _SCTID_TO_FSN for
-    fine-grained class mapping.
+    Returns dict mapping SNOMED concept ID → semantic tag string.
     """
-    global _SCTID_TO_FSN
     sys.path.insert(0, str(project_root))
     from snomed_ct_entity_linking.recall_analysis.config import Config
     from snomed_ct_entity_linking.recall_analysis.snomed_loader import (
@@ -259,12 +214,10 @@ def load_sctid_to_tag(
     desc["semantic_tag"] = desc["term"].apply(parse_semantic_tag)
 
     sctid_to_tag: dict[int, str] = {}
-    sctid_to_fsn: dict[int, str] = {}
     for _, row in desc.iterrows():
         cid = int(row["conceptId"])
         if row["semantic_tag"]:
             sctid_to_tag[cid] = row["semantic_tag"]
-        sctid_to_fsn[cid] = row["term"]
 
     # Also load legacy descriptions for retired concepts
     if cfg.legacy_description_file.exists():
@@ -281,80 +234,40 @@ def load_sctid_to_tag(
             cid = int(row["conceptId"])
             if cid not in sctid_to_tag and row["semantic_tag"]:
                 sctid_to_tag[cid] = row["semantic_tag"]
-            if cid not in sctid_to_fsn:
-                sctid_to_fsn[cid] = row["term"]
 
-    _SCTID_TO_FSN = sctid_to_fsn
     print(f"Loaded {len(sctid_to_tag):,} concept → semantic tag mappings")
-    print(f"Loaded {len(sctid_to_fsn):,} concept → FSN mappings")
     return sctid_to_tag
-
-
-# Module-level FSN cache, populated by load_sctid_to_tag()
-_SCTID_TO_FSN: dict[int, str] = {}
-
-
-def _fsn_matches(fsn_lower: str, keywords: list[str]) -> bool:
-    """Check if any keyword appears in the lowercased FSN."""
-    return any(kw in fsn_lower for kw in keywords)
-
-
-def map_concept_to_fine_class(
-    concept_id: int,
-    sctid_to_tag: dict[int, str],
-) -> str:
-    """Map a single concept ID to one of 6 cluster-based class labels.
-
-    Uses semantic tag for coarse routing, then FSN keyword matching for sub-class.
-    """
-    tag = sctid_to_tag.get(concept_id, "")
-    coarse = TAG_TO_CLASS.get(tag)
-
-    # Get FSN for sub-class routing
-    fsn = _SCTID_TO_FSN.get(concept_id, "")
-    fsn_lower = fsn.lower()
-
-    if coarse == "medical finding, symptom, or disease":
-        for fine_class, keywords in _FINDING_FSN_RULES:
-            if _fsn_matches(fsn_lower, keywords):
-                return fine_class
-        return "symptom, infection, or disease"
-
-    elif coarse == "procedure":
-        # regime/therapy → chronic condition management cluster
-        if tag == "regime/therapy":
-            return "anatomy, vital sign, or chronic condition"
-        for fine_class, keywords in _PROCEDURE_FSN_RULES:
-            if _fsn_matches(fsn_lower, keywords):
-                return fine_class
-        return "symptom, infection, or disease"
-
-    elif coarse == "anatomical body part":
-        return "anatomy, vital sign, or chronic condition"
-
-    else:
-        return "symptom, infection, or disease"
 
 
 def map_concept_to_class(
     concept_ids: pd.Series,
     sctid_to_tag: dict[int, str],
 ) -> pd.Series:
-    """Map concept_ids to 6-class labels via semantic tags + FSN."""
+    """Map concept_ids to 3-class labels via SNOMED semantic tags."""
+    default_class = "medical finding, symptom, or disease"
     classes = []
     unmapped = set()
     for cid in concept_ids:
         cid = int(cid)
         tag = sctid_to_tag.get(cid)
         if tag and tag in TAG_TO_CLASS:
-            classes.append(map_concept_to_fine_class(cid, sctid_to_tag))
+            classes.append(TAG_TO_CLASS[tag])
         else:
-            classes.append("symptom, infection, or disease")
+            classes.append(default_class)
             unmapped.add(cid)
     if unmapped:
         print(f"  WARNING: {len(unmapped)} concept IDs had no matching semantic tag, "
-              f"defaulted to 'symptom, infection, or disease'")
+              f"defaulted to '{default_class}'")
     return pd.Series(classes, index=concept_ids.index)
+
+
+def map_concept_to_fine_class(
+    concept_id: int,
+    sctid_to_tag: dict[int, str],
+) -> str:
+    """Map a single concept ID to a 3-class label via SNOMED semantic tag."""
+    tag = sctid_to_tag.get(concept_id, "")
+    return TAG_TO_CLASS.get(tag, "medical finding, symptom, or disease")
 
 
 # ---------------------------------------------------------------------------
